@@ -1180,7 +1180,10 @@ fn main() {
             sync::sync_github_begin,
             sync::sync_github_finish,
             sync::sync_sign_out,
-            sync::sync_now
+            sync::sync_now,
+            sync::sync_billing,
+            sync::sync_delete_account,
+            sync::sync_checkout_url
         ])
         .run(tauri::generate_context!());
 
