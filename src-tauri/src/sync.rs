@@ -38,6 +38,9 @@ struct Cfg {
     project_id: String,
     #[serde(rename = "apiKey")]
     api_key: String,
+    /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
+    #[serde(rename = "githubClientId", default)]
+    github_client_id: String,
 }
 
 fn cfg() -> Option<Cfg> {
@@ -389,6 +392,7 @@ async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<Strin
 #[derive(Serialize)]
 pub struct SyncStatus {
     configured: bool,
+    github: bool,
     signed_in: bool,
     email: String,
     has_key: bool,
@@ -406,6 +410,7 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
         .unwrap_or((false, String::new()));
     SyncStatus {
         configured: cfg().is_some(),
+        github: cfg().map(|c| !c.github_client_id.is_empty()).unwrap_or(false),
         signed_in,
         email,
         has_key: vault::load_key().map(|k| k.is_some()).unwrap_or(false),
@@ -444,6 +449,98 @@ pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email
     *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
     // Al entrar manda lo que haya en la nube (si no hay nada, se sube lo de este equipo).
+    st.dirty.store(false, Ordering::SeqCst);
+    let r = pull(&app, &st).await;
+    set_error(&st, r.err());
+    Ok(())
+}
+
+#[derive(Serialize)]
+pub struct DeviceCode {
+    user_code: String,
+    verification_uri: String,
+    device_code: String,
+    interval: u64,
+    expires_in: u64,
+}
+
+async fn gh_post(st: &SyncState, url: &str, form: String) -> Result<Value, String> {
+    let res = st
+        .client
+        .post(url)
+        .header("accept", "application/json")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .header("user-agent", "Caesar")
+        .body(form)
+        .send()
+        .await
+        .map_err(|_| "Sin conexión con GitHub.".to_string())?;
+    let bytes = res.bytes().await.map_err(|_| "Respuesta incompleta de GitHub.".to_string())?;
+    serde_json::from_slice(&bytes).map_err(|_| "Respuesta no válida de GitHub.".to_string())
+}
+
+/// GitHub paso 1: pide un código para que el usuario lo escriba en github.com/login/device.
+#[tauri::command]
+pub async fn sync_github_begin(st: tauri::State<'_, SyncState>) -> Result<DeviceCode, String> {
+    let c = cfg().filter(|c| !c.github_client_id.is_empty()).ok_or("El inicio de sesión con GitHub no está configurado.")?;
+    let v = gh_post(&st, "https://github.com/login/device/code", format!("client_id={}&scope=read:user%20user:email", c.github_client_id)).await?;
+    if let Some(e) = v["error"].as_str() {
+        return Err(format!("GitHub: {e}"));
+    }
+    Ok(DeviceCode {
+        user_code: v["user_code"].as_str().ok_or("Respuesta de GitHub incompleta.")?.to_string(),
+        verification_uri: v["verification_uri"].as_str().unwrap_or("https://github.com/login/device").to_string(),
+        device_code: v["device_code"].as_str().ok_or("Respuesta de GitHub incompleta.")?.to_string(),
+        interval: v["interval"].as_u64().unwrap_or(5),
+        expires_in: v["expires_in"].as_u64().unwrap_or(900),
+    })
+}
+
+/// GitHub paso 2: espera a que el usuario autorice y entra en Firebase con el token de GitHub.
+#[tauri::command]
+pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>, device_code: String, interval: u64, expires_in: u64) -> Result<(), String> {
+    let c = cfg().filter(|c| !c.github_client_id.is_empty()).ok_or("El inicio de sesión con GitHub no está configurado.")?;
+    let deadline = Instant::now() + Duration::from_secs(expires_in.min(900));
+    let mut wait = interval.max(5);
+    let gh_token = loop {
+        tokio::time::sleep(Duration::from_secs(wait)).await;
+        if Instant::now() > deadline {
+            return Err("El código de GitHub caducó. Inténtalo de nuevo.".into());
+        }
+        let v = gh_post(
+            &st,
+            "https://github.com/login/oauth/access_token",
+            format!("client_id={}&device_code={device_code}&grant_type=urn:ietf:params:oauth:grant-type:device_code", c.github_client_id),
+        )
+        .await?;
+        if let Some(t) = v["access_token"].as_str() {
+            break t.to_string();
+        }
+        match v["error"].as_str().unwrap_or("") {
+            "authorization_pending" => {}
+            "slow_down" => wait += 5,
+            "access_denied" => return Err("Has cancelado la autorización en GitHub.".into()),
+            "expired_token" => return Err("El código de GitHub caducó. Inténtalo de nuevo.".into()),
+            e => return Err(format!("GitHub: {e}")),
+        }
+    };
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
+    let v = post_json(
+        &st,
+        &url,
+        json!({
+            "postBody": format!("access_token={gh_token}&providerId=github.com"),
+            "requestUri": "http://localhost",
+            "returnSecureToken": true,
+            "returnIdpCredential": true
+        }),
+    )
+    .await?;
+    let fallback = v["screenName"].as_str().map(|n| format!("GitHub: {n}")).unwrap_or_else(|| "GitHub".to_string());
+    let s = session_from(&v, &fallback)?;
+    save_refresh(&s.refresh_token);
+    *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
+    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
     st.dirty.store(false, Ordering::SeqCst);
     let r = pull(&app, &st).await;
     set_error(&st, r.err());
