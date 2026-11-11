@@ -22,6 +22,26 @@ export const pickFile = () => invoke<PickedFile | null>("pick_file");
 export const saveTextFile = (suggestedName: string, content: string) =>
   invoke<string | null>("save_text_file", { suggestedName, content });
 
+// Sincronización cifrada (Rust cifra y habla con Firebase; la interfaz nunca ve la clave).
+export interface SyncStatus {
+  configured: boolean;
+  signed_in: boolean;
+  email: string;
+  has_key: boolean;
+  dirty: boolean;
+  last_sync: number;
+  error: string | null;
+}
+export const syncStatus = () => invoke<SyncStatus>("sync_status");
+export const localSave = (json: string) => invoke<void>("local_save", { json });
+export const syncSignIn = (email: string, password: string, create: boolean) =>
+  invoke<void>("sync_sign_in", { email, password, create });
+export const syncSignOut = () => invoke<void>("sync_sign_out");
+export const syncNow = () => invoke<void>("sync_now");
+export const vaultCreate = () => invoke<string>("vault_create");
+export const vaultRestore = (recovery: string) => invoke<void>("vault_restore", { recovery });
+export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync-remote", (e) => cb(e.payload));
+
 // Actualizaciones: la red la hace Rust (paquetes firmados); aquí solo se invocan los comandos.
 export interface UpdateInfo { version: string; current: string; notes: string | null }
 export const appVersion = () => invoke<string>("app_version");

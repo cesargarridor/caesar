@@ -3,6 +3,7 @@ import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
+import SyncSettings from "./SyncSettings";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
 import { setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
@@ -239,7 +240,7 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
 
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
   useLang();
-  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang" | "cat">("theme");
+  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang" | "cat" | "sync">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -267,12 +268,12 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                 ? t("Cómo se muestra el body de la respuesta que recibes.")
                 : section === "lang"
                   ? t("Elige el idioma de la interfaz. Se aplica al instante.")
-                  : section === "cat"
+                  : section === "sync" ? t("Usa tus colecciones en varios equipos. Todo se cifra en tu equipo antes de subirse; la nube nunca puede leerlo.") : section === "cat"
                     ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -289,7 +290,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           <FontControls fonts={fonts} onFonts={onFonts} />
         ) : section === "response" ? (
           <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
-        ) : section === "cat" ? (
+        ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
