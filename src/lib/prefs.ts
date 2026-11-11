@@ -60,6 +60,25 @@ export function applyFonts(f: FontPrefs) {
   el.style.setProperty("--fs-k-request", String(f.request / 100));
 }
 
+const HIDE_EMPTY_KEY = "caesar.hideEmpty";
+
+/** Ocultar null / [] / {} en la respuesta: desactivado por defecto. */
+export function loadHideEmpty(): boolean {
+  try {
+    return localStorage.getItem(HIDE_EMPTY_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveHideEmpty(on: boolean) {
+  try {
+    localStorage.setItem(HIDE_EMPTY_KEY, on ? "1" : "0");
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
 const UPDATE_KEY = "caesar.autoUpdate";
 
 /** Actualizaciones automáticas: activadas por defecto. */
