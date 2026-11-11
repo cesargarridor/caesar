@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
+import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
 
 export interface UpdatesProps {
@@ -31,7 +32,7 @@ function Preview({ t }: { t: Theme }) {
       <div className="flex items-center gap-1.5 px-2.5 py-1.5" style={{ background: u.deep }}>
         <span className="h-2 w-2 rounded-full" style={{ background: u.iris }} />
         <span className="h-1.5 w-10 rounded-full" style={{ background: u.kelp }} />
-        <span className="ml-auto rounded px-1.5 text-[9px] font-semibold" style={{ background: u.iris, color: u.onprimary }}>ENVIAR</span>
+        <span className="ml-auto rounded px-1.5 text-[9px] font-semibold" style={{ background: u.iris, color: u.onprimary }}>{tr("Enviar").toUpperCase()}</span>
       </div>
       <div className="px-2.5 py-2 font-mono">
         <div>
@@ -71,8 +72,8 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
         return (
           <div key={f.key} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1">
             <div>
-              <p className="text-sm text-mist">{f.label}</p>
-              <p className="text-xs text-slate">{f.hint}</p>
+              <p className="text-sm text-mist">{t(f.label)}</p>
+              <p className="text-xs text-slate">{t(f.hint)}</p>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -89,7 +90,7 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
                 onClick={() => set(FONT_DEFAULTS[f.key])}
                 disabled={v === FONT_DEFAULTS[f.key]}
                 className="rounded p-1 text-slate hover:text-mist disabled:opacity-30"
-                title={`Restablecer (${FONT_DEFAULTS[f.key]}${f.unit})`}
+                title={`${t("Restablecer")} (${FONT_DEFAULTS[f.key]}${f.unit})`}
               >
                 <RotateCcw size={14} />
               </button>
@@ -107,16 +108,16 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
         );
       })}
       <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
-        <p className="eyebrow mb-2">Vista previa</p>
-        <pre className="font-mono" style={{ fontSize: "var(--fs-body)", lineHeight: 1.6, color: "var(--t-b-str)" }}>{'{ "body": "lo que envías" }'}</pre>
-        <pre className="font-mono" style={{ fontSize: "var(--fs-resp)", lineHeight: 1.6, color: "var(--t-r-str)" }}>{'{ "respuesta": "lo que recibes" }'}</pre>
+        <p className="eyebrow mb-2">{t("Vista previa")}</p>
+        <pre className="font-mono" style={{ fontSize: "var(--fs-body)", lineHeight: 1.6, color: "var(--t-b-str)" }}>{`{ "body": "${t("lo que envías")}" }`}</pre>
+        <pre className="font-mono" style={{ fontSize: "var(--fs-resp)", lineHeight: 1.6, color: "var(--t-r-str)" }}>{`{ "response": "${t("lo que recibes")}" }`}</pre>
       </div>
       <button
         onClick={() => onFonts({ ...FONT_DEFAULTS })}
         disabled={!changed}
         className="flex items-center gap-1.5 text-xs text-silver hover:text-mist disabled:opacity-30"
       >
-        <RotateCcw size={13} /> Restablecer todos los tamaños
+        <RotateCcw size={13} /> {t("Restablecer todos los tamaños")}
       </button>
     </div>
   );
@@ -133,17 +134,15 @@ function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHi
           className="mt-1 accent-[var(--t-accent)]"
         />
         <span>
-          <span className="block text-sm text-mist">Ocultar valores vacíos en el body de la respuesta</span>
+          <span className="block text-sm text-mist">{t("Ocultar valores vacíos en el body de la respuesta")}</span>
           <span className="block text-xs text-slate">
-            No muestra los campos que valen <code className="text-silver">null</code>, las listas vacías{" "}
-            <code className="text-silver">[]</code> ni los objetos vacíos <code className="text-silver">{"{}"}</code>
-            (tampoco los bloques que se quedan sin nada). Solo cambia lo que ves en la vista <b>Pretty</b>: la vista{" "}
-            <b>Raw</b> y el botón Copy siguen usando la respuesta completa.
+            {t("No muestra los campos que valen null, las listas vacías [] ni los objetos vacíos {} (tampoco los bloques que se quedan sin nada).")}{" "}
+            {t("Solo cambia lo que ves en la vista Pretty: la vista Raw y el botón Copy siguen usando la respuesta completa.")}
           </span>
         </span>
       </label>
       <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
-        <p className="eyebrow mb-2">Ejemplo</p>
+        <p className="eyebrow mb-2">{t("Ejemplo")}</p>
         <pre className="font-mono text-xs text-silver">{hideEmpty ? '{\n  "id": 7,\n  "name": "Ana"\n}' : '{\n  "id": 7,\n  "name": "Ana",\n  "email": null,\n  "tags": [],\n  "extra": {}\n}'}</pre>
       </div>
     </div>
@@ -156,7 +155,7 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
       <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
-        <p className="eyebrow mb-1">Versión instalada</p>
+        <p className="eyebrow mb-1">{t("Versión instalada")}</p>
         <p className="text-lg text-mist">{u.version ? `v${u.version}` : "—"}</p>
       </div>
 
@@ -168,10 +167,9 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
           className="mt-1 accent-[var(--t-accent)]"
         />
         <span>
-          <span className="block text-sm text-mist">Actualizar automáticamente</span>
+          <span className="block text-sm text-mist">{t("Actualizar automáticamente")}</span>
           <span className="block text-xs text-slate">
-            Al abrir Caesar se busca una versión nueva; si la hay, se descarga, se instala y la app se reinicia sola.
-            Si lo desactivas, Caesar no consulta nada por su cuenta y solo se actualiza cuando pulses el botón.
+            {t("Al abrir Caesar se busca una versión nueva; si la hay, se descarga, se instala y la app se reinicia sola. Si lo desactivas, Caesar no consulta nada por su cuenta y solo se actualiza cuando pulses el botón.")}
           </span>
         </span>
       </label>
@@ -183,21 +181,21 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
             disabled={busy}
             className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-50"
           >
-            <RefreshCw size={14} className={s.phase === "checking" ? "animate-spin" : ""} /> Buscar actualizaciones
+            <RefreshCw size={14} className={s.phase === "checking" ? "animate-spin" : ""} /> {t("Buscar actualizaciones")}
           </button>
           {s.phase === "available" && (
             <button onClick={u.onInstall} className="btn-aurora px-5 py-2 font-semibold">
-              Instalar v{s.version}
+              {t("Instalar v{0}", s.version)}
             </button>
           )}
         </div>
-        {s.phase === "checking" && <p className="text-sm text-slate">Buscando…</p>}
+        {s.phase === "checking" && <p className="text-sm text-slate">{t("Buscando…")}</p>}
         {s.phase === "uptodate" && (
-          <p className="flex items-center gap-1.5 text-sm text-leaf"><Check size={15} /> Tienes la última versión.</p>
+          <p className="flex items-center gap-1.5 text-sm text-leaf"><Check size={15} /> {t("Tienes la última versión.")}</p>
         )}
         {s.phase === "available" && (
           <div className="text-sm text-mist">
-            <p>Hay una versión nueva: <b>v{s.version}</b>.</p>
+            <p>{t("Hay una versión nueva:")} <b>v{s.version}</b>.</p>
             {s.notes && <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-deep p-3 text-xs text-silver">{s.notes}</pre>}
           </div>
         )}
@@ -208,7 +206,8 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
 }
 
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
-  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates">("theme");
+  useLang();
+  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -222,22 +221,24 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex shrink-0 items-center justify-between">
-          <h2 className="cosmic-text text-3xl font-normal tracking-[-0.02em]">Ajustes</h2>
-          <button onClick={onClose} className="text-slate hover:text-mist" title="Cerrar (Esc)">
+          <h2 className="cosmic-text text-3xl font-normal tracking-[-0.02em]">{t("Ajustes")}</h2>
+          <button onClick={onClose} className="text-slate hover:text-mist" title={t("Cerrar (Esc)")}>
             <X size={22} />
           </button>
         </div>
         <p className="mb-4 shrink-0 text-sm text-slate">
           {section === "theme"
-            ? "Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos."
+            ? t("Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.")
             : section === "fonts"
-              ? "Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante."
+              ? t("Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante.")
               : section === "response"
-                ? "Cómo se muestra el body de la respuesta que recibes."
-                : "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas."}
+                ? t("Cómo se muestra el body de la respuesta que recibes.")
+                : section === "lang"
+                  ? t("Elige el idioma de la interfaz. Se aplica al instante.")
+                  : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -245,7 +246,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                 section === id ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"
               }`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -254,6 +255,21 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           <FontControls fonts={fonts} onFonts={onFonts} />
         ) : section === "response" ? (
           <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
+        ) : section === "lang" ? (
+          <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto pr-1 md:grid-cols-3">
+            {LANGS.map((l) => (
+              <button
+                key={l.id}
+                onClick={() => setLang(l.id)}
+                className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-mist ${
+                  getLang() === l.id ? "ring-2 ring-aqua" : "ring-1 ring-fg/10 hover:ring-fg/30"
+                }`}
+              >
+                {l.name}
+                {getLang() === l.id && <Check size={15} className="text-aqua" />}
+              </button>
+            ))}
+          </div>
         ) : section === "updates" ? (
           <UpdateControls u={updates} />
         ) : (

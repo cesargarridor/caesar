@@ -5,6 +5,7 @@ import JsonView from "./JsonView";
 import { openUrl } from "../api";
 import type { ResponseData, StepState } from "../types";
 import type { ScriptResult } from "../lib/script";
+import { t } from "../lib/i18n";
 
 interface Props {
   response: ResponseData | null;
@@ -128,7 +129,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
       <div
         onPointerDown={startDrag}
         onDoubleClick={toggleMax}
-        title="Arrastra para redimensionar · doble clic para maximizar"
+        title={t("Arrastra para redimensionar · doble clic para maximizar")}
         className="group absolute -top-2 left-0 right-0 z-20 flex h-4 cursor-row-resize items-center justify-center"
       >
         <span className="h-1 w-14 rounded-full bg-fg/25 group-hover:bg-iris" />
@@ -153,7 +154,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         )}
         {tab === "body" && response && (
           <button onClick={copy} className="flex items-center gap-1 text-xs text-silver hover:text-aqua">
-            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Copiado" : "Copy"}
+            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? t("Copiado") : t("Copy")}
           </button>
         )}
         {response && !sending && (
@@ -166,12 +167,12 @@ export default function ResponsePanel({ response, error, sending, steps, script,
             </span>
             <span>Time <b className="ml-1 text-sm text-lav">{response.timeMs} ms</b></span>
             <span>Size <b className="ml-1 text-sm text-lav">{(response.sizeBytes / 1024).toFixed(1)} KB</b></span>
-            {response.truncated && <span className="text-lav">Truncada (10 MB)</span>}
+            {response.truncated && <span className="text-lav">{t("Truncada (10 MB)")}</span>}
           </span>
         )}
         <button
           onClick={toggleMax}
-          title={height >= maxH() - 4 ? "Restaurar" : "Maximizar panel"}
+          title={height >= maxH() - 4 ? t("Restaurar") : t("Maximizar panel")}
           className={`text-silver hover:text-mist ${response && !sending ? "" : "ml-auto"}`}
         >
           {height >= maxH() - 4 ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
@@ -182,17 +183,17 @@ export default function ResponsePanel({ response, error, sending, steps, script,
 
       <div className="relative flex-1 overflow-auto">
         {sending ? (
-          <p className="p-4 text-sm text-slate">Enviando…</p>
+          <p className="p-4 text-sm text-slate">{t("Enviando…")}</p>
         ) : error ? (
           <div className="mx-auto max-w-xl p-6">
-            <p className="eyebrow mb-3 text-rose">La petición falló</p>
+            <p className="eyebrow mb-3 text-rose">{t("La petición falló")}</p>
             {steps.length > 0 && <div className="mb-4"><StepList steps={steps} /></div>}
             <p className="whitespace-pre-wrap text-sm text-rose">{error}</p>
           </div>
         ) : !response ? (
           <div className="flex h-full flex-col items-center justify-center gap-1">
             <p className="eyebrow">Response</p>
-            <p className="text-sm text-slate">Pulsa Send para ver la respuesta.</p>
+            <p className="text-sm text-slate">{t("Pulsa Send para ver la respuesta.")}</p>
           </div>
         ) : tab === "body" ? (
           <JsonView text={text} json={showPretty} onOpen={open} hideEmpty={showPretty && hideEmpty} />
@@ -200,7 +201,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
           <div className="mx-auto max-w-3xl space-y-5 p-5 text-xs">
             {script.tests.length > 0 && (
               <section>
-                <p className="eyebrow mb-2">Resultados</p>
+                <p className="eyebrow mb-2">{t("Resultados")}</p>
                 {script.tests.map((t, i) => (
                   <div key={i} className="flex items-start gap-2 py-0.5">
                     <span className={`shrink-0 rounded px-1.5 font-semibold ${t.ok ? "bg-leaf/15 text-leaf" : "bg-rose/15 text-rose"}`}>
@@ -214,7 +215,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
             )}
             {(script.sets.length > 0 || script.unsets.length > 0) && (
               <section>
-                <p className="eyebrow mb-2">Variables actualizadas</p>
+                <p className="eyebrow mb-2">{t("Variables actualizadas")}</p>
                 {script.sets.map((s) => (
                   <div key={s.key} className="flex gap-2 py-0.5 font-mono">
                     <span className="shrink-0 text-lav">{s.key}</span>
@@ -224,7 +225,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
                 ))}
                 {script.unsets.map((k) => (
                   <div key={k} className="py-0.5 font-mono text-slate">
-                    <span className="text-lav">{k}</span> eliminada
+                    <span className="text-lav">{k}</span> {t("eliminada")}
                   </div>
                 ))}
               </section>
@@ -239,14 +240,14 @@ export default function ResponsePanel({ response, error, sending, steps, script,
             )}
             {script.errors.length > 0 && (
               <section>
-                <p className="eyebrow mb-2 text-rose">Avisos del script</p>
+                <p className="eyebrow mb-2 text-rose">{t("Avisos del script")}</p>
                 {script.errors.map((e, i) => (
                   <p key={i} className="py-0.5 text-rose">{e}</p>
                 ))}
               </section>
             )}
             {!script.tests.length && !script.sets.length && !script.unsets.length && !script.logs.length && !script.errors.length && (
-              <p className="text-slate">El script se ejecutó sin resultados.</p>
+              <p className="text-slate">{t("El script se ejecutó sin resultados.")}</p>
             )}
           </div>
         ) : tab === "headers" ? (

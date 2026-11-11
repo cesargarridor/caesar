@@ -1,0 +1,214 @@
+/** Idiomas de la interfaz. El texto original (clave) está en español; cada entrada trae [en-GB, de, fr, it]. */
+import { useSyncExternalStore } from "react";
+
+export type Lang = "es" | "en-GB" | "de" | "fr" | "it";
+
+export const LANGS: { id: Lang; name: string }[] = [
+  { id: "es", name: "Español" },
+  { id: "en-GB", name: "English (UK)" },
+  { id: "de", name: "Deutsch" },
+  { id: "fr", name: "Français" },
+  { id: "it", name: "Italiano" },
+];
+
+const KEY = "caesar.lang";
+const ORDER: Lang[] = ["en-GB", "de", "fr", "it"];
+
+function detect(): Lang {
+  try {
+    const saved = localStorage.getItem(KEY) as Lang | null;
+    if (saved && LANGS.some((l) => l.id === saved)) return saved;
+  } catch {
+    /* sin almacenamiento */
+  }
+  const nav = (typeof navigator !== "undefined" ? navigator.language : "es").toLowerCase();
+  if (nav.startsWith("es")) return "es";
+  if (nav.startsWith("de")) return "de";
+  if (nav.startsWith("fr")) return "fr";
+  if (nav.startsWith("it")) return "it";
+  return "en-GB";
+}
+
+let current: Lang = detect();
+const listeners = new Set<() => void>();
+
+export function setLang(l: Lang) {
+  current = l;
+  try {
+    localStorage.setItem(KEY, l);
+  } catch {
+    /* sin almacenamiento */
+  }
+  document.documentElement.lang = l;
+  listeners.forEach((f) => f());
+}
+
+export const getLang = () => current;
+
+/** Re-renderiza el componente cuando cambia el idioma. */
+export function useLang(): Lang {
+  return useSyncExternalStore(
+    (f) => {
+      listeners.add(f);
+      return () => listeners.delete(f);
+    },
+    () => current,
+  );
+}
+
+/** Traduce un texto (clave en español). `{0}`, `{1}`… se sustituyen por los argumentos. */
+export function t(key: string, ...args: (string | number)[]): string {
+  let s = key;
+  if (current !== "es") {
+    const row = D[key];
+    if (row) s = row[ORDER.indexOf(current)] ?? key;
+  }
+  return args.length ? s.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? "")) : s;
+}
+
+type Row = [string, string, string, string];
+
+const D: Record<string, Row> = {
+  // ── Barra lateral ──
+  "Arrastra para cambiar el ancho · doble clic para restaurar": ["Drag to resize · double-click to reset", "Ziehen zum Ändern der Breite · Doppelklick zum Zurücksetzen", "Glisser pour redimensionner · double-clic pour rétablir", "Trascina per ridimensionare · doppio clic per ripristinare"],
+  "Importar": ["Import", "Importieren", "Importer", "Importa"],
+  "Importando…": ["Importing…", "Importiere…", "Importation…", "Importazione…"],
+  "Exportar": ["Export", "Exportieren", "Exporter", "Esporta"],
+  "Exportar una colección (Postman v2.1)": ["Export a collection (Postman v2.1)", "Eine Sammlung exportieren (Postman v2.1)", "Exporter une collection (Postman v2.1)", "Esporta una raccolta (Postman v2.1)"],
+  "No hay colecciones que exportar": ["No collections to export", "Keine Sammlungen zum Exportieren", "Aucune collection à exporter", "Nessuna raccolta da esportare"],
+  "Exportar colección": ["Export collection", "Sammlung exportieren", "Exporter la collection", "Esporta raccolta"],
+  "Exportar colección (Postman v2.1)": ["Export collection (Postman v2.1)", "Sammlung exportieren (Postman v2.1)", "Exporter la collection (Postman v2.1)", "Esporta raccolta (Postman v2.1)"],
+  "Nueva colección": ["New collection", "Neue Sammlung", "Nouvelle collection", "Nuova raccolta"],
+  "Mi colección": ["My collection", "Meine Sammlung", "Ma collection", "La mia raccolta"],
+  "Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.": ["Create a collection, import one from Postman (v2.1) or paste a cURL into the URL bar.", "Erstelle eine Sammlung, importiere eine aus Postman (v2.1) oder füge einen cURL in die URL-Leiste ein.", "Créez une collection, importez-en une depuis Postman (v2.1) ou collez un cURL dans la barre d'URL.", "Crea una raccolta, importane una da Postman (v2.1) o incolla un cURL nella barra dell'URL."],
+  "Ajustes": ["Settings", "Einstellungen", "Paramètres", "Impostazioni"],
+  "Variables de colección": ["Collection variables", "Sammlungsvariablen", "Variables de collection", "Variabili della raccolta"],
+  "Variables globales": ["Global variables", "Globale Variablen", "Variables globales", "Variabili globali"],
+  "Abre una petición de una colección para editar sus variables.": ["Open a request from a collection to edit its variables.", "Öffne eine Anfrage einer Sammlung, um deren Variablen zu bearbeiten.", "Ouvrez une requête d'une collection pour modifier ses variables.", "Apri una richiesta di una raccolta per modificarne le variabili."],
+  "Pulsa otra vez para borrar": ["Click again to delete", "Erneut klicken zum Löschen", "Cliquez à nouveau pour supprimer", "Clicca di nuovo per eliminare"],
+  "Eliminar": ["Delete", "Löschen", "Supprimer", "Elimina"],
+  "Nueva petición": ["New request", "Neue Anfrage", "Nouvelle requête", "Nuova richiesta"],
+  "Nueva carpeta": ["New folder", "Neuer Ordner", "Nouveau dossier", "Nuova cartella"],
+  "Renombrar": ["Rename", "Umbenennen", "Renommer", "Rinomina"],
+  "Vacío": ["Empty", "Leer", "Vide", "Vuoto"],
+
+  // ── Pestañas y barra de petición ──
+  "Cambios sin guardar": ["Unsaved changes", "Nicht gespeicherte Änderungen", "Modifications non enregistrées", "Modifiche non salvate"],
+  "Cerrar pestaña": ["Close tab", "Tab schließen", "Fermer l'onglet", "Chiudi scheda"],
+  "Nueva pestaña": ["New tab", "Neuer Tab", "Nouvel onglet", "Nuova scheda"],
+  "Escribe una URL o pega un comando cURL": ["Enter a URL or paste a cURL command", "URL eingeben oder cURL-Befehl einfügen", "Saisissez une URL ou collez une commande cURL", "Scrivi un URL o incolla un comando cURL"],
+  "Copiar como cURL": ["Copy as cURL", "Als cURL kopieren", "Copier en cURL", "Copia come cURL"],
+  "Guardar en la colección (Ctrl+S)": ["Save to collection (Ctrl+S)", "In Sammlung speichern (Strg+S)", "Enregistrer dans la collection (Ctrl+S)", "Salva nella raccolta (Ctrl+S)"],
+  "Copiado": ["Copied", "Kopiert", "Copié", "Copiato"],
+  "Guardado": ["Saved", "Gespeichert", "Enregistré", "Salvato"],
+  "Guardar": ["Save", "Speichern", "Enregistrer", "Salva"],
+  "Enviando…": ["Sending…", "Sende…", "Envoi…", "Invio…"],
+  "Enviar": ["Send", "Senden", "Envoyer", "Invia"],
+  "¿Cerrar sin guardar?": ["Close without saving?", "Ohne Speichern schließen?", "Fermer sans enregistrer ?", "Chiudere senza salvare?"],
+  "Esta pestaña tiene cambios sin guardar. Si la cierras, se perderán.": ["This tab has unsaved changes. If you close it, they will be lost.", "Dieser Tab hat nicht gespeicherte Änderungen. Beim Schließen gehen sie verloren.", "Cet onglet contient des modifications non enregistrées. Si vous le fermez, elles seront perdues.", "Questa scheda ha modifiche non salvate. Se la chiudi, andranno perse."],
+  "Cancelar": ["Cancel", "Abbrechen", "Annuler", "Annulla"],
+  "Cerrar sin guardar": ["Close without saving", "Ohne Speichern schließen", "Fermer sans enregistrer", "Chiudi senza salvare"],
+  "Guardar y cerrar": ["Save and close", "Speichern und schließen", "Enregistrer et fermer", "Salva e chiudi"],
+  "Cerrar (Esc)": ["Close (Esc)", "Schließen (Esc)", "Fermer (Échap)", "Chiudi (Esc)"],
+  "Colección exportada: {0}": ["Collection exported: {0}", "Sammlung exportiert: {0}", "Collection exportée : {0}", "Raccolta esportata: {0}"],
+  "No se pudo copiar al portapapeles.": ["Could not copy to the clipboard.", "Kopieren in die Zwischenablage fehlgeschlagen.", "Impossible de copier dans le presse-papiers.", "Impossibile copiare negli appunti."],
+  "Error desconocido": ["Unknown error", "Unbekannter Fehler", "Erreur inconnue", "Errore sconosciuto"],
+  "Validando petición": ["Validating request", "Anfrage wird geprüft", "Validation de la requête", "Convalida della richiesta"],
+  "Resolviendo DNS": ["Resolving DNS", "DNS wird aufgelöst", "Résolution DNS", "Risoluzione DNS"],
+  "Conectando y esperando respuesta": ["Connecting and waiting for response", "Verbinde und warte auf Antwort", "Connexion et attente de la réponse", "Connessione e attesa della risposta"],
+  "Descargando respuesta": ["Downloading response", "Antwort wird heruntergeladen", "Téléchargement de la réponse", "Download della risposta"],
+  "Procesando respuesta": ["Processing response", "Antwort wird verarbeitet", "Traitement de la réponse", "Elaborazione della risposta"],
+  "Pensando…": ["Thinking…", "Denke nach…", "Réflexion…", "Elaboro…"],
+
+  // ── Editores ──
+  "Añadir fila": ["Add row", "Zeile hinzufügen", "Ajouter une ligne", "Aggiungi riga"],
+  "Seleccionar archivo": ["Select file", "Datei auswählen", "Sélectionner un fichier", "Seleziona file"],
+  "Seleccionar archivo…": ["Select file…", "Datei auswählen…", "Sélectionner un fichier…", "Seleziona file…"],
+  "Value (clic para editar)": ["Value (click to edit)", "Value (Klick zum Bearbeiten)", "Value (cliquer pour modifier)", "Value (clic per modificare)"],
+  "Content-Type de esta parte": ["Content-Type of this part", "Content-Type dieses Teils", "Content-Type de cette partie", "Content-Type di questa parte"],
+  "Content-Type: auto": ["Content-Type: auto", "Content-Type: automatisch", "Content-Type : auto", "Content-Type: auto"],
+  "Listo": ["Done", "Fertig", "Terminé", "Fatto"],
+  "Formatear con indentación": ["Format with indentation", "Mit Einrückung formatieren", "Formater avec indentation", "Formatta con rientro"],
+  "Compactar en una línea": ["Compact into one line", "In eine Zeile komprimieren", "Compacter sur une ligne", "Comprimi su una riga"],
+  "Esta petición no envía body.": ["This request sends no body.", "Diese Anfrage sendet keinen Body.", "Cette requête n'envoie pas de body.", "Questa richiesta non invia body."],
+  "Texto plano": ["Plain text", "Klartext", "Texte brut", "Testo semplice"],
+  "JSON inválido: {0}": ["Invalid JSON: {0}", "Ungültiges JSON: {0}", "JSON invalide : {0}", "JSON non valido: {0}"],
+  "error de sintaxis": ["syntax error", "Syntaxfehler", "erreur de syntaxe", "errore di sintassi"],
+  "Tipo": ["Type", "Typ", "Type", "Tipo"],
+  "Esta petición no usa autorización.": ["This request uses no authorization.", "Diese Anfrage verwendet keine Autorisierung.", "Cette requête n'utilise pas d'autorisation.", "Questa richiesta non usa autorizzazione."],
+  "Añadir a": ["Add to", "Hinzufügen zu", "Ajouter à", "Aggiungi a"],
+  "Buscar…": ["Search…", "Suchen…", "Rechercher…", "Cerca…"],
+  "Anterior (Mayús+Enter)": ["Previous (Shift+Enter)", "Zurück (Umschalt+Enter)", "Précédent (Maj+Entrée)", "Precedente (Maiusc+Invio)"],
+  "Siguiente (Enter)": ["Next (Enter)", "Weiter (Enter)", "Suivant (Entrée)", "Successivo (Invio)"],
+  "Abrir en el navegador": ["Open in browser", "Im Browser öffnen", "Ouvrir dans le navigateur", "Apri nel browser"],
+  "Copiar solo el valor": ["Copy value only", "Nur den Wert kopieren", "Copier uniquement la valeur", "Copia solo il valore"],
+  "Buscar (Ctrl+F)": ["Search (Ctrl+F)", "Suchen (Strg+F)", "Rechercher (Ctrl+F)", "Cerca (Ctrl+F)"],
+
+  // ── Pestañas de la petición ──
+  "Se ejecuta tras recibir la respuesta, como en Postman:": ["Runs after the response is received, as in Postman:", "Wird nach Erhalt der Antwort ausgeführt, wie in Postman:", "S'exécute après réception de la réponse, comme dans Postman :", "Viene eseguito dopo aver ricevuto la risposta, come in Postman:"],
+  "Las variables se guardan en el panel Variables y se usan como": ["Variables are stored in the Variables panel and used as", "Variablen werden im Variablen-Bereich gespeichert und so verwendet:", "Les variables sont enregistrées dans le panneau Variables et s'utilisent ainsi :", "Le variabili vengono salvate nel pannello Variabili e si usano come"],
+  "{{nombre}}": ["{{name}}", "{{name}}", "{{nom}}", "{{nome}}"],
+  "Insertar ejemplo: guardar el access_token en una variable": ["Insert example: save the access_token in a variable", "Beispiel einfügen: access_token in einer Variable speichern", "Insérer un exemple : enregistrer l'access_token dans une variable", "Inserisci esempio: salva l'access_token in una variabile"],
+  "Seguir redirecciones (máx. 10)": ["Follow redirects (max. 10)", "Weiterleitungen folgen (max. 10)", "Suivre les redirections (max. 10)", "Segui i reindirizzamenti (max. 10)"],
+  "Verificar certificado SSL": ["Verify SSL certificate", "SSL-Zertifikat prüfen", "Vérifier le certificat SSL", "Verifica il certificato SSL"],
+  "⚠ desactivado: solo para pruebas": ["⚠ disabled: for testing only", "⚠ deaktiviert: nur zum Testen", "⚠ désactivé : uniquement pour les tests", "⚠ disattivato: solo per prove"],
+  "Timeout (segundos)": ["Timeout (seconds)", "Timeout (Sekunden)", "Délai d'attente (secondes)", "Timeout (secondi)"],
+
+  // ── Panel de respuesta ──
+  "Arrastra para redimensionar · doble clic para maximizar": ["Drag to resize · double-click to maximise", "Ziehen zum Ändern der Größe · Doppelklick zum Maximieren", "Glisser pour redimensionner · double-clic pour agrandir", "Trascina per ridimensionare · doppio clic per massimizzare"],
+  "Restaurar": ["Restore", "Wiederherstellen", "Restaurer", "Ripristina"],
+  "Maximizar panel": ["Maximise panel", "Bereich maximieren", "Agrandir le panneau", "Massimizza pannello"],
+  "Copy": ["Copy", "Kopieren", "Copier", "Copia"],
+  "Truncada (10 MB)": ["Truncated (10 MB)", "Gekürzt (10 MB)", "Tronquée (10 Mo)", "Troncata (10 MB)"],
+  "La petición falló": ["The request failed", "Die Anfrage ist fehlgeschlagen", "La requête a échoué", "La richiesta non è riuscita"],
+  "Pulsa Send para ver la respuesta.": ["Press Send to see the response.", "Drücke Senden, um die Antwort zu sehen.", "Cliquez sur Envoyer pour voir la réponse.", "Premi Invia per vedere la risposta."],
+  "Resultados": ["Results", "Ergebnisse", "Résultats", "Risultati"],
+  "Variables actualizadas": ["Updated variables", "Aktualisierte Variablen", "Variables mises à jour", "Variabili aggiornate"],
+  "eliminada": ["removed", "entfernt", "supprimée", "rimossa"],
+  "Avisos del script": ["Script warnings", "Skript-Warnungen", "Avertissements du script", "Avvisi dello script"],
+  "El script se ejecutó sin resultados.": ["The script ran with no results.", "Das Skript wurde ohne Ergebnisse ausgeführt.", "Le script s'est exécuté sans résultat.", "Lo script è stato eseguito senza risultati."],
+
+  // ── Ajustes ──
+  "Tema": ["Theme", "Design", "Thème", "Tema"],
+  "Tamaño de letra": ["Font size", "Schriftgröße", "Taille de police", "Dimensione carattere"],
+  "Respuesta": ["Response", "Antwort", "Réponse", "Risposta"],
+  "Actualizaciones": ["Updates", "Updates", "Mises à jour", "Aggiornamenti"],
+  "Idioma": ["Language", "Sprache", "Langue", "Lingua"],
+  "Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.": ["Choose the look of the app. The colours of GET, POST, PUT, PATCH and DELETE are always the same.", "Wähle das Aussehen der App. Die Farben von GET, POST, PUT, PATCH und DELETE bleiben immer gleich.", "Choisissez le style de l'application. Les couleurs de GET, POST, PUT, PATCH et DELETE restent toujours les mêmes.", "Scegli lo stile dell'app. I colori di GET, POST, PUT, PATCH e DELETE restano sempre gli stessi."],
+  "Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante.": ["Adjust the font size across the whole app or only in the area you want. Changes apply instantly.", "Passe die Schriftgröße in der ganzen App oder nur in einem Bereich an. Änderungen gelten sofort.", "Réglez la taille de police dans toute l'application ou seulement dans la zone souhaitée. Les changements s'appliquent immédiatement.", "Regola la dimensione del carattere in tutta l'app o solo nella zona che vuoi. Le modifiche si applicano subito."],
+  "Cómo se muestra el body de la respuesta que recibes.": ["How the body of the response you receive is displayed.", "Wie der Body der empfangenen Antwort angezeigt wird.", "Comment s'affiche le body de la réponse reçue.", "Come viene mostrato il body della risposta ricevuta."],
+  "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.": ["New versions arrive signed from GitHub; Caesar checks the signature before installing them.", "Neue Versionen kommen signiert von GitHub; Caesar prüft die Signatur vor der Installation.", "Les nouvelles versions arrivent signées depuis GitHub ; Caesar vérifie la signature avant de les installer.", "Le nuove versioni arrivano firmate da GitHub; Caesar verifica la firma prima di installarle."],
+  "Elige el idioma de la interfaz. Se aplica al instante.": ["Choose the interface language. It applies instantly.", "Wähle die Sprache der Oberfläche. Sie gilt sofort.", "Choisissez la langue de l'interface. Elle s'applique immédiatement.", "Scegli la lingua dell'interfaccia. Si applica subito."],
+  "General": ["General", "Allgemein", "Général", "Generale"],
+  "Toda la aplicación": ["The whole app", "Die ganze App", "Toute l'application", "Tutta l'app"],
+  "Barra lateral": ["Sidebar", "Seitenleiste", "Barre latérale", "Barra laterale"],
+  "Colecciones, carpetas y variables": ["Collections, folders and variables", "Sammlungen, Ordner und Variablen", "Collections, dossiers et variables", "Raccolte, cartelle e variabili"],
+  "Petición": ["Request", "Anfrage", "Requête", "Richiesta"],
+  "Pestañas, URL, Params, Headers y Auth": ["Tabs, URL, Params, Headers and Auth", "Tabs, URL, Params, Headers und Auth", "Onglets, URL, Params, Headers et Auth", "Schede, URL, Params, Headers e Auth"],
+  "Body que envías": ["Body you send", "Gesendeter Body", "Body envoyé", "Body inviato"],
+  "Editor JSON/Text, Edit data y Tests": ["JSON/Text editor, Edit data and Tests", "JSON/Text-Editor, Edit data und Tests", "Éditeur JSON/Text, Edit data et Tests", "Editor JSON/Text, Edit data e Tests"],
+  "Respuesta recibida": ["Response received", "Empfangene Antwort", "Réponse reçue", "Risposta ricevuta"],
+  "Cuerpo de la respuesta (JSON)": ["Response body (JSON)", "Antwort-Body (JSON)", "Corps de la réponse (JSON)", "Corpo della risposta (JSON)"],
+  "Restablecer": ["Reset", "Zurücksetzen", "Rétablir", "Ripristina"],
+  "Vista previa": ["Preview", "Vorschau", "Aperçu", "Anteprima"],
+  "lo que envías": ["what you send", "was du sendest", "ce que vous envoyez", "ciò che invii"],
+  "lo que recibes": ["what you receive", "was du empfängst", "ce que vous recevez", "ciò che ricevi"],
+  "Restablecer todos los tamaños": ["Reset all sizes", "Alle Größen zurücksetzen", "Rétablir toutes les tailles", "Ripristina tutte le dimensioni"],
+  "Ocultar valores vacíos en el body de la respuesta": ["Hide empty values in the response body", "Leere Werte im Antwort-Body ausblenden", "Masquer les valeurs vides dans le body de la réponse", "Nascondi i valori vuoti nel body della risposta"],
+  "No muestra los campos que valen null, las listas vacías [] ni los objetos vacíos {} (tampoco los bloques que se quedan sin nada).": ["Does not show fields that are null, empty lists [] or empty objects {} (nor blocks left with nothing inside).", "Blendet Felder mit null, leere Listen [] und leere Objekte {} aus (auch Blöcke, die dadurch leer werden).", "N'affiche pas les champs valant null, les listes vides [] ni les objets vides {} (ni les blocs qui se retrouvent vides).", "Non mostra i campi null, le liste vuote [] né gli oggetti vuoti {} (né i blocchi che restano vuoti)."],
+  "Solo cambia lo que ves en la vista Pretty: la vista Raw y el botón Copy siguen usando la respuesta completa.": ["It only changes what you see in the Pretty view: the Raw view and the Copy button still use the full response.", "Es ändert nur die Pretty-Ansicht: Die Raw-Ansicht und die Schaltfläche Copy verwenden weiterhin die vollständige Antwort.", "Cela ne change que la vue Pretty : la vue Raw et le bouton Copy utilisent toujours la réponse complète.", "Cambia solo la vista Pretty: la vista Raw e il pulsante Copy continuano a usare la risposta completa."],
+  "Ejemplo": ["Example", "Beispiel", "Exemple", "Esempio"],
+  "Versión instalada": ["Installed version", "Installierte Version", "Version installée", "Versione installata"],
+  "Actualizar automáticamente": ["Update automatically", "Automatisch aktualisieren", "Mettre à jour automatiquement", "Aggiorna automaticamente"],
+  "Al abrir Caesar se busca una versión nueva; si la hay, se descarga, se instala y la app se reinicia sola. Si lo desactivas, Caesar no consulta nada por su cuenta y solo se actualiza cuando pulses el botón.": ["When Caesar opens it looks for a new version; if there is one, it is downloaded, installed and the app restarts by itself. If you turn this off, Caesar checks nothing on its own and only updates when you press the button.", "Beim Start sucht Caesar nach einer neuen Version; falls vorhanden, wird sie heruntergeladen, installiert und die App startet von selbst neu. Wenn du das ausschaltest, prüft Caesar nichts von allein und aktualisiert nur, wenn du die Schaltfläche drückst.", "À l'ouverture, Caesar cherche une nouvelle version ; s'il y en a une, elle est téléchargée, installée et l'application redémarre seule. Si vous désactivez cette option, Caesar ne vérifie rien de lui-même et ne se met à jour que lorsque vous cliquez sur le bouton.", "All'apertura Caesar cerca una nuova versione; se c'è, la scarica, la installa e l'app si riavvia da sola. Se la disattivi, Caesar non controlla nulla da solo e si aggiorna solo quando premi il pulsante."],
+  "Buscar actualizaciones": ["Check for updates", "Nach Updates suchen", "Rechercher des mises à jour", "Cerca aggiornamenti"],
+  "Instalar v{0}": ["Install v{0}", "v{0} installieren", "Installer la v{0}", "Installa v{0}"],
+  "Buscando…": ["Checking…", "Suche…", "Recherche…", "Ricerca…"],
+  "Tienes la última versión.": ["You have the latest version.", "Du hast die neueste Version.", "Vous avez la dernière version.", "Hai l'ultima versione."],
+  "Hay una versión nueva:": ["There is a new version:", "Es gibt eine neue Version:", "Une nouvelle version est disponible :", "C'è una nuova versione:"],
+
+  // ── Pantalla de actualización ──
+  "Actualizando a la v{0}": ["Updating to v{0}", "Aktualisiere auf v{0}", "Mise à jour vers la v{0}", "Aggiornamento alla v{0}"],
+  "Descargando…": ["Downloading…", "Lade herunter…", "Téléchargement…", "Download…"],
+  "Caesar se reiniciará solo. Tus pestañas y borradores se conservan.": ["Caesar will restart by itself. Your tabs and drafts are kept.", "Caesar startet von selbst neu. Deine Tabs und Entwürfe bleiben erhalten.", "Caesar redémarrera tout seul. Vos onglets et brouillons sont conservés.", "Caesar si riavvierà da solo. Schede e bozze vengono conservate."],
+};

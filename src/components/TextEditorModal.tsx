@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import JsonEditor from "./JsonEditor";
+import { t } from "../lib/i18n";
 
 interface Props {
   title?: string;
@@ -34,7 +35,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
       setValue(JSON.stringify(JSON.parse(value), null, 2));
       setError(null);
     } catch (e) {
-      setError(`JSON inválido: ${e instanceof Error ? e.message : "error de sintaxis"}`);
+      setError(t("JSON inválido: {0}", e instanceof Error ? e.message : t("error de sintaxis")));
     }
   };
 
@@ -46,7 +47,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
       >
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-normal tracking-[-0.02em] text-mist">{title}</h2>
-          <button onClick={onCancel} className="text-slate hover:text-mist" title="Cerrar (Esc)">
+          <button onClick={onCancel} className="text-slate hover:text-mist" title={t("Cerrar (Esc)")}>
             <X size={22} />
           </button>
         </div>
@@ -72,7 +73,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
             <option value="text">Text</option>
           </select>
           <button onClick={() => onDone(value)} className="btn-aurora px-8 py-3 font-semibold">
-            Done
+            {t("Listo")}
           </button>
         </div>
       </div>
