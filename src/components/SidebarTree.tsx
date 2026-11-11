@@ -21,7 +21,7 @@ export interface TreeActions {
   onAddRequest: (path: string) => void;
   onAddFolder: (path: string) => void;
   onDelete: (path: string) => void;
-  onExport: (path: string) => void;
+  onExport: (path: string, format?: "json" | "yaml" | "har") => void;
   /** Arrastrar y soltar: mueve `from` dentro de la carpeta `to` ("root" = nivel raíz). */
   onMove: (from: string, to: string, pos?: "before" | "after") => void;
   isOpen: (uid?: string) => boolean;

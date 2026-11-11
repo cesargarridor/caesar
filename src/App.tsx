@@ -8,7 +8,7 @@ import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import {
-  appVersion, checkUpdate, executeRequest, importPostmanCollection, installUpdate, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkUpdate, executeRequest, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
@@ -16,7 +16,8 @@ import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, parseCurl } from "./lib/curl";
 import { buildExecuteArgs, requestFromNode } from "./lib/request";
 import { applyUrlEdit, buildUrl } from "./lib/url";
-import { exportCollection, safeFileName } from "./lib/postmanExport";
+import { exportCollection } from "./lib/postmanExport";
+import { detectAndParse, exportExt, exportFileName, exportHar, exportInsomniaYaml, type ExportFormat } from "./lib/interchange";
 import {
   addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
@@ -310,7 +311,9 @@ export default function App() {
     setImporting(true);
     setImportError(null);
     try {
-      const imported = await importPostmanCollection();
+      const file = await pickTextFile();
+      const found = file ? detectAndParse(file.content) : null;
+      const imported = !file || !found ? null : found.kind === "postman" ? await parsePostmanContent(file.content) : found.data;
       if (imported) {
         // Las variables de la colección importada viven en la propia colección (no en las globales).
         const root: TreeNode =
@@ -403,11 +406,12 @@ export default function App() {
     setFlash("save");
   };
 
-  const handleExport = async (path: string) => {
+  const handleExport = async (path: string, format: ExportFormat = "json") => {
     const node = getAt(collections, path);
     if (!node) return;
     try {
-      const saved = await saveTextFile(safeFileName(node.name), exportCollection(node, vars));
+      const text = format === "yaml" ? exportInsomniaYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
+      const saved = await saveTextFile(exportFileName(node.name, format), text, exportExt(format));
       if (saved) setNotice({ kind: "ok", text: t("Colección exportada: {0}", saved) });
     } catch (e) {
       setNotice({ kind: "err", text: errMsg(e) });
