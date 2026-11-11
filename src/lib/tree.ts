@@ -54,7 +54,115 @@ export const newRequestNode = (name = "Nueva petición"): RequestNode => ({
   auth: { type: "none" },
 });
 
-export const newFolderNode = (name = "Nueva carpeta"): TreeNode => ({ type: "folder", name, children: [] });
+let uidSeq = 0;
+export const newUid = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}${(uidSeq++).toString(36)}`;
+
+export const newFolderNode = (name = "Nueva carpeta"): TreeNode => ({ type: "folder", name, children: [], uid: newUid() });
+
+/** Da un id estable a toda carpeta que no lo tenga (colecciones guardadas antes o importadas). */
+export function ensureIds(nodes: TreeNode[]): TreeNode[] {
+  return nodes.map((n) => (n.type === "folder" ? { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) } : n));
+}
+
+/** Ruta de una pestaña tras borrar el nodo `deleted` (null si estaba dentro de lo borrado). */
+export function pathAfterDelete(tabPath: string | null, deleted: string): string | null {
+  if (!tabPath) return null;
+  const tp = tabPath.split("/");
+  const dp = deleted.split("/");
+  const pos = dp.length - 1;
+  if (tp.length < dp.length) return tabPath;
+  if (tp.slice(0, pos).join("/") !== dp.slice(0, pos).join("/")) return tabPath;
+  const ti = Number(tp[pos]);
+  const di = Number(dp[pos]);
+  if (ti === di) return null;
+  if (ti > di) tp[pos] = String(ti - 1);
+  return tp.join("/");
+}
+
+/** Ruta tras insertar un hijo en la posición `index` de la carpeta `parent` ("" = nivel raíz). */
+export function pathAfterInsert(p: string, parent: string, index: number): string {
+  const pp = parent === "" ? [] : parent.split("/");
+  const tp = p.split("/");
+  if (tp.length <= pp.length || !pp.every((s, i) => tp[i] === s)) return p;
+  if (Number(tp[pp.length]) >= index) tp[pp.length] = String(Number(tp[pp.length]) + 1);
+  return tp.join("/");
+}
+
+/** Posición de inserción: las carpetas van justo después de la última carpeta; las peticiones, al final. */
+function insertionIndex(list: TreeNode[], child: TreeNode): number {
+  if (child.type !== "folder") return list.length;
+  let last = -1;
+  list.forEach((n, i) => {
+    if (n.type === "folder") last = i;
+  });
+  return last + 1;
+}
+
+function insertInto(nodes: TreeNode[], parent: string, child: TreeNode): { nodes: TreeNode[]; index: number } {
+  if (parent === "") {
+    const index = insertionIndex(nodes, child);
+    return { nodes: [...nodes.slice(0, index), child, ...nodes.slice(index)], index };
+  }
+  const target = getAt(nodes, parent);
+  const list = target && target.type === "folder" ? target.children : [];
+  const index = insertionIndex(list, child);
+  return {
+    nodes: updateAt(nodes, parent, (t) =>
+      t.type === "folder" ? { ...t, children: [...list.slice(0, index), child, ...list.slice(index)] } : t,
+    ),
+    index,
+  };
+}
+
+/** Crea una carpeta dentro de `parent`, justo después de la última carpeta que ya tenga. */
+export function addFolder(nodes: TreeNode[], parent: string, child: TreeNode) {
+  const r = insertInto(nodes, parent, child);
+  return { nodes: r.nodes, index: r.index, path: `${parent}/${r.index}` };
+}
+
+/** ¿Se puede soltar `from` dentro de `to` ("root" = nivel raíz)? */
+export function canMove(from: string, to: string): boolean {
+  if (!from.includes("/")) return false; // las colecciones no se mueven
+  const parent = from.slice(0, from.lastIndexOf("/"));
+  if (to === "root") return true;
+  if (to === from || to.startsWith(`${from}/`)) return false;
+  return to !== parent;
+}
+
+/** Reordena las colecciones: pone `from` antes o después de `to` (ambas son índices del nivel raíz). */
+export function moveCollection(nodes: TreeNode[], from: string, to: string, pos: "before" | "after") {
+  const i = Number(from);
+  const j = Number(to);
+  if (!Number.isInteger(i) || !Number.isInteger(j) || i === j || !nodes[i] || !nodes[j]) return null;
+  const order = nodes.map((_, k) => k).filter((k) => k !== i);
+  const at = order.indexOf(j) + (pos === "after" ? 1 : 0);
+  order.splice(at, 0, i);
+  if (order.every((k, n) => k === n)) return null;
+  const newIndex = new Map(order.map((k, n) => [k, n]));
+  const mapPath = (p: string): string => {
+    const [head, ...rest] = p.split("/");
+    return [String(newIndex.get(Number(head)) ?? head), ...rest].join("/");
+  };
+  return { nodes: order.map((k) => nodes[k]), path: String(newIndex.get(i)), mapPath };
+}
+
+/** Mueve un nodo a otra carpeta (o al nivel raíz). Devuelve el árbol nuevo y cómo reubicar rutas abiertas. */
+export function moveNode(nodes: TreeNode[], from: string, to: string) {
+  if (!canMove(from, to)) return null;
+  const node = getAt(nodes, from);
+  if (!node) return null;
+  const dest = to === "root" ? "" : (pathAfterDelete(to, from) as string);
+  const removed = removeAt(nodes, from);
+  const r = insertInto(removed, dest, node);
+  const newPath = dest === "" ? String(r.index) : `${dest}/${r.index}`;
+  const mapPath = (p: string): string => {
+    if (p === from || p.startsWith(`${from}/`)) return newPath + p.slice(from.length);
+    const q = pathAfterDelete(p, from);
+    return q === null ? p : pathAfterInsert(q, dest, r.index);
+  };
+  return { nodes: r.nodes, path: newPath, mapPath };
+}
+
 
 /** Estado de la UI -> nodo guardable en la colección. */
 export function nodeFromRequest(name: string, req: RequestState): RequestNode {
