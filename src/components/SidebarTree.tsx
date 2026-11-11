@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, Trash2 } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
@@ -76,6 +76,7 @@ export default function SidebarTree(props: Props) {
   const [open, setOpen] = useState(depth === 0);
   const [confirm, setConfirm] = useState(false);
   const indent = 8 + depth * 14;
+  const isCollection = depth === 0;
   const isRenaming = renaming === path;
 
   useEffect(() => {
@@ -99,16 +100,26 @@ export default function SidebarTree(props: Props) {
       <div>
         <div
           style={{ paddingLeft: indent }}
-          className="group flex items-center gap-1.5 py-1 pr-2 text-sm hover:bg-fg/5"
+          className={`group flex items-center gap-1.5 pr-2 text-sm ${
+            isCollection
+              ? "mt-1 border-l-[3px] border-iris bg-iris/10 py-1.5 hover:bg-iris/20"
+              : "py-1 hover:bg-fg/5"
+          }`}
           onClick={() => !isRenaming && setOpen((o) => !o)}
           role="button"
         >
           {open ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
-          {open ? <FolderOpen size={15} className="shrink-0 text-aqua" /> : <Folder size={15} className="shrink-0 text-aqua" />}
+          {isCollection ? (
+            <Library size={16} className="shrink-0 text-iris" />
+          ) : open ? (
+            <FolderOpen size={15} className="shrink-0 text-aqua" />
+          ) : (
+            <Folder size={15} className="shrink-0 text-aqua" />
+          )}
           {isRenaming ? (
             <RenameInput initial={node.name} onDone={(v) => props.onRename(path, v)} onCancel={props.onCancelRename} />
           ) : (
-            <span className="flex-1 truncate text-mist" onDoubleClick={() => props.onStartRename(path)}>
+            <span className={`flex-1 truncate ${isCollection ? "font-semibold text-mist" : "text-mist"}`} onDoubleClick={() => props.onStartRename(path)}>
               {node.name}
             </span>
           )}
