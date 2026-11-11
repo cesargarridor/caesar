@@ -2,9 +2,10 @@ import { useState } from "react";
 import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
 import BodyEditor from "./BodyEditor";
+import JsonEditor from "./JsonEditor";
 import type { RequestState } from "../types";
 
-type Tab = "params" | "auth" | "body" | "headers" | "settings";
+type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
 
 interface Props {
   req: RequestState;
@@ -19,7 +20,10 @@ const COMMON_HEADERS = [
 const box = "w-24 rounded-md border border-fg/10 bg-kelp px-2 py-1.5 text-sm focus:outline-none focus:border-aqua";
 
 const TAB_KEY = "caesar.reqTab";
-const VALID: Tab[] = ["params", "auth", "body", "headers", "settings"];
+const VALID: Tab[] = ["params", "auth", "body", "tests", "headers", "settings"];
+
+const TESTS_EXAMPLE = `var jsonData = JSON.parse(responseBody);
+postman.setGlobalVariable("token_id", jsonData.access_token);`;
 // La subpestaña elegida se mantiene al cambiar de solicitud (el componente se remonta por pestaña).
 let lastTab: Tab = (() => {
   try {
@@ -48,6 +52,7 @@ export default function RequestTabs({ req, patch }: Props) {
     { id: "params", label: "Params", badge: count(req.params) ? String(count(req.params)) : undefined },
     { id: "auth", label: "Authorization", badge: req.auth.type !== "none" ? "•" : undefined },
     { id: "body", label: "Body", badge: req.body.mode !== "none" ? "•" : undefined },
+    { id: "tests", label: "Tests", badge: req.tests?.trim() ? "•" : undefined },
     { id: "settings", label: "Settings" },
     { id: "headers", label: "Headers", badge: count(req.headers) ? String(count(req.headers)) : undefined },
   ];
@@ -78,6 +83,30 @@ export default function RequestTabs({ req, patch }: Props) {
         )}
         {tab === "auth" && <AuthEditor auth={req.auth} onChange={(auth) => patch({ auth })} />}
         {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} />}
+        {tab === "tests" && (
+          <div className="flex h-full min-h-64 flex-col gap-2">
+            <p className="text-xs text-slate">
+              Se ejecuta tras recibir la respuesta, como en Postman: <code className="text-silver">pm.environment.set</code>,{" "}
+              <code className="text-silver">pm.collectionVariables.set</code>, <code className="text-silver">pm.globals.set</code>,{" "}
+              <code className="text-silver">postman.setGlobalVariable</code>, <code className="text-silver">pm.response.json()</code>,{" "}
+              <code className="text-silver">pm.test / pm.expect</code>. Las variables se guardan en el panel Variables y se usan como{" "}
+              <code className="text-silver">{"{{nombre}}"}</code>.
+            </p>
+            <JsonEditor
+              value={req.tests ?? ""}
+              onChange={(tests) => patch({ tests })}
+              highlight={false}
+              autoClose={`{}[]()""''\`\``}
+              placeholder={TESTS_EXAMPLE}
+              className="min-h-48 flex-1"
+            />
+            {!req.tests?.trim() && (
+              <button onClick={() => patch({ tests: TESTS_EXAMPLE })} className="self-start text-xs text-silver hover:text-mist">
+                Insertar ejemplo: guardar el access_token en una variable
+              </button>
+            )}
+          </div>
+        )}
         {tab === "headers" && (
           <KVEditor rows={req.headers} onChange={(headers) => patch({ headers })} suggestions={COMMON_HEADERS} />
         )}

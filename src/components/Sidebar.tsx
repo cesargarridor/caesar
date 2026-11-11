@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, FileUp, Plus, Settings } from "lucide-react";
 import SidebarTree, { type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
+import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import type { KV, TreeNode } from "../types";
 
 interface Props extends TreeActions {
@@ -14,14 +15,46 @@ interface Props extends TreeActions {
   onImport: () => void;
   onNewCollection: () => void;
   onSettings: () => void;
+  /** Ancho actual en px y callback al arrastrar el borde derecho. */
+  width: number;
+  onWidth: (w: number) => void;
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, onImport, onNewCollection, onSettings, ...actions
+  collections, selectedPath, importing, error, vars, onVars, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
+
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    const startX = e.clientX;
+    const startW = width;
+    el.setPointerCapture(e.pointerId);
+    document.body.style.cursor = "col-resize";
+    const move = (ev: PointerEvent) => onWidth(clampSidebar(startW + ev.clientX - startX));
+    const up = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      document.body.style.cursor = "";
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  };
+
   return (
-    <aside className="flex w-72 shrink-0 flex-col bg-deep">
+    <aside style={{ width }} className="fs-scale fs-sidebar relative flex shrink-0 flex-col bg-deep">
+      {/* Asa para cambiar el ancho (doble clic = tamaño original) */}
+      <div
+        onPointerDown={startDrag}
+        onDoubleClick={() => onWidth(SIDEBAR_DEFAULT)}
+        title="Arrastra para cambiar el ancho · doble clic para restaurar"
+        className="group absolute -right-1.5 top-0 z-30 flex h-full w-3 cursor-col-resize justify-center"
+      >
+        <span className="h-full w-0.5 rounded-full bg-transparent group-hover:bg-iris" />
+      </div>
       <div className="p-4">
         <div className="mb-4 flex items-center gap-2 text-2xl font-normal tracking-[-0.04em] text-mist">
           <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" className="text-iris">

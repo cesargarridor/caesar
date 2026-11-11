@@ -10,6 +10,7 @@ use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_updater::UpdaterExt;
 use url::Url;
 
 const MAX_COLLECTION_BYTES: u64 = 50 * 1024 * 1024; // 50 MB
@@ -45,6 +46,46 @@ struct PmCollection {
     variable: Vec<PmKeyValue>,
     #[serde(default, deserialize_with = "lenient_opt")]
     auth: Option<PmAuth>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    event: Vec<PmEvent>,
+}
+
+/// Evento de Postman (`prerequest` / `test`) con su script.
+#[derive(Debug, Deserialize)]
+struct PmEvent {
+    listen: Option<String>,
+    script: Option<PmScript>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PmScript {
+    /// Array de líneas o una sola cadena.
+    exec: Option<Value>,
+}
+
+/// Une los scripts `test` de una lista de eventos en un único texto.
+fn test_script(events: &[PmEvent]) -> String {
+    events
+        .iter()
+        .filter(|e| e.listen.as_deref() == Some("test"))
+        .filter_map(|e| e.script.as_ref()?.exec.as_ref())
+        .map(|x| match x {
+            Value::Array(a) => a.iter().filter_map(|l| l.as_str()).collect::<Vec<_>>().join("\n"),
+            Value::String(s) => s.clone(),
+            _ => String::new(),
+        })
+        .filter(|s| !s.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Concatena el script heredado (colección/carpeta) con el propio.
+fn join_scripts(parent: &str, own: String) -> String {
+    match (parent.trim().is_empty(), own.trim().is_empty()) {
+        (true, _) => own,
+        (_, true) => parent.to_string(),
+        _ => format!("{parent}\n{own}"),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,6 +103,8 @@ struct PmItem {
     request: Option<PmRequestField>,
     #[serde(default, deserialize_with = "lenient_opt")]
     auth: Option<PmAuth>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    event: Vec<PmEvent>,
 }
 
 fn lenient_opt_items<'de, D>(d: D) -> Result<Option<Vec<PmItem>>, D::Error>
@@ -222,6 +265,8 @@ enum TreeNode {
         headers: Vec<Kv>,
         body: BodyData,
         auth: AuthData,
+        /// Script de tests (post-respuesta), heredado de colección/carpeta + propio.
+        tests: String,
     },
 }
 
@@ -385,16 +430,17 @@ fn convert_body(body: Option<PmBody>) -> BodyData {
     }
 }
 
-fn convert_items(items: Vec<PmItem>, parent_auth: &AuthData) -> Vec<TreeNode> {
+fn convert_items(items: Vec<PmItem>, parent_auth: &AuthData, parent_tests: &str) -> Vec<TreeNode> {
     items
         .into_iter()
         .filter_map(|item| {
             let name = item.name.unwrap_or_else(|| "Sin nombre".to_string());
             let own_auth = convert_auth(item.auth).unwrap_or_else(|| parent_auth.clone());
+            let tests = join_scripts(parent_tests, test_script(&item.event));
             if let Some(children) = item.item {
                 return Some(TreeNode::Folder {
                     name,
-                    children: convert_items(children, &own_auth),
+                    children: convert_items(children, &own_auth, &tests),
                 });
             }
             match item.request? {
@@ -405,6 +451,7 @@ fn convert_items(items: Vec<PmItem>, parent_auth: &AuthData) -> Vec<TreeNode> {
                     headers: vec![],
                     body: convert_body(None),
                     auth: own_auth,
+                    tests,
                 }),
                 PmRequestField::Full(r) => Some(TreeNode::Request {
                     name,
@@ -413,6 +460,7 @@ fn convert_items(items: Vec<PmItem>, parent_auth: &AuthData) -> Vec<TreeNode> {
                     headers: convert_kvs(r.header),
                     body: convert_body(r.body),
                     auth: convert_auth(r.auth).unwrap_or(own_auth),
+                    tests,
                 }),
             }
         })
@@ -430,7 +478,7 @@ fn parse_postman_collection(content: &str) -> Result<ImportedCollection, String>
     Ok(ImportedCollection {
         root: TreeNode::Folder {
             name: col.info.name.unwrap_or_else(|| "Colección importada".into()),
-            children: convert_items(col.item, &root_auth),
+            children: convert_items(col.item, &root_auth, &test_script(&col.event)),
         },
         variables,
     })
@@ -975,16 +1023,83 @@ fn open_url(url: String) -> Result<(), String> {
     open::that_detached(u.as_str()).map_err(|e| format!("No se pudo abrir el enlace: {e}"))
 }
 
+// ───────────────────────────── Actualizaciones (firmadas) ─────────────────────────────
+// Toda la red del actualizador ocurre en Rust: el frontend solo invoca estos comandos.
+// El paquete descargado se verifica con la clave pública incrustada en tauri.conf.json.
+
+#[derive(Serialize)]
+struct UpdateInfo {
+    version: String,
+    current: String,
+    notes: Option<String>,
+}
+
+#[tauri::command]
+fn app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[tauri::command]
+async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
+    let updater = app
+        .updater()
+        .map_err(|e| format!("Actualizador no disponible: {e}"))?;
+    let found = updater
+        .check()
+        .await
+        .map_err(|e| format!("No se pudo comprobar si hay actualizaciones: {e}"))?;
+    Ok(found.map(|u| UpdateInfo {
+        version: u.version.clone(),
+        current: u.current_version.clone(),
+        notes: u.body.clone(),
+    }))
+}
+
+/// Descarga e instala la última versión (emite `update-progress`) y reinicia la app.
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app
+        .updater()
+        .map_err(|e| format!("Actualizador no disponible: {e}"))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("No se pudo comprobar si hay actualizaciones: {e}"))?
+        .ok_or_else(|| "Ya tienes la última versión.".to_string())?;
+
+    let progress_app = app.clone();
+    let mut downloaded: u64 = 0;
+    update
+        .download_and_install(
+            move |chunk, total| {
+                downloaded += chunk as u64;
+                let _ = progress_app.emit(
+                    "update-progress",
+                    serde_json::json!({ "downloaded": downloaded, "total": total }),
+                );
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| format!("No se pudo instalar la actualización: {e}"))?;
+
+    app.restart()
+}
+
 fn main() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(GrantedFiles::default())
         .invoke_handler(tauri::generate_handler![
             import_postman_collection,
             execute_request,
             open_url,
             pick_file,
-            save_text_file
+            save_text_file,
+            app_version,
+            check_update,
+            install_update
         ])
         .run(tauri::generate_context!());
 

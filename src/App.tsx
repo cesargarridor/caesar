@@ -7,7 +7,10 @@ import TabBar from "./components/TabBar";
 import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
-import { executeRequest, importPostmanCollection, saveTextFile } from "./api";
+import {
+  appVersion, checkUpdate, executeRequest, importPostmanCollection, installUpdate, onUpdateProgress, saveTextFile,
+} from "./api";
+import UpdateOverlay from "./components/UpdateOverlay";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, parseCurl } from "./lib/curl";
@@ -18,7 +21,12 @@ import {
   addChild, getAt, newFolderNode, newRequestNode, nodeFromRequest, removeAt, renameAt, suggestName, updateAt,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode } from "./types";
+import { runScript, type ScriptResult } from "./lib/script";
+import { installFindShortcut } from "./lib/find";
+import {
+  applyFonts, loadAutoUpdate, loadFonts, loadSidebarWidth, saveAutoUpdate, saveFonts, saveSidebarWidth, type FontPrefs,
+} from "./lib/prefs";
+import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
 const STEP_DEFS = [
   { id: "validate", label: "Validando petición" },
@@ -99,11 +107,64 @@ export default function App() {
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   // Respuestas en memoria, una por pestaña.
-  const [results, setResults] = useState<Record<string, { response: ResponseData | null; error: string | null }>>({});
+  const [results, setResults] = useState<
+    Record<string, { response: ResponseData | null; error: string | null; script?: ScriptResult | null }>
+  >({});
   const [sending, setSending] = useState(false);
   const [steps, setSteps] = useState<StepState[]>([]);
 
   const [themeId, setThemeId] = useState(loadThemeId);
+  const [fonts, setFonts] = useState<FontPrefs>(loadFonts);
+  const [sidebarW, setSidebarW] = useState(loadSidebarWidth);
+  useEffect(() => {
+    applyFonts(fonts);
+    saveFonts(fonts);
+  }, [fonts]);
+  useEffect(() => saveSidebarWidth(sidebarW), [sidebarW]);
+
+  // ───── Actualizaciones ─────
+  const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
+  const [version, setVersion] = useState("");
+  const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
+  useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
+
+  const installNow = async (v: string) => {
+    setUpd({ phase: "installing", version: v, downloaded: 0, total: null });
+    try {
+      await installUpdate(); // al terminar, Rust reinicia la app
+    } catch (e) {
+      setUpd({ phase: "error", message: errMsg(e) });
+    }
+  };
+  /** auto = comprobación silenciosa al arrancar (instala sola); manual = desde Ajustes. */
+  const runCheck = async (auto: boolean) => {
+    setUpd({ phase: "checking" });
+    try {
+      const info = await checkUpdate();
+      if (!info) setUpd({ phase: "uptodate" });
+      else if (auto) await installNow(info.version);
+      else setUpd({ phase: "available", version: info.version, notes: info.notes });
+    } catch (e) {
+      setUpd(auto ? { phase: "idle" } : { phase: "error", message: errMsg(e) }); // sin red: no molestar
+    }
+  };
+  const checkedOnce = useRef(false);
+  useEffect(() => {
+    appVersion().then(setVersion).catch(() => {});
+    if (checkedOnce.current) return;
+    checkedOnce.current = true;
+    if (autoUpdate) void runCheck(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    let un: (() => void) | undefined;
+    onUpdateProgress((p) =>
+      setUpd((u) => (u.phase === "installing" ? { ...u, downloaded: p.downloaded, total: p.total } : u)),
+    )
+      .then((f) => (un = f))
+      .catch(() => {});
+    return () => un?.();
+  }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
@@ -314,7 +375,7 @@ export default function App() {
   const handleCurl = (text: string) => {
     try {
       const parsed = parseCurl(text);
-      patchTab(active.id, (t) => ({ ...t, req: parsed, dirty: true }));
+      patchTab(active.id, (t) => ({ ...t, req: { ...parsed, tests: t.req.tests ?? "" }, dirty: true }));
       setResults((r) => ({ ...r, [active.id]: { response: null, error: null } }));
       setNotice({ kind: "ok", text: "cURL importado: método, URL, params, headers, auth y body aplicados." });
     } catch (e) {
@@ -330,7 +391,32 @@ export default function App() {
     setSteps(freshSteps());
     try {
       const response = await executeRequest(buildExecuteArgs(req, vars));
-      setResults((r) => ({ ...r, [id]: { response, error: null } }));
+      // Tests / automatizaciones post-respuesta (intérprete propio, sin eval ni red).
+      let script: ScriptResult | null = null;
+      if (req.tests?.trim()) {
+        const working = new Map(vars.filter((v) => v.enabled && v.key).map((v) => [v.key, v.value]));
+        script = runScript(req.tests, {
+          body: response.body,
+          status: response.status,
+          statusText: response.statusText,
+          timeMs: response.timeMs,
+          headers: response.headers,
+          vars: working,
+        });
+        const { sets, unsets } = script;
+        if (sets.length || unsets.length) {
+          setVars((cur) => {
+            let next = cur.filter((v) => !unsets.includes(v.key));
+            for (const s of sets) {
+              next = next.some((v) => v.key === s.key)
+                ? next.map((v) => (v.key === s.key ? { ...v, value: s.value, enabled: true } : v))
+                : [...next, { key: s.key, value: s.value, enabled: true }];
+            }
+            return next;
+          });
+        }
+      }
+      setResults((r) => ({ ...r, [id]: { response, error: null, script } }));
     } catch (e) {
       setResults((r) => ({ ...r, [id]: { response: null, error: errMsg(e) } }));
     } finally {
@@ -357,6 +443,9 @@ export default function App() {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
+
+  // Ctrl+F: buscador propio en la respuesta y en los editores (evita el buscador nativo del webview).
+  useEffect(() => installFindShortcut(), []);
 
   // Historial de pestañas visitadas: botones laterales del ratón (atrás = 3, adelante = 4) y Alt+←/→.
   const hist = useRef<{ list: string[]; idx: number; nav: boolean }>({ list: [], idx: -1, nav: false });
@@ -421,6 +510,8 @@ export default function App() {
         onImport={handleImport}
         onNewCollection={handleNewCollection}
         onSettings={() => setShowSettings(true)}
+        width={sidebarW}
+        onWidth={setSidebarW}
         renaming={renamingPath}
         onSelect={handleSelect}
         onStartRename={setRenamingPath}
@@ -434,6 +525,7 @@ export default function App() {
       <div className="aurora-line" />
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="stars" style={{ boxShadow: STARS }} aria-hidden />
+        <div className="fs-scale fs-request flex min-h-0 flex-1 flex-col">
         <TabBar tabs={tabs} activeId={active.id} onSelect={setActiveId} onClose={requestClose} onNew={newTab} />
         {pendingClose && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={() => setPendingClose(null)}>
@@ -497,9 +589,27 @@ export default function App() {
           </div>
         )}
         <RequestTabs key={active.id} req={req} patch={patch} />
-        <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} />
+        </div>
+        <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} />
         {sending && <BrainLoader steps={steps} />}
-        {showSettings && <SettingsModal themeId={themeId} onTheme={chooseTheme} onClose={() => setShowSettings(false)} />}
+        {showSettings && (
+          <SettingsModal
+            themeId={themeId}
+            onTheme={chooseTheme}
+            fonts={fonts}
+            onFonts={setFonts}
+            updates={{
+              version,
+              auto: autoUpdate,
+              onAuto: setAutoUpdate,
+              state: upd,
+              onCheck: () => void runCheck(false),
+              onInstall: () => upd.phase === "available" && void installNow(upd.version),
+            }}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+        {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
     </div>
   );

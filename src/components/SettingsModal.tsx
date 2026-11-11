@@ -1,10 +1,24 @@
-import { useEffect } from "react";
-import { Check, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
+import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
+import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
+
+export interface UpdatesProps {
+  version: string;
+  auto: boolean;
+  onAuto: (on: boolean) => void;
+  state: UpdateState;
+  onCheck: () => void;
+  onInstall: () => void;
+}
 
 interface Props {
   themeId: string;
   onTheme: (id: string) => void;
+  fonts: FontPrefs;
+  onFonts: (f: FontPrefs) => void;
+  updates: UpdatesProps;
   onClose: () => void;
 }
 
@@ -15,7 +29,7 @@ function Preview({ t }: { t: Theme }) {
       <div className="flex items-center gap-1.5 px-2.5 py-1.5" style={{ background: u.deep }}>
         <span className="h-2 w-2 rounded-full" style={{ background: u.iris }} />
         <span className="h-1.5 w-10 rounded-full" style={{ background: u.kelp }} />
-        <span className="ml-auto rounded px-1.5 text-[9px] font-semibold" style={{ background: u.iris, color: u.onprimary }}>SEND</span>
+        <span className="ml-auto rounded px-1.5 text-[9px] font-semibold" style={{ background: u.iris, color: u.onprimary }}>ENVIAR</span>
       </div>
       <div className="px-2.5 py-2 font-mono">
         <div>
@@ -45,7 +59,126 @@ function Preview({ t }: { t: Theme }) {
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, onClose }: Props) {
+function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontPrefs) => void }) {
+  const changed = FONT_FIELDS.some((f) => fonts[f.key] !== FONT_DEFAULTS[f.key]);
+  return (
+    <div className="flex-1 space-y-5 overflow-y-auto pr-1">
+      {FONT_FIELDS.map((f) => {
+        const v = fonts[f.key];
+        const set = (n: number) => onFonts({ ...fonts, [f.key]: Math.min(f.max, Math.max(f.min, n)) });
+        return (
+          <div key={f.key} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1">
+            <div>
+              <p className="text-sm text-mist">{f.label}</p>
+              <p className="text-xs text-slate">{f.hint}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={f.min}
+                max={f.max}
+                step={f.step}
+                value={v}
+                onChange={(e) => e.target.value !== "" && set(Number(e.target.value))}
+                className="w-16 rounded-lg bg-deep px-2 py-1 text-right text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+              />
+              <span className="w-5 text-xs text-slate">{f.unit}</span>
+              <button
+                onClick={() => set(FONT_DEFAULTS[f.key])}
+                disabled={v === FONT_DEFAULTS[f.key]}
+                className="rounded p-1 text-slate hover:text-mist disabled:opacity-30"
+                title={`Restablecer (${FONT_DEFAULTS[f.key]}${f.unit})`}
+              >
+                <RotateCcw size={14} />
+              </button>
+            </div>
+            <input
+              type="range"
+              min={f.min}
+              max={f.max}
+              step={f.step}
+              value={v}
+              onChange={(e) => set(Number(e.target.value))}
+              className="col-span-2 accent-[var(--t-accent)]"
+            />
+          </div>
+        );
+      })}
+      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+        <p className="eyebrow mb-2">Vista previa</p>
+        <pre className="font-mono" style={{ fontSize: "var(--fs-body)", lineHeight: 1.6, color: "var(--t-b-str)" }}>{'{ "body": "lo que envías" }'}</pre>
+        <pre className="font-mono" style={{ fontSize: "var(--fs-resp)", lineHeight: 1.6, color: "var(--t-r-str)" }}>{'{ "respuesta": "lo que recibes" }'}</pre>
+      </div>
+      <button
+        onClick={() => onFonts({ ...FONT_DEFAULTS })}
+        disabled={!changed}
+        className="flex items-center gap-1.5 text-xs text-silver hover:text-mist disabled:opacity-30"
+      >
+        <RotateCcw size={13} /> Restablecer todos los tamaños
+      </button>
+    </div>
+  );
+}
+
+function UpdateControls({ u }: { u: UpdatesProps }) {
+  const s = u.state;
+  const busy = s.phase === "checking" || s.phase === "installing";
+  return (
+    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+        <p className="eyebrow mb-1">Versión instalada</p>
+        <p className="text-lg text-mist">{u.version ? `v${u.version}` : "—"}</p>
+      </div>
+
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={u.auto}
+          onChange={(e) => u.onAuto(e.target.checked)}
+          className="mt-1 accent-[var(--t-accent)]"
+        />
+        <span>
+          <span className="block text-sm text-mist">Actualizar automáticamente</span>
+          <span className="block text-xs text-slate">
+            Al abrir Caesar se busca una versión nueva; si la hay, se descarga, se instala y la app se reinicia sola.
+            Si lo desactivas, Caesar no consulta nada por su cuenta y solo se actualiza cuando pulses el botón.
+          </span>
+        </span>
+      </label>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={u.onCheck}
+            disabled={busy}
+            className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={s.phase === "checking" ? "animate-spin" : ""} /> Buscar actualizaciones
+          </button>
+          {s.phase === "available" && (
+            <button onClick={u.onInstall} className="btn-aurora px-5 py-2 font-semibold">
+              Instalar v{s.version}
+            </button>
+          )}
+        </div>
+        {s.phase === "checking" && <p className="text-sm text-slate">Buscando…</p>}
+        {s.phase === "uptodate" && (
+          <p className="flex items-center gap-1.5 text-sm text-leaf"><Check size={15} /> Tienes la última versión.</p>
+        )}
+        {s.phase === "available" && (
+          <div className="text-sm text-mist">
+            <p>Hay una versión nueva: <b>v{s.version}</b>.</p>
+            {s.notes && <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-deep p-3 text-xs text-silver">{s.notes}</pre>}
+          </div>
+        )}
+        {s.phase === "error" && <p className="whitespace-pre-wrap text-sm text-rose">{s.message}</p>}
+      </div>
+    </div>
+  );
+}
+
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, updates, onClose }: Props) {
+  const [section, setSection] = useState<"theme" | "fonts" | "updates">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -64,11 +197,32 @@ export default function SettingsModal({ themeId, onTheme, onClose }: Props) {
             <X size={22} />
           </button>
         </div>
-        <p className="mb-6 text-sm text-slate">
-          Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.
+        <p className="mb-4 text-sm text-slate">
+          {section === "theme"
+            ? "Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos."
+            : section === "fonts"
+              ? "Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante."
+              : "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas."}
         </p>
+        <div className="mb-5 flex gap-1 border-b border-fg/10">
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setSection(id)}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm ${
+                section === id ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        <p className="eyebrow mb-3">Tema</p>
+        {section === "fonts" ? (
+          <FontControls fonts={fonts} onFonts={onFonts} />
+        ) : section === "updates" ? (
+          <UpdateControls u={updates} />
+        ) : (
         <div className="grid flex-1 grid-cols-2 gap-4 overflow-y-auto pr-1 md:grid-cols-3">
           {THEMES.map((t) => {
             const active = t.id === themeId;
@@ -92,6 +246,7 @@ export default function SettingsModal({ themeId, onTheme, onClose }: Props) {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );
