@@ -52,6 +52,65 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 - Rust valida las URLs, solo permite `http`/`https` y limita el tamaño de respuestas y archivos.
 - CSP estricta y permisos mínimos de Tauri.
 
+## Sincronización cifrada de extremo a extremo (en desarrollo)
+
+> **Estado:** la parte local (`src-tauri/src/vault.rs`) está hecha y probada. Aún faltan la cuenta y el almacenamiento en
+> la nube (Firebase), los pagos (Lemon Squeezy) y las pantallas. Por ahora no hay ninguna sincronización activa.
+
+El objetivo es poder usar las mismas peticiones y colecciones en varios ordenadores sin que el servidor pueda leerlas.
+Todo el cifrado ocurre en Rust, en tu equipo; la interfaz nunca ve la clave.
+
+### Qué guarda y dónde
+
+- **Clave de datos:** 32 bytes aleatorios generados con el generador seguro del sistema. Se guardan **solo en el llavero
+  del sistema operativo** (Credential Manager en Windows, Keychain en macOS, Secret Service en Linux). Nunca se escriben
+  en un archivo ni se envían en claro.
+- **Cifrado:** AES-256-GCM. Cada bloque lleva un *nonce* nuevo y queda ligado a su contexto (por ejemplo el id de la
+  colección), de modo que no se puede cambiar un bloque por otro ni alterarlo sin que falle el descifrado.
+  Formato del bloque: `c1.<nonce>.<cifrado>` (base64 URL-safe).
+- **Qué ve el servidor:** solo bloques cifrados, identificadores y fechas. Ni el autor de Caesar puede leer tus tokens.
+
+### Pasos de cada operación
+
+**1. Activar el cifrado en el primer ordenador** (`vault_create`)
+1. Se genera la clave de datos y se guarda en el llavero.
+2. Se muestra **una sola vez** la **clave de recuperación** (`CSR-XXXXX-XXXXX-…`): es la misma clave escrita en texto con una
+   suma de comprobación que detecta errores al teclearla. Guárdala en un gestor de contraseñas.
+
+**2. Vincular un ordenador nuevo con un código** (sin contraseña maestra)
+
+| Paso | Equipo | Qué ocurre |
+| --- | --- | --- |
+| 1 | Nuevo | Genera un par de claves efímero (X25519) y muestra su clave pública como enlace/QR (`pairing_begin`). |
+| 2 | Vinculado | Abre el enlace, genera su propio par efímero y muestra un **código de 6 cifras** (`pairing_approve_start`). |
+| 3 | Nuevo | Recibe la clave pública del otro y muestra el mismo código (`pairing_code`). |
+| 4 | Ambos | El usuario **comprueba que los dos códigos coinciden**. Si no, se cancela: alguien se ha interpuesto. |
+| 5 | Vinculado | Cifra la clave de datos para el equipo nuevo (`pairing_approve_confirm`). |
+| 6 | Nuevo | Descifra y guarda la clave en su llavero (`pairing_finish`). |
+
+El secreto compartido sale del intercambio X25519 + HKDF-SHA256 ligado a ambas claves públicas. La vinculación caduca a los
+10 minutos, es de un solo uso y las claves temporales solo existen en memoria. Por el servidor solo viajan claves públicas
+y un bloque cifrado que no puede abrir.
+
+**3. Recuperar si se pierden todos los equipos** (`vault_restore`): se pega la clave de recuperación y se guarda en el llavero.
+
+**4. Quitar la clave de un equipo** (`vault_forget`): borra la clave local. Sin otro equipo vinculado ni clave de recuperación,
+los datos cifrados no se pueden recuperar.
+
+### Límites que conviene conocer
+
+- Si pierdes todos los equipos **y** la clave de recuperación, los datos son irrecuperables. Es el precio de que nadie más
+  pueda leerlos.
+- El llavero protege contra el robo del archivo o del disco, no contra un programa malicioso que ya se ejecute con tu usuario.
+- Revocar un equipo exigirá generar una clave nueva y volver a cifrar los datos (pendiente).
+
+### Pendiente
+
+1. Proyecto de Firebase (Auth, Firestore con reglas por usuario, TTL para los mensajes de vinculación).
+2. Subida y descarga de colecciones cifradas (un documento por colección, con retraso para ahorrar operaciones).
+3. Pantallas de activación, vinculación y recuperación.
+4. Suscripción con Lemon Squeezy y webhook (Cloud Function con verificación de firma).
+
 ## Desarrollo
 
 Requisitos: [Node.js](https://nodejs.org) 20+, [Rust](https://rustup.rs) y las
