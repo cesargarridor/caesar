@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capability: the webview can invoke Caesar's own IPC commands and only LISTEN to events (request progress). No fs, shell, http or window APIs are granted. The file dialog is opened from Rust, never from JS.",
+  "windows": ["main"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* Caesar = mezcla de Dala (píldoras, tipografía ligera, destellos) y Reflect (brillo inset, estrellas, lavanda).
+   Todos los colores salen de variables --t-* que cambia el selector de temas (Ajustes). */
+:root {
+  --t-abyss: #1a1640; --t-deep: #130f30; --t-kelp: #2a2563;
+  --t-mist: #f4f0ff; --t-silver: #cfcdeb; --t-slate: #9f9bd0;
+  --t-iris: #8052ff; --t-onprimary: #ffffff; --t-accent: #9382ff; --t-hl: #ffb829;
+  --t-ok: #3ddc97; --t-bad: #ff5c6c; --t-fg: #ffffff;
+  --t-r-key: #6cb6ff; --t-r-str: #ffd866; --t-r-num: #ffb454; --t-r-bool: #ff9ec4; --t-r-nul: #b3b0d9; --t-r-punc: #8d89c4; --t-r-link: #7fd0ff;
+  --t-b-key: #e59cff; --t-b-str: #7ee0c3; --t-b-num: #ffa66b; --t-b-bool: #9cb2ff; --t-b-nul: #9b97c4; --t-b-punc: #8d89c4;
+  --t-g1: #e59cff; --t-g2: #ba9cff; --t-g3: #9cb2ff; --t-stars: 0.55;
+}
+
+@theme {
+  --color-abyss: var(--t-abyss);
+  --color-deep: var(--t-deep);
+  --color-kelp: var(--t-kelp);
+  --color-mist: var(--t-mist);
+  --color-silver: var(--t-silver);
+  --color-slate: var(--t-slate);
+  --color-iris: var(--t-iris);
+  --color-aqua: var(--t-accent);
+  --color-saffron: var(--t-hl);
+  --color-lav: var(--t-hl);
+  --color-leaf: var(--t-ok);
+  --color-rose: var(--t-bad);
+  --color-fg: var(--t-fg);
+  --color-onprimary: var(--t-onprimary);
+  --font-matter: "PPNeueMontreal", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-md: 10px;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--t-abyss);
+  color: var(--t-silver);
+  font-family: var(--font-matter);
+  font-weight: 300;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01" on;
+}
+button, input, select, textarea { font-family: inherit; font-weight: inherit; }
+button { cursor: pointer; }
+select option { background: var(--t-kelp); color: var(--t-mist); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--t-fg) 22%, transparent); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Reflect: brillo interior (rim-light) en lugar de sombras */
+.glass { box-shadow: inset 0 0 24px color-mix(in srgb, var(--t-fg) 5%, transparent); }
+.glow-accent { box-shadow: inset 0 -7px 11px color-mix(in srgb, var(--t-accent) 18%, transparent); }
+
+/* Única acción primaria */
+.btn-aurora {
+  background: var(--t-iris);
+  color: var(--t-onprimary);
+  border-radius: 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  box-shadow: inset 0 -7px 11px rgba(255, 255, 255, 0.14);
+  transition: filter .15s;
+}
+.btn-aurora:hover:not(:disabled) { filter: brightness(1.12); }
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--t-slate);
+}
+
+/* Texto con degradado cósmico (solo acentos de texto) */
+.cosmic-text {
+  background: linear-gradient(90deg, var(--t-g1), var(--t-g2) 50%, var(--t-g3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Divisor aurora vertical */
+.aurora-line {
+  width: 1px;
+  background: linear-gradient(180deg, transparent 0%, var(--t-accent) 50%, transparent 100%);
+  opacity: .55;
+}
+
+/* Campo de estrellas */
+.stars { position: absolute; top: 0; left: 0; width: 1px; height: 1px; border-radius: 50%; pointer-events: none; opacity: var(--t-stars); color: var(--t-fg); }
+
+/* Overlay de carga con el cerebro */
+.loader-overlay { opacity: 0; animation: loader-in .35s ease .2s forwards; }
+@keyframes loader-in { to { opacity: 1; } }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--t-accent) 30%, transparent); border-top-color: var(--t-accent); animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
