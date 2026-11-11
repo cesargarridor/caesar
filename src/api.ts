@@ -30,6 +30,8 @@ export const parsePostmanContent = (content: string) => invoke<ImportedCollectio
 export interface SyncStatus {
   configured: boolean;
   github: boolean;
+  billing: boolean;
+  blocked: boolean;
   signed_in: boolean;
   email: string;
   has_key: boolean;
@@ -45,6 +47,10 @@ export interface DeviceCode { user_code: string; verification_uri: string; devic
 export const syncGithubBegin = () => invoke<DeviceCode>("sync_github_begin");
 export const syncGithubFinish = (d: DeviceCode) =>
   invoke<void>("sync_github_finish", { deviceCode: d.device_code, interval: d.interval, expiresIn: d.expires_in });
+export interface Billing { active: boolean; status: string; ends_at: number; portal: string }
+export const syncBilling = () => invoke<Billing>("sync_billing");
+export const syncCheckoutUrl = () => invoke<string>("sync_checkout_url");
+export const syncDeleteAccount = () => invoke<void>("sync_delete_account");
 export const syncSignOut = () => invoke<void>("sync_sign_out");
 export const syncNow = () => invoke<void>("sync_now");
 export const vaultCreate = () => invoke<string>("vault_create");
