@@ -34,21 +34,21 @@ const DARK_SEM = { ok: "#3ddc97", bad: "#ff5c6c" };
 
 export const THEMES: Theme[] = [
   {
-    id: "caesar", name: "Caesar (predeterminado)", dark: true,
-    ui: { abyss: "#1a1640", deep: "#130f30", kelp: "#2a2563", mist: "#f4f0ff", silver: "#cfcdeb", slate: "#9f9bd0", iris: "#8052ff", onprimary: "#ffffff", accent: "#9382ff", hl: "#ffb829", ...DARK_SEM },
-    resp: { key: "#6cb6ff", str: "#ffd866", num: "#ffb454", bool: "#ff9ec4", nul: "#b3b0d9", punc: "#8d89c4", link: "#5ff0b4" },
-    body: { key: "#e59cff", str: "#7ee0c3", num: "#ffa66b", bool: "#9cb2ff", nul: "#9b97c4", punc: "#8d89c4" },
-    grad: ["#e59cff", "#ba9cff", "#9cb2ff"], stars: 0.55,
-  },
-  {
-    id: "monokai", name: "Monokai", dark: true,
+    id: "monokai", name: "Monokai (predeterminado)", dark: true,
     ui: { abyss: "#272822", deep: "#1e1f1c", kelp: "#3e3d32", mist: "#f8f8f2", silver: "#cfcfc2", slate: "#90908a", iris: "#f92672", onprimary: "#ffffff", accent: "#a6e22e", hl: "#e6db74", ...DARK_SEM },
     resp: { key: "#66d9ef", str: "#e6db74", num: "#ae81ff", bool: "#f92672", nul: "#fd971f", punc: "#90908a", link: "#a6e22e" },
     body: { key: "#a6e22e", str: "#fd971f", num: "#ae81ff", bool: "#f92672", nul: "#90908a", punc: "#75715e" },
     grad: ["#f92672", "#fd971f", "#a6e22e"], stars: 0,
   },
   {
-    id: "monokai-light", name: "Monokai White", dark: false,
+    id: "caesar", name: "Caesar", dark: true,
+    ui: { abyss: "#1a1640", deep: "#130f30", kelp: "#2a2563", mist: "#f4f0ff", silver: "#cfcdeb", slate: "#9f9bd0", iris: "#8052ff", onprimary: "#ffffff", accent: "#9382ff", hl: "#ffb829", ...DARK_SEM },
+    resp: { key: "#6cb6ff", str: "#ffd866", num: "#ffb454", bool: "#ff9ec4", nul: "#b3b0d9", punc: "#8d89c4", link: "#5ff0b4" },
+    body: { key: "#e59cff", str: "#7ee0c3", num: "#ffa66b", bool: "#9cb2ff", nul: "#9b97c4", punc: "#8d89c4" },
+    grad: ["#e59cff", "#ba9cff", "#9cb2ff"], stars: 0.55,
+  },
+  {
+    id: "monokai-light", name: "Monokai Light", dark: false,
     ui: { abyss: "#fafafa", deep: "#f0f0ec", kelp: "#e5e5de", mist: "#272822", silver: "#49483e", slate: "#75715e", iris: "#f92672", onprimary: "#ffffff", accent: "#0a8fa8", hl: "#b36b00", ok: "#1a9f5c", bad: "#d6293b" },
     resp: { key: "#00809a", str: "#8a7b00", num: "#7a4fd6", bool: "#d6226a", nul: "#b36b00", punc: "#75715e", link: "#4d8a00" },
     body: { key: "#5c8f00", str: "#c26a00", num: "#7a4fd6", bool: "#d6226a", nul: "#75715e", punc: "#a59f85" },
@@ -91,7 +91,7 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const DEFAULT_THEME = "caesar";
+export const DEFAULT_THEME = "monokai";
 const KEY = "caesar.theme";
 
 export function loadThemeId(): string {

@@ -43,6 +43,9 @@ Caesar se actualiza solo, así que solo tienes que instalarlo a mano la primera 
 
 [MIT](LICENSE): uso libre, sin garantía y sin responsabilidad del autor. Las contribuciones son bienvenidas.
 
+Los temas de color (Monokai, Dracula, Tokyo Night, Nord, One Dark y GitHub Light) y otros componentes de terceros tienen su
+origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar no usa Monokai Pro, que es de pago.
+
 ## Seguridad
 
 - La interfaz nunca hace peticiones de red: todo pasa por Rust (`reqwest`) mediante IPC.
