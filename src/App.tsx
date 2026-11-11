@@ -8,7 +8,7 @@ import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import {
-  appVersion, checkUpdate, executeRequest, importPostmanCollection, installUpdate, onUpdateProgress, saveTextFile,
+  appVersion, checkUpdate, executeRequest, importPostmanCollection, installUpdate, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
@@ -186,6 +186,33 @@ export default function App() {
   useEffect(() => save("caesar.tabs", { tabs, activeId: active.id }), [tabs, active.id]);
   useEffect(() => save("caesar.collections", collections), [collections]);
   useEffect(() => save("caesar.vars", vars), [vars]);
+  // Barrera 1: 2 s sin cambios antes de pasar los datos a Rust (que los guarda en disco y avisa al trabajador de sincronización).
+  useEffect(() => {
+    const id = setTimeout(() => {
+      localSave(JSON.stringify({ v: 1, collections, vars })).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [collections, vars]);
+  // Cambios que llegan de otro equipo.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    onSyncRemote((json) => {
+      try {
+        const d = JSON.parse(json);
+        if (Array.isArray(d.collections)) setCollections(ensureIds(d.collections));
+        if (Array.isArray(d.vars)) setVars(d.vars);
+      } catch {
+        /* datos remotos ilegibles: se ignoran */
+      }
+    })
+      .then((fn) => (disposed ? fn() : (unlisten = fn)))
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 2500);
