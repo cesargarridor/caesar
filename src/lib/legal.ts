@@ -1,5 +1,5 @@
-/** Enlaces legales (páginas publicadas desde docs/ en GitHub Pages) y marca de primera vez. */
-const SITE = "https://cesargarridor.github.io/caesar";
+/** Enlaces legales (publicados en GitHub Pages desde el repo caesar-legal) y marca de primera vez. */
+const SITE = "https://cesargarridor.github.io/caesar-legal";
 export const PRIVACY_URL = `${SITE}/privacy.html`;
 export const TERMS_URL = `${SITE}/terms.html`;
 
