@@ -18,6 +18,8 @@ interface Props {
   onTheme: (id: string) => void;
   fonts: FontPrefs;
   onFonts: (f: FontPrefs) => void;
+  hideEmpty: boolean;
+  onHideEmpty: (on: boolean) => void;
   updates: UpdatesProps;
   onClose: () => void;
 }
@@ -120,6 +122,34 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
   );
 }
 
+function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHideEmpty: (on: boolean) => void }) {
+  return (
+    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={hideEmpty}
+          onChange={(e) => onHideEmpty(e.target.checked)}
+          className="mt-1 accent-[var(--t-accent)]"
+        />
+        <span>
+          <span className="block text-sm text-mist">Ocultar valores vacíos en el body de la respuesta</span>
+          <span className="block text-xs text-slate">
+            No muestra los campos que valen <code className="text-silver">null</code>, las listas vacías{" "}
+            <code className="text-silver">[]</code> ni los objetos vacíos <code className="text-silver">{"{}"}</code>
+            (tampoco los bloques que se quedan sin nada). Solo cambia lo que ves en la vista <b>Pretty</b>: la vista{" "}
+            <b>Raw</b> y el botón Copy siguen usando la respuesta completa.
+          </span>
+        </span>
+      </label>
+      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+        <p className="eyebrow mb-2">Ejemplo</p>
+        <pre className="font-mono text-xs text-silver">{hideEmpty ? '{\n  "id": 7,\n  "name": "Ana"\n}' : '{\n  "id": 7,\n  "name": "Ana",\n  "email": null,\n  "tags": [],\n  "extra": {}\n}'}</pre>
+      </div>
+    </div>
+  );
+}
+
 function UpdateControls({ u }: { u: UpdatesProps }) {
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
@@ -177,8 +207,8 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, fonts, onFonts, updates, onClose }: Props) {
-  const [section, setSection] = useState<"theme" | "fonts" | "updates">("theme");
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
+  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -202,10 +232,12 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, update
             ? "Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos."
             : section === "fonts"
               ? "Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante."
-              : "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas."}
+              : section === "response"
+                ? "Cómo se muestra el body de la respuesta que recibes."
+                : "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas."}
         </p>
         <div className="mb-5 flex gap-1 border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -220,6 +252,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, update
 
         {section === "fonts" ? (
           <FontControls fonts={fonts} onFonts={onFonts} />
+        ) : section === "response" ? (
+          <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
         ) : section === "updates" ? (
           <UpdateControls u={updates} />
         ) : (
