@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { openUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type Billing, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -14,6 +14,8 @@ export default function SyncSettings() {
   const [password, setPassword] = useState("");
   const [recovery, setRecovery] = useState("");
   const [shownKey, setShownKey] = useState<string | null>(null);
+  const [bill, setBill] = useState<Billing | null>(null);
+  const [confirmDel, setConfirmDel] = useState(false);
   const [device, setDevice] = useState<DeviceCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -37,6 +39,16 @@ export default function SyncSettings() {
       refresh();
     }
   };
+
+  const signedIn = st?.signed_in ?? false;
+  const billingOn = st?.billing ?? false;
+  const checkBilling = useCallback(() => syncBilling().then(setBill).catch(() => {}), []);
+  useEffect(() => {
+    if (!signedIn || !billingOn) return;
+    checkBilling();
+    const id = setInterval(checkBilling, 60000);
+    return () => clearInterval(id);
+  }, [signedIn, billingOn, checkBilling]);
 
   if (!st) return <div className="px-1 py-1 text-sm text-slate">…</div>;
   if (!st.configured)
@@ -144,6 +156,43 @@ export default function SyncSettings() {
         )}
       </section>
 
+      {/* Suscripción */}
+      {st.signed_in && st.billing && (
+        <section className="space-y-3">
+          <h3 className="text-sm text-mist">{t("Suscripción")}</h3>
+          {bill?.active ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-silver">
+                {bill.status === "cancelled" && bill.ends_at
+                  ? `${t("Cancelada: activa hasta")} ${new Date(bill.ends_at).toLocaleDateString()}`
+                  : t("Activa")}
+              </span>
+              {bill.portal && (
+                <button className={ghostCls} onClick={() => openUrl(bill.portal).catch(() => {})}>
+                  {t("Gestionar suscripción")}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="max-w-md space-y-3">
+              <p className="text-xs text-slate">
+                {t("Para sincronizar entre equipos necesitas la suscripción. Tus colecciones locales y todo lo demás de Caesar siguen siendo gratis.")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className={btnCls}
+                  disabled={busy}
+                  onClick={() => run(async () => { openUrl(await syncCheckoutUrl()).catch(() => {}); })}
+                >
+                  {t("Suscribirme")}
+                </button>
+                <button className={ghostCls} onClick={() => checkBilling()}>{t("Ya he pagado, comprobar")}</button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* 3. Estado */}
       {st.signed_in && (
         <section className="space-y-3">
@@ -157,6 +206,31 @@ export default function SyncSettings() {
             </span>
           </div>
           {st.error && <p className="text-xs text-red-400">{st.error}</p>}
+        </section>
+      )}
+      {st.signed_in && (
+        <section className="space-y-2 border-t border-fg/10 pt-4">
+          {confirmDel ? (
+            <div className="max-w-md space-y-3">
+              <p className="text-xs text-slate">
+                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Tus colecciones en este equipo no se tocan. Si tienes suscripción, cancélala antes en «Gestionar suscripción».")}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => run(async () => { await syncDeleteAccount(); setConfirmDel(false); setBill(null); })}
+                >
+                  {t("Sí, borrar mi cuenta")}
+                </button>
+                <button className={ghostCls} onClick={() => setConfirmDel(false)}>{t("Cancelar")}</button>
+              </div>
+            </div>
+          ) : (
+            <button className="text-xs text-slate underline hover:text-red-400" onClick={() => setConfirmDel(true)}>
+              {t("Borrar mi cuenta y mis datos de la nube")}
+            </button>
+          )}
         </section>
       )}
       {msg && <p className="text-xs text-red-400">{msg}</p>}
