@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
+import CatLogo from "./CatLogo";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
+import { setCatAnim, useCatAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
 
 export interface UpdatesProps {
@@ -149,6 +151,26 @@ function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHi
   );
 }
 
+function CatControls() {
+  const on = useCatAnim();
+  return (
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input type="checkbox" checked={on} onChange={(e) => setCatAnim(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
+        <span>
+          <span className="block text-sm text-mist">{t("Animar al gatito")}</span>
+          <span className="block text-xs text-slate">
+            {t("Se menea al pasar el ratón, cierra los ojos de felicidad y suelta corazones al hacerle clic, y salta en la pantalla de actualización.")}
+          </span>
+        </span>
+      </label>
+      <div className="flex shrink-0 justify-center rounded-xl bg-deep p-6 ring-1 ring-fg/10">
+        <CatLogo size={96} />
+      </div>
+    </div>
+  );
+}
+
 function UpdateControls({ u }: { u: UpdatesProps }) {
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
@@ -207,7 +229,7 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
 
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
   useLang();
-  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang">("theme");
+  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang" | "cat">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -235,10 +257,12 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                 ? t("Cómo se muestra el body de la respuesta que recibes.")
                 : section === "lang"
                   ? t("Elige el idioma de la interfaz. Se aplica al instante.")
+                  : section === "cat"
+                    ? t("El gatito del logo reacciona cuando le haces clic. Desactivarlo lo deja quieto y ahorra algo de memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Gato"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -255,6 +279,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           <FontControls fonts={fonts} onFonts={onFonts} />
         ) : section === "response" ? (
           <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
+        ) : section === "cat" ? (
+          <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto pr-1 md:grid-cols-3">
             {LANGS.map((l) => (
