@@ -3,6 +3,10 @@
 Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y exporta colecciones de Postman, pega un
 `cURL` en la barra de URL, scripts de Tests al estilo Postman, varios temas y mucho más.
 
+> **Proyecto de código abierto, de uso libre.** Caesar se ofrece tal cual, sin ninguna garantía, y el autor no se hace
+> responsable de ningún daño, pérdida de datos o problema derivado de su uso. Puedes usarlo, copiarlo y modificarlo
+> libremente según la [licencia MIT](LICENSE).
+
 ## Descargar
 
 1. Entra en la página de versiones: **https://github.com/cesargarridor/caesar/releases/latest**
@@ -34,6 +38,10 @@ Caesar se actualiza solo, así que solo tienes que instalarlo a mano la primera 
 - Se controla en **Ajustes → Actualizaciones**: puedes **desactivarlas** o pulsar **Buscar actualizaciones** cuando quieras.
 - Cada paquete va firmado y la app comprueba la firma antes de instalarlo.
 - En Linux, la actualización automática solo funciona con el **AppImage**; el `.deb` hay que reinstalarlo a mano.
+
+## Licencia
+
+[MIT](LICENSE): uso libre, sin garantía y sin responsabilidad del autor. Las contribuciones son bienvenidas.
 
 ## Seguridad
 
