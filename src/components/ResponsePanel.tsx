@@ -4,22 +4,26 @@ import StepList from "./StepList";
 import JsonView from "./JsonView";
 import { openUrl } from "../api";
 import type { ResponseData, StepState } from "../types";
+import type { ScriptResult } from "../lib/script";
 
 interface Props {
   response: ResponseData | null;
   error: string | null;
   sending: boolean;
   steps: StepState[];
+  /** Resultado del script de Tests de la última ejecución (null = la petición no tiene script). */
+  script?: ScriptResult | null;
 }
 
-type Tab = "body" | "headers" | "timeline";
+type Tab = "body" | "headers" | "timeline" | "tests";
 
 // Correcto = verde, redirección = ámbar, error (4xx/5xx) = rojo
 const statusColor = (s: number) =>
   s < 300 ? "bg-leaf/15 text-leaf" : s < 400 ? "bg-lav/15 text-lav" : "bg-rose/15 text-rose";
 
-export default function ResponsePanel({ response, error, sending, steps }: Props) {
-  const [tab, setTab] = useState<Tab>("body");
+export default function ResponsePanel({ response, error, sending, steps, script }: Props) {
+  const [rawTab, setTab] = useState<Tab>("body");
+  const tab: Tab = rawTab === "tests" && !script ? "body" : rawTab; // sin script no hay pestaña Tests
   const [view, setView] = useState<"pretty" | "raw">("pretty");
   const [copied, setCopied] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -102,6 +106,15 @@ export default function ResponsePanel({ response, error, sending, steps }: Props
     </button>
   );
 
+  const passed = script ? script.tests.filter((t) => t.ok).length : 0;
+  const testsLabel = script
+    ? script.tests.length
+      ? `Tests ${passed}/${script.tests.length}`
+      : script.errors.length
+        ? "Tests ⚠"
+        : "Tests"
+    : "Tests";
+
   const total = response ? Math.max(1, response.timeline.reduce((a, s) => a + s.ms, 0)) : 1;
 
   return (
@@ -122,6 +135,7 @@ export default function ResponsePanel({ response, error, sending, steps }: Props
         {tabBtn("body", "Body")}
         {tabBtn("headers", response ? `Headers ${response.headers.length}` : "Headers")}
         {tabBtn("timeline", "Timeline")}
+        {script && tabBtn("tests", testsLabel)}
         {tab === "body" && response && (
           <span className="flex overflow-hidden rounded-md border border-fg/10 text-xs">
             {(["pretty", "raw"] as const).map((v) => (
@@ -180,6 +194,59 @@ export default function ResponsePanel({ response, error, sending, steps }: Props
           </div>
         ) : tab === "body" ? (
           <JsonView text={text} json={showPretty} onOpen={open} />
+        ) : tab === "tests" && script ? (
+          <div className="mx-auto max-w-3xl space-y-5 p-5 text-xs">
+            {script.tests.length > 0 && (
+              <section>
+                <p className="eyebrow mb-2">Resultados</p>
+                {script.tests.map((t, i) => (
+                  <div key={i} className="flex items-start gap-2 py-0.5">
+                    <span className={`shrink-0 rounded px-1.5 font-semibold ${t.ok ? "bg-leaf/15 text-leaf" : "bg-rose/15 text-rose"}`}>
+                      {t.ok ? "PASS" : "FAIL"}
+                    </span>
+                    <span className="text-mist">{t.name}</span>
+                    {t.error && <span className="text-rose">— {t.error}</span>}
+                  </div>
+                ))}
+              </section>
+            )}
+            {(script.sets.length > 0 || script.unsets.length > 0) && (
+              <section>
+                <p className="eyebrow mb-2">Variables actualizadas</p>
+                {script.sets.map((s) => (
+                  <div key={s.key} className="flex gap-2 py-0.5 font-mono">
+                    <span className="shrink-0 text-lav">{s.key}</span>
+                    <span className="text-slate">=</span>
+                    <span className="truncate text-silver" title={s.value}>{s.value}</span>
+                  </div>
+                ))}
+                {script.unsets.map((k) => (
+                  <div key={k} className="py-0.5 font-mono text-slate">
+                    <span className="text-lav">{k}</span> eliminada
+                  </div>
+                ))}
+              </section>
+            )}
+            {script.logs.length > 0 && (
+              <section>
+                <p className="eyebrow mb-2">Console</p>
+                {script.logs.map((l, i) => (
+                  <pre key={i} className="whitespace-pre-wrap break-all font-mono text-silver">{l}</pre>
+                ))}
+              </section>
+            )}
+            {script.errors.length > 0 && (
+              <section>
+                <p className="eyebrow mb-2 text-rose">Avisos del script</p>
+                {script.errors.map((e, i) => (
+                  <p key={i} className="py-0.5 text-rose">{e}</p>
+                ))}
+              </section>
+            )}
+            {!script.tests.length && !script.sets.length && !script.unsets.length && !script.logs.length && !script.errors.length && (
+              <p className="text-slate">El script se ejecutó sin resultados.</p>
+            )}
+          </div>
         ) : tab === "headers" ? (
           <table className="w-full text-xs">
             <tbody>

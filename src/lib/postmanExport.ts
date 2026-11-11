@@ -94,7 +94,10 @@ function pmRequest(n: RequestNode) {
 
 function pmItem(n: TreeNode): unknown {
   if (n.type === "folder") return { name: n.name, item: n.children.map(pmItem) };
-  return { name: n.name, request: pmRequest(n), response: [] };
+  const event = n.tests?.trim()
+    ? [{ listen: "test", script: { type: "text/javascript", exec: n.tests.split("\n") } }]
+    : undefined;
+  return { name: n.name, ...(event ? { event } : {}), request: pmRequest(n), response: [] };
 }
 
 export function exportCollection(root: TreeNode, vars: KV[]): string {
