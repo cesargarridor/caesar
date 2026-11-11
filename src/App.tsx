@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import NetworkLoader from "./components/NetworkLoader";
 import SettingsModal from "./components/SettingsModal";
+import Welcome from "./components/Welcome";
+import { isOnboarded } from "./lib/legal";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import RequestBar from "./components/RequestBar";
@@ -171,6 +173,7 @@ export default function App() {
     return () => un?.();
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -688,6 +691,7 @@ export default function App() {
             onClose={() => setShowSettings(false)}
           />
         )}
+        {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
         {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
     </div>
