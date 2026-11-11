@@ -100,7 +100,11 @@ function pmItem(n: TreeNode): unknown {
   return { name: n.name, ...(event ? { event } : {}), request: pmRequest(n), response: [] };
 }
 
-export function exportCollection(root: TreeNode, vars: KV[]): string {
+export function exportCollection(root: TreeNode, globals: KV[]): string {
+  // Variables de la colección primero; las globales que no estén pisadas se añaden (como antes).
+  const own = root.type === "folder" ? root.variables ?? [] : [];
+  const have = new Set(own.map((v) => v.key));
+  const vars = [...own, ...globals.filter((v) => !have.has(v.key))];
   const children = root.type === "folder" ? root.children : [root];
   const doc = {
     info: {

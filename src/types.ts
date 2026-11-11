@@ -51,7 +51,7 @@ export interface RequestState {
 }
 
 export type TreeNode =
-  | { type: "folder"; name: string; children: TreeNode[] }
+  | { type: "folder"; name: string; children: TreeNode[]; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[] }
   | {
       type: "request";
       name: string;
