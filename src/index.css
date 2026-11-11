@@ -42,7 +42,17 @@ body {
   font-feature-settings: "ss01" on;
 }
 button, input, select, textarea { font-family: inherit; font-weight: inherit; }
-button { cursor: pointer; }
+button { cursor: pointer; transition: transform .12s ease, background-color .15s, color .15s, box-shadow .2s, filter .15s; }
+button:not(:disabled):active { transform: scale(.95); }
+button[class*="ring-1"]:not(:disabled):hover { transform: translateY(-1px); }
+button[class*="ring-1"]:not(:disabled):active { transform: translateY(0) scale(.95); }
+button:focus-visible { outline: 2px solid var(--t-iris); outline-offset: 2px; }
+
+/* Gatito del logo: se menea al pasar el ratón */
+.cat-logo { transition: transform .25s cubic-bezier(.3,1.6,.5,1); image-rendering: pixelated; filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--t-iris) 45%, transparent)); }
+aside:hover .cat-logo { animation: cat-wiggle 2.4s ease-in-out infinite; }
+.cat-logo:hover { transform: scale(1.18) rotate(-6deg); }
+@keyframes cat-wiggle { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(-8deg); } 97% { transform: rotate(8deg); } }
 select option { background: var(--t-kelp); color: var(--t-mist); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--t-fg) 22%, transparent); border-radius: 6px; }
@@ -61,9 +71,29 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
   text-transform: uppercase;
   letter-spacing: 0.025em;
   box-shadow: inset 0 -7px 11px rgba(255, 255, 255, 0.14);
-  transition: filter .15s;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
 }
-.btn-aurora:hover:not(:disabled) { filter: brightness(1.12); }
+.btn-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+}
+.btn-aurora:hover:not(:disabled) {
+  filter: brightness(1.1) saturate(1.1);
+  transform: translateY(-2px);
+  box-shadow: inset 0 -7px 11px rgba(255, 255, 255, 0.18), 0 8px 20px -6px color-mix(in srgb, var(--t-iris) 75%, transparent);
+}
+.btn-aurora:hover:not(:disabled)::after { transform: translateX(120%); transition: transform .6s ease; }
+.btn-aurora:active:not(:disabled) { transform: translateY(0) scale(.96); box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.25); }
+@media (prefers-reduced-motion: reduce) {
+  button, .cat-logo { transition: none !important; animation: none !important; }
+  .btn-aurora::after { display: none; }
+}
 
 .eyebrow {
   font-size: calc(0.75rem * var(--fs-k, 1));
