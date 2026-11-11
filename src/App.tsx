@@ -24,7 +24,8 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut } from "./lib/find";
 import {
-  applyFonts, loadAutoUpdate, loadFonts, loadSidebarWidth, saveAutoUpdate, saveFonts, saveSidebarWidth, type FontPrefs,
+  applyFonts, loadAutoUpdate, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
+  saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
@@ -121,6 +122,9 @@ export default function App() {
     saveFonts(fonts);
   }, [fonts]);
   useEffect(() => saveSidebarWidth(sidebarW), [sidebarW]);
+
+  const [hideEmpty, setHideEmpty] = useState(loadHideEmpty);
+  useEffect(() => saveHideEmpty(hideEmpty), [hideEmpty]);
 
   // ───── Actualizaciones ─────
   const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
@@ -590,7 +594,7 @@ export default function App() {
         )}
         <RequestTabs key={active.id} req={req} patch={patch} />
         </div>
-        <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} />
+        <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
         {sending && <BrainLoader steps={steps} />}
         {showSettings && (
           <SettingsModal
@@ -598,6 +602,8 @@ export default function App() {
             onTheme={chooseTheme}
             fonts={fonts}
             onFonts={setFonts}
+            hideEmpty={hideEmpty}
+            onHideEmpty={setHideEmpty}
             updates={{
               version,
               auto: autoUpdate,

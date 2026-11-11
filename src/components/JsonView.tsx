@@ -8,6 +8,8 @@ interface Props {
   /** true = visor JSON con colores, líneas y plegado; false = texto plano (solo enlaces clicables). */
   json: boolean;
   onOpen: (url: string) => void;
+  /** Oculta valores null, listas vacías y objetos vacíos (solo en la vista Pretty). */
+  hideEmpty?: boolean;
 }
 
 const TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\],:]/g;
@@ -128,7 +130,36 @@ function renderTok(t: Tok, i: number, onOpen: (u: string) => void, off: number, 
   return <span key={i} style={{ color: COLOR[t.k] }}>{markText(t.s, off, ranges, cur, `t${i}`)}</span>;
 }
 
-export default function JsonView({ text, json, onOpen }: Props) {
+/**
+ * Líneas a ocultar cuando se activa "ocultar vacíos": valores null, [] y {} y, en cascada, los
+ * bloques que se quedan sin ningún hijo visible. Trabaja sobre el texto ya formateado (sin re-parsear,
+ * así no se alteran números grandes). La raíz nunca se oculta.
+ */
+function computeHidden(lines: string[], ends: Map<number, number>): Set<number> {
+  const hidden = new Set<number>();
+  const emptyLeaf = /^(?:"(?:\\.|[^"\\])*"\s*:\s*)?(?:null|\[\]|\{\})\s*,?$/;
+  const walk = (from: number, to: number): boolean => {
+    let allHidden = true;
+    for (let i = from; i <= to; ) {
+      const e = ends.get(i);
+      if (e !== undefined) {
+        if (walk(i + 1, e - 1)) for (let k = i; k <= e; k++) hidden.add(k);
+        else allHidden = false;
+        i = e + 1;
+      } else {
+        if (emptyLeaf.test(lines[i].trim())) hidden.add(i);
+        else allHidden = false;
+        i++;
+      }
+    }
+    return allHidden;
+  };
+  const rootEnd = ends.get(0);
+  if (rootEnd !== undefined) walk(1, rootEnd - 1);
+  return hidden;
+}
+
+export default function JsonView({ text, json, onOpen, hideEmpty = false }: Props) {
   const big = text.length > MAX_HIGHLIGHT;
 
   const model = useMemo(() => {
@@ -141,8 +172,22 @@ export default function JsonView({ text, json, onOpen }: Props) {
       if (/^[}\]]/.test(t) && stack.length) ends.set(stack.pop()!, i);
       if (/[{[]$/.test(t)) stack.push(i);
     });
-    return { lines, ends, toks: lines.map(tokenizeLine) };
-  }, [text, json, big]);
+    const toks = lines.map(tokenizeLine);
+    const hidden = hideEmpty ? computeHidden(lines, ends) : new Set<number>();
+    if (hidden.size) {
+      // La última línea visible de un bloque no debe quedarse con una coma colgando.
+      const visible = lines.map((_, i) => i).filter((i) => !hidden.has(i));
+      visible.forEach((i, k) => {
+        const next = visible[k + 1];
+        if (next !== undefined && /^[}\]]/.test(lines[next].trim())) {
+          const lt = toks[i].toks;
+          const last = lt[lt.length - 1];
+          if (last && last.k === "punc" && last.s === ",") toks[i] = { ...toks[i], toks: lt.slice(0, -1) };
+        }
+      });
+    }
+    return { lines, ends, toks, hidden };
+  }, [text, json, big, hideEmpty]);
 
   const [copied, setCopied] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
@@ -171,8 +216,12 @@ export default function JsonView({ text, json, onOpen }: Props) {
       let total = 0;
       const base: number[] = [];
       const lineRanges: Range[][] = [];
-      model.lines.forEach((l) => {
+      model.lines.forEach((l, li) => {
         base.push(total);
+        if (model.hidden.has(li)) {
+          lineRanges.push([]);
+          return;
+        }
         const body = l.slice(l.match(/^ */)![0].length); // las sangrías se dibujan como guías: no se buscan
         const starts = total >= MAX_MATCHES ? [] : findAll(body, query, MAX_MATCHES - total);
         lineRanges.push(starts.map((s, k) => ({ s, e: s + n, i: total + k })));
@@ -288,10 +337,14 @@ export default function JsonView({ text, json, onOpen }: Props) {
     }
   };
 
-  const { lines, ends, toks } = model;
+  const { lines, ends, toks, hidden: hiddenLines } = model;
   const rows: ReactNode[] = [];
   for (let n = 0; n < lines.length; ) {
     const i = n; // constante por iteración: los onClick no deben ver el avance del bucle
+    if (hiddenLines.has(i)) {
+      n = i + 1;
+      continue;
+    }
     const end = ends.get(i);
     const isFolded = end !== undefined && collapsed.has(i);
     const { indent, toks: lt } = toks[i];
@@ -363,7 +416,10 @@ export default function JsonView({ text, json, onOpen }: Props) {
       className="font-mono outline-none"
     >
       <div className="sticky top-0 z-10 flex items-center gap-4 whitespace-nowrap bg-deep px-4 py-1 text-[11px] text-slate">
-        <span>{lines.length} líneas</span>
+        <span>
+          {lines.length - hiddenLines.size} líneas
+          {hiddenLines.size > 0 && <span className="text-lav"> · {hiddenLines.size} vacías ocultas</span>}
+        </span>
         <button onClick={() => setCollapsed(new Set(foldStarts))} className="flex items-center gap-1 hover:text-mist">
           <ChevronsDownUp size={13} /> Plegar todo
         </button>

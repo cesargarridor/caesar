@@ -13,6 +13,8 @@ interface Props {
   steps: StepState[];
   /** Resultado del script de Tests de la última ejecución (null = la petición no tiene script). */
   script?: ScriptResult | null;
+  /** Ocultar null, listas vacías y objetos vacíos en la vista Pretty. */
+  hideEmpty?: boolean;
 }
 
 type Tab = "body" | "headers" | "timeline" | "tests";
@@ -21,7 +23,7 @@ type Tab = "body" | "headers" | "timeline" | "tests";
 const statusColor = (s: number) =>
   s < 300 ? "bg-leaf/15 text-leaf" : s < 400 ? "bg-lav/15 text-lav" : "bg-rose/15 text-rose";
 
-export default function ResponsePanel({ response, error, sending, steps, script }: Props) {
+export default function ResponsePanel({ response, error, sending, steps, script, hideEmpty = false }: Props) {
   const [rawTab, setTab] = useState<Tab>("body");
   const tab: Tab = rawTab === "tests" && !script ? "body" : rawTab; // sin script no hay pestaña Tests
   const [view, setView] = useState<"pretty" | "raw">("pretty");
@@ -193,7 +195,7 @@ export default function ResponsePanel({ response, error, sending, steps, script 
             <p className="text-sm text-slate">Pulsa Send para ver la respuesta.</p>
           </div>
         ) : tab === "body" ? (
-          <JsonView text={text} json={showPretty} onOpen={open} />
+          <JsonView text={text} json={showPretty} onOpen={open} hideEmpty={showPretty && hideEmpty} />
         ) : tab === "tests" && script ? (
           <div className="mx-auto max-w-3xl space-y-5 p-5 text-xs">
             {script.tests.length > 0 && (

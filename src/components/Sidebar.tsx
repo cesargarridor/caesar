@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileUp, Plus, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileUp, Plus, Settings } from "lucide-react";
 import SidebarTree, { type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
@@ -24,6 +24,9 @@ export default function Sidebar({
   collections, selectedPath, importing, error, vars, onVars, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  /** Colecciones de primer nivel (las que se pueden exportar). */
+  const exportable = collections.flatMap((c, i) => (c.type === "folder" ? [{ path: String(i), name: c.name }] : []));
 
   const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -62,13 +65,47 @@ export default function Sidebar({
           </svg>
           <span className="cosmic-text">Caesar</span>
         </div>
-        <button
-          onClick={onImport}
-          disabled={importing}
-          className="btn-aurora flex w-full items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
-        >
-          <FileUp size={15} /> {importing ? "Importando…" : "Importar Postman"}
-        </button>
+        <div className="relative flex gap-2">
+          <button
+            onClick={onImport}
+            disabled={importing}
+            className="btn-aurora flex flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
+          >
+            <FileUp size={15} /> {importing ? "Importando…" : "Importar"}
+          </button>
+          <button
+            onClick={() => {
+              if (exportable.length === 1) actions.onExport(exportable[0].path);
+              else setShowExport((s) => !s);
+            }}
+            disabled={exportable.length === 0}
+            title={exportable.length ? "Exportar una colección (Postman v2.1)" : "No hay colecciones que exportar"}
+            className="flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-40"
+          >
+            <Download size={15} /> Exportar
+          </button>
+          {showExport && exportable.length > 1 && (
+            <>
+              <div className="fixed inset-0 z-40" onMouseDown={() => setShowExport(false)} />
+              <div className="glass absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl bg-kelp p-1 shadow-lg ring-1 ring-fg/15">
+                <p className="eyebrow px-2.5 py-1.5">Exportar colección</p>
+                {exportable.map((c) => (
+                  <button
+                    key={c.path}
+                    onClick={() => {
+                      setShowExport(false);
+                      actions.onExport(c.path);
+                    }}
+                    className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist"
+                    title={c.name}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <button
           onClick={onNewCollection}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
