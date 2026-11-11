@@ -4,7 +4,7 @@ import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
-import { setCatAnim, useCatAnim } from "../lib/prefs";
+import { setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
 
 export interface UpdatesProps {
@@ -67,7 +67,7 @@ function Preview({ t }: { t: Theme }) {
 function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontPrefs) => void }) {
   const changed = FONT_FIELDS.some((f) => fonts[f.key] !== FONT_DEFAULTS[f.key]);
   return (
-    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 py-1">
       {FONT_FIELDS.map((f) => {
         const v = fonts[f.key];
         const set = (n: number) => onFonts({ ...fonts, [f.key]: Math.min(f.max, Math.max(f.min, n)) });
@@ -127,7 +127,7 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
 
 function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHideEmpty: (on: boolean) => void }) {
   return (
-    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
@@ -153,8 +153,9 @@ function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHi
 
 function CatControls() {
   const on = useCatAnim();
+  const net = useNetAnim();
   return (
-    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
       <label className="flex cursor-pointer items-start gap-3">
         <input type="checkbox" checked={on} onChange={(e) => setCatAnim(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
         <span>
@@ -164,7 +165,16 @@ function CatControls() {
           </span>
         </span>
       </label>
-      <div className="flex shrink-0 justify-center rounded-xl bg-deep p-6 ring-1 ring-fg/10">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input type="checkbox" checked={net} onChange={(e) => setNetAnim(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
+        <span>
+          <span className="block text-sm text-mist">{t("Animar la red de nodos")}</span>
+          <span className="block text-xs text-slate">
+            {t("Al enviar una petición aparece una red de nodos con pulsos y polvo de estrellas que sigue al ratón, con el color del método. Desactivada, solo se ve el cuadro de pasos.")}
+          </span>
+        </span>
+      </label>
+      <div className="flex shrink-0 items-center justify-center rounded-xl bg-deep p-6 ring-1 ring-fg/10">
         <CatLogo size={96} />
       </div>
     </div>
@@ -175,7 +185,7 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
   return (
-    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
       <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
         <p className="eyebrow mb-1">{t("Versión instalada")}</p>
         <p className="text-lg text-mist">{u.version ? `v${u.version}` : "—"}</p>
@@ -258,15 +268,15 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                 : section === "lang"
                   ? t("Elige el idioma de la interfaz. Se aplica al instante.")
                   : section === "cat"
-                    ? t("El gatito del logo reacciona cuando le haces clic. Desactivarlo lo deja quieto y ahorra algo de memoria y CPU.")
+                    ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
-        <div className="mb-5 flex shrink-0 gap-1 border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Gato"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+        <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm ${
+              className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm ${
                 section === id ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"
               }`}
             >
@@ -282,7 +292,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         ) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
-          <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto pr-1 md:grid-cols-3">
+          <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
             {LANGS.map((l) => (
               <button
                 key={l.id}
@@ -299,7 +309,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         ) : section === "updates" ? (
           <UpdateControls u={updates} />
         ) : (
-        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-4 overflow-y-auto pr-1 md:grid-cols-3">
+        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-4 overflow-y-auto px-1 py-1 md:grid-cols-3">
           {THEMES.map((t) => {
             const active = t.id === themeId;
             return (
