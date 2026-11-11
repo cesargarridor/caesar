@@ -1124,6 +1124,8 @@ fn main() {
             sync::sync_status,
             sync::local_save,
             sync::sync_sign_in,
+            sync::sync_github_begin,
+            sync::sync_github_finish,
             sync::sync_sign_out,
             sync::sync_now
         ])

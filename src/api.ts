@@ -25,6 +25,7 @@ export const saveTextFile = (suggestedName: string, content: string) =>
 // Sincronización cifrada (Rust cifra y habla con Firebase; la interfaz nunca ve la clave).
 export interface SyncStatus {
   configured: boolean;
+  github: boolean;
   signed_in: boolean;
   email: string;
   has_key: boolean;
@@ -36,6 +37,10 @@ export const syncStatus = () => invoke<SyncStatus>("sync_status");
 export const localSave = (json: string) => invoke<void>("local_save", { json });
 export const syncSignIn = (email: string, password: string, create: boolean) =>
   invoke<void>("sync_sign_in", { email, password, create });
+export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
+export const syncGithubBegin = () => invoke<DeviceCode>("sync_github_begin");
+export const syncGithubFinish = (d: DeviceCode) =>
+  invoke<void>("sync_github_finish", { deviceCode: d.device_code, interval: d.interval, expiresIn: d.expires_in });
 export const syncSignOut = () => invoke<void>("sync_sign_out");
 export const syncNow = () => invoke<void>("sync_now");
 export const vaultCreate = () => invoke<string>("vault_create");
