@@ -117,12 +117,21 @@ los datos cifrados no se pueden recuperar.
 - El llavero protege contra el robo del archivo o del disco, no contra un programa malicioso que ya se ejecute con tu usuario.
 - Revocar un equipo exigirá generar una clave nueva y volver a cifrar los datos (pendiente).
 
+### Pantalla de bienvenida
+
+La primera vez que se abre Caesar (y una sola vez al actualizar desde una versión sin ella) aparece una pantalla con tres
+opciones: **iniciar sesión**, **registrarse** (correo y contraseña, o GitHub si está disponible) o **continuar como
+invitado**. Como invitado los datos se guardan solo en ese dispositivo: si se borran o se cambia de equipo, se pierden. Se
+puede crear la cuenta más tarde desde Ajustes → Sincronización sin perder lo local. Si ya hay una sesión iniciada, la
+pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Incluye enlaces a la política de
+privacidad y a los términos (`docs/privacy.html` y `docs/terms.html`; las URLs están en `src/lib/legal.ts` y hay que
+publicarlas, por ejemplo con GitHub Pages).
+
 ### Pendiente
 
-1. Proyecto de Firebase (Auth, Firestore con reglas por usuario, TTL para los mensajes de vinculación).
-2. Subida y descarga de colecciones cifradas (un documento por colección, con retraso para ahorrar operaciones).
-3. Pantallas de activación, vinculación y recuperación.
-4. Suscripción con Lemon Squeezy y webhook (Cloud Function con verificación de firma).
+1. Reglas de Firestore por usuario y TTL para los mensajes de vinculación (comprobar en la consola de Firebase).
+2. Pantallas de vinculación con QR y de recuperación.
+3. Suscripción con Lemon Squeezy y webhook (Cloud Function con verificación de firma), con Cloudflare, cuando se firme.
 
 ## Desarrollo
 
