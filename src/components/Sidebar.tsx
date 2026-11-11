@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Download, FileUp, Plus, Settings } from "lucide-react";
 import SidebarTree, { type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
+import CatLogo from "./CatLogo";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import type { KV, TreeNode } from "../types";
 
@@ -60,9 +61,7 @@ export default function Sidebar({
       </div>
       <div className="p-4">
         <div className="mb-4 flex items-center gap-2 text-2xl font-normal tracking-[-0.04em] text-mist">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" className="text-iris">
-            <path d="M12 2 22 20H2Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-          </svg>
+          <CatLogo size={30} />
           <span className="cosmic-text">Caesar</span>
         </div>
         <div className="relative flex gap-2">
