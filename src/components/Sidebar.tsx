@@ -33,6 +33,7 @@ export default function Sidebar({
   const [showVars, setShowVars] = useState(false);
   const [showColl, setShowColl] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [fmt, setFmt] = useState<"json" | "yaml" | "har">("json");
   /** Colecciones de primer nivel (las que se pueden exportar). */
   const exportable = collections.flatMap((c, i) => (c.type === "folder" ? [{ path: String(i), name: c.name }] : []));
 
@@ -153,27 +154,37 @@ export default function Sidebar({
             <FileUp size={15} /> {importing ? t("Importando…") : t("Importar")}
           </button>
           <button
-            onClick={() => {
-              if (exportable.length === 1) actions.onExport(exportable[0].path);
-              else setShowExport((s) => !s);
-            }}
+            onClick={() => setShowExport((s) => !s)}
             disabled={exportable.length === 0}
-            title={exportable.length ? t("Exportar una colección (Postman v2.1)") : t("No hay colecciones que exportar")}
+            title={exportable.length ? t("Exportar una colección (Postman, Insomnia o HAR)") : t("No hay colecciones que exportar")}
             className="flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-40"
           >
             <Download size={15} /> {t("Exportar")}
           </button>
-          {showExport && exportable.length > 1 && (
+          {showExport && exportable.length > 0 && (
             <>
               <div className="fixed inset-0 z-40" onMouseDown={() => setShowExport(false)} />
               <div className="glass absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl bg-kelp p-1 shadow-lg ring-1 ring-fg/15">
+                <p className="eyebrow px-2.5 py-1.5">{t("Formato")}</p>
+                <div className="mb-1 flex gap-1 px-1.5">
+                  {([["json", "JSON"], ["yaml", "YAML"], ["har", "HAR"]] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => setFmt(id)}
+                      title={id === "json" ? "Postman v2.1" : id === "yaml" ? "Insomnia v5" : "HTTP Archive 1.2"}
+                      className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua text-ink" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <p className="eyebrow px-2.5 py-1.5">{t("Exportar colección")}</p>
                 {exportable.map((c) => (
                   <button
                     key={c.path}
                     onClick={() => {
                       setShowExport(false);
-                      actions.onExport(c.path);
+                      actions.onExport(c.path, fmt);
                     }}
                     className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist"
                     title={c.name}
