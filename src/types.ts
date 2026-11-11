@@ -46,6 +46,8 @@ export interface RequestState {
   auth: AuthData;
   body: BodyData;
   settings: Settings;
+  /** Script de tests (post-respuesta), estilo Postman. Opcional: borradores antiguos no lo tienen. */
+  tests?: string;
 }
 
 export type TreeNode =
@@ -58,6 +60,7 @@ export type TreeNode =
       headers: KV[];
       body: Partial<BodyData> & { mode: string };
       auth: Partial<AuthData> & { type?: string };
+      tests?: string;
     };
 
 export type RequestNode = Extract<TreeNode, { type: "request" }>;
@@ -94,6 +97,15 @@ export interface ProgressEvent {
   ms: number;
   detail: string;
 }
+
+/** Estado del actualizador de la app. */
+export type UpdateState =
+  | { phase: "idle" }
+  | { phase: "checking" }
+  | { phase: "uptodate" }
+  | { phase: "available"; version: string; notes: string | null }
+  | { phase: "installing"; version: string; downloaded: number; total: number | null }
+  | { phase: "error"; message: string };
 
 /** Pestaña de petición abierta. `path` enlaza con el nodo guardado en la colección (null = borrador). */
 export interface Tab {

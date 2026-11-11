@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, Search } from "lucide-react";
+import FindBar from "./FindBar";
+import { findAll, MAX_MATCHES, wrapIndex } from "../lib/find";
 
 interface Props {
   text: string;
@@ -12,10 +14,48 @@ const TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)
 const URL_RE = /(https?:\/\/[^\s"'<>\\]+)/g;
 const MAX_HIGHLIGHT = 600_000; // por encima, texto plano para no congelar la UI
 
+/** Coincidencia de búsqueda en coordenadas locales del texto que se renderiza; `i` = índice global. */
+interface Range { s: number; e: number; i: number }
+
+/** Parte `text` (que empieza en `off`) resaltando las coincidencias que lo solapan. */
+function markText(text: string, off: number, ranges: Range[], cur: number, kb: string): ReactNode[] {
+  if (!ranges.length || !text) return [text];
+  const out: ReactNode[] = [];
+  const end = off + text.length;
+  let pos = 0;
+  for (const r of ranges) {
+    if (r.e <= off || r.s >= end) continue;
+    const a = Math.max(r.s, off) - off;
+    const b = Math.min(r.e, end) - off;
+    if (a > pos) out.push(text.slice(pos, a));
+    const isCur = r.i === cur;
+    out.push(
+      <mark
+        key={`${kb}-${r.i}-${a}`}
+        data-cur-match={isCur ? "" : undefined}
+        style={{
+          color: "inherit",
+          borderRadius: 2,
+          background: isCur ? "color-mix(in srgb, var(--t-hl) 75%, transparent)" : "color-mix(in srgb, var(--t-hl) 35%, transparent)",
+          outline: isCur ? "1px solid var(--t-hl)" : undefined,
+        }}
+      >
+        {text.slice(a, b)}
+      </mark>,
+    );
+    pos = b;
+  }
+  if (pos < text.length) out.push(text.slice(pos));
+  return out;
+}
+
 // Todo se renderiza como nodos React (nunca innerHTML): el contenido remoto no puede inyectar HTML.
-function linkify(text: string, keyBase: string, onOpen: (u: string) => void): ReactNode[] {
+function linkify(text: string, keyBase: string, onOpen: (u: string) => void, off = 0, ranges: Range[] = [], cur = -1): ReactNode[] {
+  let o = off;
   return text.split(URL_RE).map((part, i) => {
-    if (i % 2 === 0) return part;
+    const start = o;
+    o += part.length;
+    if (i % 2 === 0) return markText(part, start, ranges, cur, `${keyBase}-${i}`);
     const m = part.match(/^(.*?)([.,;:)\]]*)$/);
     const url = m ? m[1] : part;
     const tail = m ? m[2] : "";
@@ -29,9 +69,9 @@ function linkify(text: string, keyBase: string, onOpen: (u: string) => void): Re
           onKeyDown={(e) => e.key === "Enter" && onOpen(url)}
           style={{ color: "var(--t-r-link)" }} className="cursor-pointer font-normal underline decoration-1 underline-offset-2 hover:decoration-2"
         >
-          {url}
+          {markText(url, start, ranges, cur, `${keyBase}-${i}u`)}
         </span>
-        {tail}
+        {markText(tail, start + url.length, ranges, cur, `${keyBase}-${i}t`)}
       </span>
     );
   });
@@ -74,17 +114,18 @@ const COLOR: Record<Kind, string> = {
   raw: "var(--t-silver)",
 };
 
-function renderTok(t: Tok, i: number, onOpen: (u: string) => void): ReactNode {
+function renderTok(t: Tok, i: number, onOpen: (u: string) => void, off: number, ranges: Range[], cur: number): ReactNode {
   if (t.k === "str") {
+    const inner = t.s.slice(1, -1);
     return (
       <span key={i} style={{ color: COLOR.str }}>
-        {'"'}
-        {linkify(t.s.slice(1, -1), `s${i}`, onOpen)}
-        {'"'}
+        {markText('"', off, ranges, cur, `q${i}`)}
+        {linkify(inner, `s${i}`, onOpen, off + 1, ranges, cur)}
+        {markText('"', off + 1 + inner.length, ranges, cur, `e${i}`)}
       </span>
     );
   }
-  return <span key={i} style={{ color: COLOR[t.k] }}>{t.s}</span>;
+  return <span key={i} style={{ color: COLOR[t.k] }}>{markText(t.s, off, ranges, cur, `t${i}`)}</span>;
 }
 
 export default function JsonView({ text, json, onOpen }: Props) {
@@ -115,11 +156,111 @@ export default function JsonView({ text, json, onOpen }: Props) {
     });
   }, []);
 
+  // ── búsqueda (Ctrl+F) ──
+  const box = useRef<HTMLDivElement>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [cur, setCur] = useState(0);
+  const [focusKey, setFocusKey] = useState(0);
+
+  const info = useMemo(() => {
+    const empty = { total: 0, base: [] as number[], lineRanges: [] as Range[][], all: [] as Range[] };
+    if (!findOpen || !query) return empty;
+    const n = query.length;
+    if (model) {
+      let total = 0;
+      const base: number[] = [];
+      const lineRanges: Range[][] = [];
+      model.lines.forEach((l) => {
+        base.push(total);
+        const body = l.slice(l.match(/^ */)![0].length); // las sangrías se dibujan como guías: no se buscan
+        const starts = total >= MAX_MATCHES ? [] : findAll(body, query, MAX_MATCHES - total);
+        lineRanges.push(starts.map((s, k) => ({ s, e: s + n, i: total + k })));
+        total += starts.length;
+      });
+      return { total, base, lineRanges, all: [] as Range[] };
+    }
+    const starts = findAll(text, query);
+    return { total: starts.length, base: [] as number[], lineRanges: [] as Range[][], all: starts.map((s, k) => ({ s, e: s + n, i: k })) };
+  }, [findOpen, query, model, text]);
+  const idx = wrapIndex(cur, info.total);
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const open = () => {
+      const sel = window.getSelection()?.toString() ?? "";
+      if (sel && sel.length <= 100 && !sel.includes("\n")) {
+        setQuery(sel);
+        setCur(0);
+      }
+      setFindOpen(true);
+      setFocusKey((k) => k + 1);
+    };
+    el.addEventListener("caesar-find", open);
+    return () => el.removeEventListener("caesar-find", open);
+  }, []);
+
+  // Al cambiar de coincidencia: desplegar los bloques plegados que la contienen y centrarla.
+  useEffect(() => {
+    if (!findOpen || !info.total) return;
+    if (model) {
+      let L = 0;
+      while (L + 1 < info.base.length && info.base[L + 1] <= idx) L++;
+      setCollapsed((c) => {
+        const n = new Set(c);
+        let changed = false;
+        for (const s of c) {
+          const e = model.ends.get(s);
+          if (e !== undefined && s < L && L <= e) {
+            n.delete(s);
+            changed = true;
+          }
+        }
+        return changed ? n : c;
+      });
+    }
+    const t = setTimeout(() => box.current?.querySelector("[data-cur-match]")?.scrollIntoView({ block: "center" }), 30);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, query, findOpen]);
+
+  const findBar = findOpen ? (
+    <FindBar
+      query={query}
+      onQuery={(q) => {
+        setQuery(q);
+        setCur(0);
+      }}
+      index={idx}
+      total={info.total}
+      onNext={() => setCur((c) => c + 1)}
+      onPrev={() => setCur((c) => c - 1)}
+      onClose={() => setFindOpen(false)}
+      focusKey={focusKey}
+    />
+  ) : null;
+
+  const wrapKeys = (e: React.KeyboardEvent) => {
+    if (!findOpen) return;
+    if (e.key === "Escape") setFindOpen(false);
+    else if (e.key === "F3") {
+      e.preventDefault();
+      setCur((c) => c + (e.shiftKey ? -1 : 1));
+    }
+  };
+
   if (!model) {
     return (
-      <pre className="whitespace-pre-wrap break-words p-4 font-mono text-xs leading-relaxed text-silver">
-        {big ? text : linkify(text, "p", onOpen)}
-      </pre>
+      <div ref={box} data-find-scope="response" tabIndex={-1} onKeyDown={wrapKeys} className="outline-none">
+        {findBar && <div className="sticky top-0 z-10 flex justify-end bg-deep px-4 py-1">{findBar}</div>}
+        <pre
+          style={{ fontSize: "var(--fs-resp, 13px)", lineHeight: 1.6 }}
+          className="whitespace-pre-wrap break-words p-4 font-mono text-silver"
+        >
+          {big ? markText(text, 0, info.all, idx, "b") : linkify(text, "p", onOpen, 0, info.all, idx)}
+        </pre>
+      </div>
     );
   }
 
@@ -159,7 +300,7 @@ export default function JsonView({ text, json, onOpen }: Props) {
 
     rows.push(
       <div key={i} className="group relative flex hover:bg-fg/5">
-        <span className="w-12 shrink-0 select-none pr-3 text-right text-[11px] leading-6 text-slate/70">{i + 1}</span>
+        <span className="w-12 shrink-0 select-none pr-3 text-right text-[0.85em] leading-[inherit] text-slate/70">{i + 1}</span>
         <span className="flex w-5 shrink-0 items-center justify-center">
           {foldable && (
             <button onClick={() => toggle(i)} className="text-slate hover:text-mist" title={isFolded ? "Expandir" : "Plegar"}>
@@ -171,7 +312,15 @@ export default function JsonView({ text, json, onOpen }: Props) {
           {Array.from({ length: indent }, (_, g) => (
             <span key={g} className="inline-block w-[2ch] border-l border-fg/10 align-top">&nbsp;</span>
           ))}
-          {lt.map((t, ti) => renderTok(t, ti, onOpen))}
+          {(() => {
+            let off = 0;
+            const ranges = info.lineRanges[i] ?? [];
+            return lt.map((t, ti) => {
+              const node = renderTok(t, ti, onOpen, off, ranges, idx);
+              off += t.s.length;
+              return node;
+            });
+          })()}
           {!isFolded && (() => {
             const v = valueOf(lt);
             if (v === null) return null;
@@ -190,7 +339,7 @@ export default function JsonView({ text, json, onOpen }: Props) {
           })()}
           {isFolded && (
             <>
-              <button onClick={() => toggle(i)} className="mx-1 rounded bg-fg/10 px-1.5 text-[11px] text-silver hover:bg-fg/20">
+              <button onClick={() => toggle(i)} className="mx-1 rounded bg-fg/10 px-1.5 text-[0.85em] text-silver hover:bg-fg/20">
                 …
               </button>
               <span style={{ color: COLOR.punc }}>{closing}</span>
@@ -205,8 +354,15 @@ export default function JsonView({ text, json, onOpen }: Props) {
   const foldStarts = [...ends.keys()].filter((k) => k !== 0);
 
   return (
-    <div className="font-mono text-[13px] leading-6">
-      <div className="sticky top-0 z-10 flex items-center gap-4 bg-deep px-4 py-1 text-[11px] text-slate">
+    <div
+      ref={box}
+      data-find-scope="response"
+      tabIndex={-1}
+      onKeyDown={wrapKeys}
+      style={{ fontSize: "var(--fs-resp, 13px)", lineHeight: "calc(var(--fs-resp, 13px) * 1.846)" }}
+      className="font-mono outline-none"
+    >
+      <div className="sticky top-0 z-10 flex items-center gap-4 whitespace-nowrap bg-deep px-4 py-1 text-[11px] text-slate">
         <span>{lines.length} líneas</span>
         <button onClick={() => setCollapsed(new Set(foldStarts))} className="flex items-center gap-1 hover:text-mist">
           <ChevronsDownUp size={13} /> Plegar todo
@@ -214,6 +370,17 @@ export default function JsonView({ text, json, onOpen }: Props) {
         <button onClick={() => setCollapsed(new Set())} className="flex items-center gap-1 hover:text-mist">
           <ChevronsUpDown size={13} /> Expandir todo
         </button>
+        <button
+          onClick={() => {
+            setFindOpen(true);
+            setFocusKey((k) => k + 1);
+          }}
+          className="flex items-center gap-1 hover:text-mist"
+          title="Buscar (Ctrl+F)"
+        >
+          <Search size={13} /> Buscar
+        </button>
+        {findBar && <span className="ml-auto font-sans text-xs">{findBar}</span>}
       </div>
       <div className="px-2 pb-4">{rows}</div>
     </div>
