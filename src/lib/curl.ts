@@ -23,6 +23,7 @@ export const emptyRequest = (): RequestState => ({
   auth: emptyAuth(),
   body: emptyBody(),
   settings: defaultSettings(),
+  tests: "",
 });
 
 export const looksLikeCurl = (s: string) => /^\s*curl(\.exe)?\s/i.test(s);

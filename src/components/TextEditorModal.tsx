@@ -39,7 +39,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={onCancel}>
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={onCancel}>
       <div
         className="flex max-h-full w-full max-w-3xl flex-col rounded-2xl bg-kelp glass p-8"
         onMouseDown={(e) => e.stopPropagation()}

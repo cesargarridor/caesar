@@ -66,6 +66,7 @@ export function nodeFromRequest(name: string, req: RequestState): RequestNode {
     headers: req.headers,
     body: { ...req.body },
     auth: { ...req.auth },
+    tests: req.tests ?? "",
   };
 }
 

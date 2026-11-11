@@ -57,7 +57,7 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
   background: var(--t-iris);
   color: var(--t-onprimary);
   border-radius: 10px;
-  font-size: 13px;
+  font-size: calc(0.8125rem * var(--fs-k, 1));
   text-transform: uppercase;
   letter-spacing: 0.025em;
   box-shadow: inset 0 -7px 11px rgba(255, 255, 255, 0.14);
@@ -66,7 +66,7 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
 .btn-aurora:hover:not(:disabled) { filter: brightness(1.12); }
 
 .eyebrow {
-  font-size: 12px;
+  font-size: calc(0.75rem * var(--fs-k, 1));
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.025em;
@@ -80,6 +80,20 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
   background-clip: text;
   color: transparent;
 }
+
+/* Escala de letra por zona: redefine los tamaños de texto de Tailwind dentro del contenedor.
+   `--fs-k` lo fija .fs-sidebar / .fs-request a partir de los ajustes del usuario. */
+.fs-scale {
+  --text-xs: calc(0.75rem * var(--fs-k, 1));
+  --text-sm: calc(0.875rem * var(--fs-k, 1));
+  --text-base: calc(1rem * var(--fs-k, 1));
+  --text-lg: calc(1.125rem * var(--fs-k, 1));
+  --text-xl: calc(1.25rem * var(--fs-k, 1));
+  --text-2xl: calc(1.5rem * var(--fs-k, 1));
+  --text-3xl: calc(1.875rem * var(--fs-k, 1));
+}
+.fs-sidebar { --fs-k: var(--fs-k-sidebar, 1); }
+.fs-request { --fs-k: var(--fs-k-request, 1); }
 
 /* Divisor aurora vertical */
 .aurora-line {

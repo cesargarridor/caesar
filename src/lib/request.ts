@@ -95,5 +95,6 @@ export function requestFromNode(n: RequestNode): RequestState {
       urlencoded: n.body.urlencoded ?? [],
     },
     settings: defaultSettings(),
+    tests: n.tests ?? "",
   };
 }

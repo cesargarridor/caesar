@@ -60,7 +60,7 @@ export default function RequestBar({ method, url, sending, onMethod, onUrlEdit, 
         {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? "Guardado" : "Guardar"}
       </button>
       <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
-        <Send size={14} /> {sending ? "Enviando…" : "Send"}
+        <Send size={14} /> {sending ? "Enviando…" : "Enviar"}
       </button>
     </div>
   );
