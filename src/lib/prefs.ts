@@ -149,6 +149,38 @@ export function setCatAnim(on: boolean) {
 
 export const getCatAnim = () => catAnim;
 
+const NET_KEY = "caesar.netAnim";
+
+/** Red de nodos de la pantalla de carga: activada por defecto. */
+let netAnim = (() => {
+  try {
+    return localStorage.getItem(NET_KEY) !== "0";
+  } catch {
+    return true;
+  }
+})();
+const netListeners = new Set<() => void>();
+
+export function setNetAnim(on: boolean) {
+  netAnim = on;
+  try {
+    localStorage.setItem(NET_KEY, on ? "1" : "0");
+  } catch {
+    /* sin almacenamiento */
+  }
+  netListeners.forEach((f) => f());
+}
+
+export function useNetAnim(): boolean {
+  return useSyncExternalStore(
+    (f) => {
+      netListeners.add(f);
+      return () => netListeners.delete(f);
+    },
+    () => netAnim,
+  );
+}
+
 export function useCatAnim(): boolean {
   return useSyncExternalStore(
     (f) => {

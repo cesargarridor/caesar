@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import StepList from "./StepList";
 import type { StepState } from "../types";
 import { t } from "../lib/i18n";
+import { useNetAnim } from "../lib/prefs";
 
 /** Color de la red según el método de la petición (mismos tonos que la lista). */
 const METHOD_RGB: Record<string, [number, number, number]> = {
@@ -25,11 +26,12 @@ const LINK = 0.19; // distancia máxima de enlace (fracción del lado menor)
  */
 export default function NetworkLoader({ steps, method }: { steps: StepState[]; method: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const anim = useNetAnim();
 
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!anim || !canvas || !ctx) return;
     const [R, G, B] = METHOD_RGB[method.toUpperCase()] ?? DEFAULT_RGB;
     const col = (a: number) => `rgba(${R},${G},${B},${Math.max(0, Math.min(1, a))})`;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -212,11 +214,11 @@ export default function NetworkLoader({ steps, method }: { steps: StepState[]; m
       ro.disconnect();
       window.removeEventListener("pointermove", onMove);
     };
-  }, [method]);
+  }, [method, anim]);
 
   return (
     <div className="loader-overlay absolute inset-0 z-40 bg-deep" role="status" aria-live="polite">
-      <canvas ref={ref} className="absolute inset-0 h-full w-full" />
+      {anim && <canvas ref={ref} className="absolute inset-0 h-full w-full" />}
       <div className="relative z-10 flex h-full items-center justify-center">
         <div className="w-full max-w-md rounded-2xl bg-deep/80 glass p-8 backdrop-blur-sm">
           <p className="mb-5 text-sm font-semibold uppercase tracking-[0.025em] text-saffron">{t("Pensando…")}</p>
