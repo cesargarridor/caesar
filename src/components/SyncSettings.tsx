@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type SyncStatus } from "../api";
+import { openUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -14,6 +14,7 @@ export default function SyncSettings() {
   const [password, setPassword] = useState("");
   const [recovery, setRecovery] = useState("");
   const [shownKey, setShownKey] = useState<string | null>(null);
+  const [device, setDevice] = useState<DeviceCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -75,6 +76,35 @@ export default function SyncSettings() {
               </button>
             </div>
           </form>
+        )}
+        {!st.signed_in && st.github && (
+          <div className="max-w-sm space-y-3">
+            <button
+              className={ghostCls}
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  const d = await syncGithubBegin();
+                  setDevice(d);
+                  openUrl(d.verification_uri).catch(() => {});
+                  try {
+                    await syncGithubFinish(d);
+                  } finally {
+                    setDevice(null);
+                  }
+                })
+              }
+            >
+              {t("Continuar con GitHub")}
+            </button>
+            {device && (
+              <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+                <p className="mb-2 text-xs text-slate">{t("Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:")}</p>
+                <code className="block select-all text-xl tracking-widest text-mist">{device.user_code}</code>
+                <p className="mt-2 break-all text-xs text-slate">{device.verification_uri}</p>
+              </div>
+            )}
+          </div>
         )}
       </section>
 
