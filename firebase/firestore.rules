@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cada persona solo puede leer y escribir sus propios datos, y solo bloques de tamaño razonable.
+    match /users/{uid}/sync/{doc} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['blob', 'updatedAt'])
+        && request.resource.data.blob is string
+        && request.resource.data.blob.size() < 900000
+        && request.resource.data.updatedAt is int;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
