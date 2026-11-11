@@ -123,9 +123,10 @@ La primera vez que se abre Caesar (y una sola vez al actualizar desde una versi�
 opciones: **iniciar sesión**, **registrarse** (correo y contraseña, o GitHub si está disponible) o **continuar como
 invitado**. Como invitado los datos se guardan solo en ese dispositivo: si se borran o se cambia de equipo, se pierden. Se
 puede crear la cuenta más tarde desde Ajustes → Sincronización sin perder lo local. Si ya hay una sesión iniciada, la
-pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Incluye enlaces a la política de
-privacidad y a los términos (`docs/privacy.html` y `docs/terms.html`; las URLs están en `src/lib/legal.ts` y hay que
-publicarlas, por ejemplo con GitHub Pages).
+pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Incluye enlaces a la política de privacidad y a los términos, publicados en el repositorio
+[caesar-legal](https://github.com/cesargarridor/caesar-legal) (https://cesargarridor.github.io/caesar-legal/); las URLs
+están en `src/lib/legal.ts`. Ahí también están el aviso legal, la página de seguridad (qué guarda la app y dónde) y cómo
+borrar los datos, en español e inglés.
 
 ### Pendiente
 
