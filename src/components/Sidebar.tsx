@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Download, FileUp, Plus, Settings } from "lucide-react";
-import SidebarTree, { type TreeActions } from "./SidebarTree";
+import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
 import CatLogo from "./CatLogo";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
+import { canMove } from "../lib/tree";
 import type { KV, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
@@ -34,6 +35,79 @@ export default function Sidebar({
   const [showExport, setShowExport] = useState(false);
   /** Colecciones de primer nivel (las que se pueden exportar). */
   const exportable = collections.flatMap((c, i) => (c.type === "folder" ? [{ path: String(i), name: c.name }] : []));
+
+  // Arrastrar y soltar en el árbol, con eventos de puntero (el DnD nativo no funciona en la webview de Windows).
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const cancelDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelDrag.current?.(), []);
+
+  const onRowDown = (path: string, label: string, e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const isRoot = !path.includes("/");
+    if ((e.target as HTMLElement).closest("button,input")) return;
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let started = false;
+    let over: string | null = null;
+    let pos: "before" | "after" | undefined;
+    const cleanup = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("keydown", key);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      cancelDrag.current = null;
+      setDrag(null);
+    };
+    const move = (ev: PointerEvent) => {
+      if (!started) {
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        started = true;
+        document.body.style.cursor = "grabbing";
+        document.body.style.userSelect = "none";
+      }
+      const hit = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-drop]");
+      const target = hit?.dataset.drop ?? null;
+      pos = undefined;
+      if (isRoot) {
+        // Reordenar colecciones: antes/después de la colección sobre la que está el cursor.
+        const last = String(collections.length - 1);
+        const key = target === "root" ? last : target ? target.split("/")[0] : null;
+        over = key && key !== path ? key : null;
+        if (over) {
+          const head = document.querySelector<HTMLElement>(`[data-drop="${over}"]`)?.firstElementChild;
+          const r = head?.getBoundingClientRect();
+          pos = target !== "root" && r && ev.clientY < r.top + r.height / 2 ? "before" : "after";
+        }
+      } else {
+        over = target && canMove(path, target) ? target : null;
+      }
+      setDrag({ from: path, over, pos, x: ev.clientX, y: ev.clientY, label });
+    };
+    const up = () => {
+      const wasDrag = started;
+      const target = over;
+      const where = pos;
+      cleanup();
+      if (!wasDrag) return;
+      // El clic que sigue a soltar no debe abrir/cerrar la carpeta ni abrir la petición.
+      const swallow = (ce: Event) => ce.stopPropagation();
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 50);
+      if (target) actions.onMove(path, target, where);
+    };
+    const key = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        started = false;
+        over = null;
+        cleanup();
+      }
+    };
+    cancelDrag.current = cleanup;
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("keydown", key);
+  };
 
   const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -120,17 +194,29 @@ export default function Sidebar({
         {error && <p className="mt-2 text-xs text-rose">{error}</p>}
       </div>
 
-      <div className="min-h-[8rem] flex-1 overflow-y-auto pb-2">
+      <div
+        data-drop="root"
+        className={`min-h-[8rem] flex-1 overflow-y-auto pb-2 ${drag?.over === "root" ? "bg-aqua/10 ring-1 ring-inset ring-aqua" : ""}`}
+      >
         {collections.length === 0 ? (
           <p className="p-4 text-center text-xs font-light text-slate">
             {t("Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.")}
           </p>
         ) : (
           collections.map((c, i) => (
-            <SidebarTree key={i} node={c} path={`${i}`} depth={0} selectedPath={selectedPath} {...actions} />
+            <SidebarTree key={c.type === "folder" ? (c.uid ?? i) : i} node={c} path={`${i}`} depth={0} selectedPath={selectedPath} drag={drag} onRowDown={onRowDown} {...actions} />
           ))
         )}
       </div>
+
+      {drag && (
+        <div
+          style={{ left: drag.x + 12, top: drag.y + 8 }}
+          className="pointer-events-none fixed z-[60] max-w-[14rem] truncate rounded-lg bg-iris px-2.5 py-1 text-xs font-semibold text-onprimary shadow-lg"
+        >
+          {drag.label}
+        </div>
+      )}
 
       <div className="shrink-0 border-t border-fg/10">
         <button
