@@ -69,6 +69,25 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  // ── Bienvenida ──
+  "Volver": ["Back", "Zurück", "Retour", "Indietro"],
+  "Crear cuenta": ["Create account", "Konto erstellen", "Créer un compte", "Crea account"],
+  "Iniciar sesión": ["Sign in", "Anmelden", "Se connecter", "Accedi"],
+  "Contraseña": ["Password", "Passwort", "Mot de passe", "Password"],
+  "Un momento…": ["One moment…", "Einen Moment…", "Un instant…", "Un momento…"],
+  "Ya tengo cuenta": ["I already have an account", "Ich habe schon ein Konto", "J'ai déjà un compte", "Ho già un account"],
+  "Crear una cuenta": ["Create an account", "Konto erstellen", "Créer un compte", "Crea un account"],
+  "Bienvenido. Elige cómo quieres empezar.": ["Welcome. Choose how you want to start.", "Willkommen. Wähle, wie du starten möchtest.", "Bienvenue. Choisissez comment commencer.", "Benvenuto. Scegli come iniziare."],
+  "Registrarse": ["Sign up", "Registrieren", "S'inscrire", "Registrati"],
+  "Continuar como invitado": ["Continue as guest", "Als Gast fortfahren", "Continuer en tant qu'invité", "Continua come ospite"],
+  "Como invitado, tus datos se guardan solo en este dispositivo. Si lo borras o cambias de equipo, los perderás.": ["As a guest, your data is stored only on this device. If you wipe it or switch computers, you will lose it.", "Als Gast werden deine Daten nur auf diesem Gerät gespeichert. Wenn du es löschst oder den Computer wechselst, gehen sie verloren.", "En tant qu'invité, vos données sont stockées uniquement sur cet appareil. Si vous l'effacez ou changez d'ordinateur, vous les perdrez.", "Come ospite, i tuoi dati restano solo su questo dispositivo. Se lo cancelli o cambi computer, li perderai."],
+  "Al continuar aceptas nuestros": ["By continuing you accept our", "Indem du fortfährst, akzeptierst du unsere", "En continuant, vous acceptez nos", "Continuando accetti i nostri"],
+  "y reconoces nuestra": ["and acknowledge our", "und bestätigst unsere", "et reconnaissez notre", "e riconosci la nostra"],
+  "Términos": ["Terms", "Nutzungsbedingungen", "Conditions d'utilisation", "Termini"],
+  "Política de privacidad": ["Privacy Policy", "Datenschutzerklärung", "Politique de confidentialité", "Informativa sulla privacy"],
+  "Correo": ["Email", "E-Mail", "E-mail", "Email"],
+  "Continuar con GitHub": ["Continue with GitHub", "Mit GitHub fortfahren", "Continuer avec GitHub", "Continua con GitHub"],
+  "Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:": ["Enter this code on GitHub (the page has opened) and authorise Caesar:", "Gib diesen Code auf GitHub ein (die Seite wurde geöffnet) und autorisiere Caesar:", "Saisissez ce code sur GitHub (la page s'est ouverte) et autorisez Caesar :", "Inserisci questo codice su GitHub (la pagina si è aperta) e autorizza Caesar:"],
   // ── Barra lateral ──
   "Arrastra para cambiar el ancho · doble clic para restaurar": ["Drag to resize · double-click to reset", "Ziehen zum Ändern der Breite · Doppelklick zum Zurücksetzen", "Glisser pour redimensionner · double-clic pour rétablir", "Trascina per ridimensionare · doppio clic per ripristinare"],
   "Importar": ["Import", "Importieren", "Importer", "Importa"],
