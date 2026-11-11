@@ -64,7 +64,7 @@ function Preview({ t }: { t: Theme }) {
 function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontPrefs) => void }) {
   const changed = FONT_FIELDS.some((f) => fonts[f.key] !== FONT_DEFAULTS[f.key]);
   return (
-    <div className="flex-1 space-y-5 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
       {FONT_FIELDS.map((f) => {
         const v = fonts[f.key];
         const set = (n: number) => onFonts({ ...fonts, [f.key]: Math.min(f.max, Math.max(f.min, n)) });
@@ -106,7 +106,7 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
           </div>
         );
       })}
-      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+      <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
         <p className="eyebrow mb-2">Vista previa</p>
         <pre className="font-mono" style={{ fontSize: "var(--fs-body)", lineHeight: 1.6, color: "var(--t-b-str)" }}>{'{ "body": "lo que envías" }'}</pre>
         <pre className="font-mono" style={{ fontSize: "var(--fs-resp)", lineHeight: 1.6, color: "var(--t-r-str)" }}>{'{ "respuesta": "lo que recibes" }'}</pre>
@@ -124,7 +124,7 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
 
 function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHideEmpty: (on: boolean) => void }) {
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
@@ -142,7 +142,7 @@ function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHi
           </span>
         </span>
       </label>
-      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+      <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
         <p className="eyebrow mb-2">Ejemplo</p>
         <pre className="font-mono text-xs text-silver">{hideEmpty ? '{\n  "id": 7,\n  "name": "Ana"\n}' : '{\n  "id": 7,\n  "name": "Ana",\n  "email": null,\n  "tags": [],\n  "extra": {}\n}'}</pre>
       </div>
@@ -154,8 +154,8 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto pr-1">
-      <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+      <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
         <p className="eyebrow mb-1">Versión instalada</p>
         <p className="text-lg text-mist">{u.version ? `v${u.version}` : "—"}</p>
       </div>
@@ -221,13 +221,13 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         className="glass flex max-h-full w-full max-w-4xl flex-col rounded-2xl bg-kelp p-8"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex shrink-0 items-center justify-between">
           <h2 className="cosmic-text text-3xl font-normal tracking-[-0.02em]">Ajustes</h2>
           <button onClick={onClose} className="text-slate hover:text-mist" title="Cerrar (Esc)">
             <X size={22} />
           </button>
         </div>
-        <p className="mb-4 text-sm text-slate">
+        <p className="mb-4 shrink-0 text-sm text-slate">
           {section === "theme"
             ? "Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos."
             : section === "fonts"
@@ -236,7 +236,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                 ? "Cómo se muestra el body de la respuesta que recibes."
                 : "Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas."}
         </p>
-        <div className="mb-5 flex gap-1 border-b border-fg/10">
+        <div className="mb-5 flex shrink-0 gap-1 border-b border-fg/10">
           {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
@@ -257,7 +257,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         ) : section === "updates" ? (
           <UpdateControls u={updates} />
         ) : (
-        <div className="grid flex-1 grid-cols-2 gap-4 overflow-y-auto pr-1 md:grid-cols-3">
+        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-4 overflow-y-auto pr-1 md:grid-cols-3">
           {THEMES.map((t) => {
             const active = t.id === themeId;
             return (

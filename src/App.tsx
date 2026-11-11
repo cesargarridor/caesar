@@ -174,6 +174,11 @@ export default function App() {
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
   const req = active.req;
+  /** Colección (carpeta raíz) a la que pertenece la pestaña activa y sus variables; pisan a las globales. */
+  const rootIdx = active.path !== null ? Number(active.path.split("/")[0]) : null;
+  const rootNode = rootIdx !== null ? collections[rootIdx] : undefined;
+  const collVars: KV[] = rootNode && rootNode.type === "folder" ? rootNode.variables ?? [] : [];
+  const effVars = useMemo(() => [...vars, ...collVars], [vars, collVars]);
   const res = results[active.id] ?? { response: null, error: null };
   const fullUrl = useMemo(() => buildUrl(req.url, req.params), [req.url, req.params]);
 
@@ -280,11 +285,10 @@ export default function App() {
     try {
       const imported = await importPostmanCollection();
       if (imported) {
-        setCollections((c) => [...c, imported.root]);
-        setVars((cur) => {
-          const have = new Set(cur.map((v) => v.key));
-          return [...cur, ...imported.variables.filter((v) => !have.has(v.key))];
-        });
+        // Las variables de la colección importada viven en la propia colección (no en las globales).
+        const root: TreeNode =
+          imported.root.type === "folder" ? { ...imported.root, variables: imported.variables } : imported.root;
+        setCollections((c) => [...c, root]);
       }
     } catch (e) {
       setImportError(errMsg(e));
@@ -336,7 +340,6 @@ export default function App() {
     if (tab.path && current && current.type === "request") {
       setCollections((c) => updateAt(c, tab.path!, (n) => nodeFromRequest(n.name, req)));
       patchTab(tab.id, (t) => ({ ...t, dirty: false }));
-      setNotice({ kind: "ok", text: `Guardado en "${current.name}".` });
       setFlash("save");
       return;
     }
@@ -351,7 +354,6 @@ export default function App() {
     const { nodes, path } = addChild(base, target, node);
     setCollections(nodes);
     patchTab(tab.id, (t) => ({ ...t, path, name: node.name, dirty: false }));
-    setNotice({ kind: "ok", text: `Guardado como "${node.name}".` });
     setFlash("save");
   };
 
@@ -368,8 +370,7 @@ export default function App() {
 
   const handleCopyCurl = async () => {
     try {
-      await navigator.clipboard.writeText(generateCurl(buildExecuteArgs(req, vars)));
-      setNotice({ kind: "ok", text: "cURL copiado al portapapeles." });
+      await navigator.clipboard.writeText(generateCurl(buildExecuteArgs(req, effVars)));
       setFlash("curl");
     } catch {
       setNotice({ kind: "err", text: "No se pudo copiar al portapapeles." });
@@ -381,7 +382,6 @@ export default function App() {
       const parsed = parseCurl(text);
       patchTab(active.id, (t) => ({ ...t, req: { ...parsed, tests: t.req.tests ?? "" }, dirty: true }));
       setResults((r) => ({ ...r, [active.id]: { response: null, error: null } }));
-      setNotice({ kind: "ok", text: "cURL importado: método, URL, params, headers, auth y body aplicados." });
     } catch (e) {
       setNotice({ kind: "err", text: errMsg(e) });
     }
@@ -394,11 +394,11 @@ export default function App() {
     setResults((r) => ({ ...r, [id]: { response: null, error: null } }));
     setSteps(freshSteps());
     try {
-      const response = await executeRequest(buildExecuteArgs(req, vars));
+      const response = await executeRequest(buildExecuteArgs(req, effVars));
       // Tests / automatizaciones post-respuesta (intérprete propio, sin eval ni red).
       let script: ScriptResult | null = null;
       if (req.tests?.trim()) {
-        const working = new Map(vars.filter((v) => v.enabled && v.key).map((v) => [v.key, v.value]));
+        const working = new Map(effVars.filter((v) => v.enabled && v.key).map((v) => [v.key, v.value]));
         script = runScript(req.tests, {
           body: response.body,
           status: response.status,
@@ -409,15 +409,28 @@ export default function App() {
         });
         const { sets, unsets } = script;
         if (sets.length || unsets.length) {
-          setVars((cur) => {
-            let next = cur.filter((v) => !unsets.includes(v.key));
+          const apply = (cur: KV[], own: (k: string) => boolean, add: boolean) => {
+            let next = cur.filter((v) => !(unsets.includes(v.key) && own(v.key)));
             for (const s of sets) {
+              if (!own(s.key)) continue;
               next = next.some((v) => v.key === s.key)
                 ? next.map((v) => (v.key === s.key ? { ...v, value: s.value, enabled: true } : v))
-                : [...next, { key: s.key, value: s.value, enabled: true }];
+                : add
+                  ? [...next, { key: s.key, value: s.value, enabled: true }]
+                  : next;
             }
             return next;
-          });
+          };
+          // Si la variable ya existe en la colección se actualiza ahí; si no, en las globales.
+          const inColl = new Set(collVars.map((v) => v.key));
+          setVars((cur) => apply(cur, (k) => !inColl.has(k), true));
+          if (rootIdx !== null && inColl.size) {
+            setCollections((c) =>
+              updateAt(c, String(rootIdx), (n) =>
+                n.type === "folder" ? { ...n, variables: apply(n.variables ?? [], (k) => inColl.has(k), false) } : n,
+              ),
+            );
+          }
         }
       }
       setResults((r) => ({ ...r, [id]: { response, error: null, script } }));
@@ -511,6 +524,12 @@ export default function App() {
         error={importError}
         vars={vars}
         onVars={setVars}
+        collName={rootNode && rootNode.type === "folder" ? rootNode.name : null}
+        collVars={collVars}
+        onCollVars={(v) =>
+          rootIdx !== null &&
+          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v } : n)))
+        }
         onImport={handleImport}
         onNewCollection={handleNewCollection}
         onSettings={() => setShowSettings(true)}

@@ -142,3 +142,10 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--t-accent) 30%, transparent); border-top-color: var(--t-accent); animation: spin .8s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Pantalla de actualización */
+.cat-bounce { animation: cat-bounce 1.2s ease-in-out infinite; }
+@keyframes cat-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.bar-indeterminate { animation: bar-slide 1.2s ease-in-out infinite; }
+@keyframes bar-slide { 0% { margin-left: -33%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .cat-bounce, .bar-indeterminate { animation: none; } }
