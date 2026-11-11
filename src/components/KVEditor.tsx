@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 import type { KV } from "../types";
+import { t } from "../lib/i18n";
 
 interface Props {
   rows: KV[];
@@ -47,7 +48,7 @@ export default function KVEditor({ rows, onChange, keyPlaceholder = "Key", value
           <button
             onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
             className="text-slate hover:text-rose"
-            title="Eliminar"
+            title={t("Eliminar")}
           >
             <Trash2 size={15} />
           </button>
@@ -57,7 +58,7 @@ export default function KVEditor({ rows, onChange, keyPlaceholder = "Key", value
         onClick={() => onChange([...rows, { key: "", value: "", enabled: true }])}
         className="flex items-center gap-1 pt-1 text-xs text-silver hover:text-aqua"
       >
-        <Plus size={14} /> Añadir fila
+        <Plus size={14} /> {t("Añadir fila")}
       </button>
     </div>
   );

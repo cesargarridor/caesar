@@ -5,6 +5,7 @@ import KVEditor from "./KVEditor";
 import CatLogo from "./CatLogo";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import type { KV, TreeNode } from "../types";
+import { t } from "../lib/i18n";
 
 interface Props extends TreeActions {
   collections: TreeNode[];
@@ -59,7 +60,7 @@ export default function Sidebar({
       <div
         onPointerDown={startDrag}
         onDoubleClick={() => onWidth(SIDEBAR_DEFAULT)}
-        title="Arrastra para cambiar el ancho · doble clic para restaurar"
+        title={t("Arrastra para cambiar el ancho · doble clic para restaurar")}
         className="group absolute right-0 top-0 z-30 flex h-full w-2 cursor-col-resize justify-center"
       >
         <span className="h-full w-0.5 rounded-full bg-transparent group-hover:bg-iris" />
@@ -75,7 +76,7 @@ export default function Sidebar({
             disabled={importing}
             className="btn-aurora flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
           >
-            <FileUp size={15} /> {importing ? "Importando…" : "Importar"}
+            <FileUp size={15} /> {importing ? t("Importando…") : t("Importar")}
           </button>
           <button
             onClick={() => {
@@ -83,16 +84,16 @@ export default function Sidebar({
               else setShowExport((s) => !s);
             }}
             disabled={exportable.length === 0}
-            title={exportable.length ? "Exportar una colección (Postman v2.1)" : "No hay colecciones que exportar"}
+            title={exportable.length ? t("Exportar una colección (Postman v2.1)") : t("No hay colecciones que exportar")}
             className="flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-40"
           >
-            <Download size={15} /> Exportar
+            <Download size={15} /> {t("Exportar")}
           </button>
           {showExport && exportable.length > 1 && (
             <>
               <div className="fixed inset-0 z-40" onMouseDown={() => setShowExport(false)} />
               <div className="glass absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl bg-kelp p-1 shadow-lg ring-1 ring-fg/15">
-                <p className="eyebrow px-2.5 py-1.5">Exportar colección</p>
+                <p className="eyebrow px-2.5 py-1.5">{t("Exportar colección")}</p>
                 {exportable.map((c) => (
                   <button
                     key={c.path}
@@ -114,7 +115,7 @@ export default function Sidebar({
           onClick={onNewCollection}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
         >
-          <Plus size={15} /> Nueva colección
+          <Plus size={15} /> {t("Nueva colección")}
         </button>
         {error && <p className="mt-2 text-xs text-rose">{error}</p>}
       </div>
@@ -122,7 +123,7 @@ export default function Sidebar({
       <div className="min-h-[8rem] flex-1 overflow-y-auto pb-2">
         {collections.length === 0 ? (
           <p className="p-4 text-center text-xs font-light text-slate">
-            Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.
+            {t("Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.")}
           </p>
         ) : (
           collections.map((c, i) => (
@@ -136,20 +137,20 @@ export default function Sidebar({
           onClick={onSettings}
           className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
         >
-          <Settings size={14} /> Ajustes
+          <Settings size={14} /> {t("Ajustes")}
         </button>
         <button
           onClick={() => setShowColl((s) => !s)}
           className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
         >
           {showColl ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          <span className="truncate">Variables de colección</span>{" "}
+          <span className="truncate">{t("Variables de colección")}</span>{" "}
           <span className="font-light text-slate">({collVars.filter((v) => v.key).length})</span>
         </button>
         {showColl && (
           <div className="max-h-64 overflow-y-auto p-2">
             {collName === null ? (
-              <p className="px-2 py-2 text-xs text-slate">Abre una petición de una colección para editar sus variables.</p>
+              <p className="px-2 py-2 text-xs text-slate">{t("Abre una petición de una colección para editar sus variables.")}</p>
             ) : (
               <>
                 <p className="eyebrow truncate px-1 pb-1.5" title={collName}>{collName}</p>
@@ -163,7 +164,7 @@ export default function Sidebar({
           className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
         >
           {showVars ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          Variables globales <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
+          {t("Variables globales")} <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
         </button>
         {showVars && (
           <div className="max-h-64 overflow-y-auto p-2">

@@ -4,7 +4,9 @@ import "./index.css";
 import App from "./App";
 import { applyTheme, loadThemeId } from "./lib/themes";
 import { applyFonts, loadFonts } from "./lib/prefs";
+import { getLang } from "./lib/i18n";
 
+document.documentElement.lang = getLang();
 applyTheme(loadThemeId());
 applyFonts(loadFonts());
 

@@ -4,6 +4,7 @@ import AuthEditor from "./AuthEditor";
 import BodyEditor from "./BodyEditor";
 import JsonEditor from "./JsonEditor";
 import type { RequestState } from "../types";
+import { t } from "../lib/i18n";
 
 type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
 
@@ -86,11 +87,11 @@ export default function RequestTabs({ req, patch }: Props) {
         {tab === "tests" && (
           <div className="flex h-full min-h-64 flex-col gap-2">
             <p className="text-xs text-slate">
-              Se ejecuta tras recibir la respuesta, como en Postman: <code className="text-silver">pm.environment.set</code>,{" "}
+              {t("Se ejecuta tras recibir la respuesta, como en Postman:")} <code className="text-silver">pm.environment.set</code>,{" "}
               <code className="text-silver">pm.collectionVariables.set</code>, <code className="text-silver">pm.globals.set</code>,{" "}
               <code className="text-silver">postman.setGlobalVariable</code>, <code className="text-silver">pm.response.json()</code>,{" "}
-              <code className="text-silver">pm.test / pm.expect</code>. Las variables se guardan en el panel Variables y se usan como{" "}
-              <code className="text-silver">{"{{nombre}}"}</code>.
+              <code className="text-silver">pm.test / pm.expect</code>. {t("Las variables se guardan en el panel Variables y se usan como")}{" "}
+              <code className="text-silver">{t("{{nombre}}")}</code>.
             </p>
             <JsonEditor
               value={req.tests ?? ""}
@@ -102,7 +103,7 @@ export default function RequestTabs({ req, patch }: Props) {
             />
             {!req.tests?.trim() && (
               <button onClick={() => patch({ tests: TESTS_EXAMPLE })} className="self-start text-xs text-silver hover:text-mist">
-                Insertar ejemplo: guardar el access_token en una variable
+                {t("Insertar ejemplo: guardar el access_token en una variable")}
               </button>
             )}
           </div>
@@ -119,7 +120,7 @@ export default function RequestTabs({ req, patch }: Props) {
                 checked={req.settings.followRedirects}
                 onChange={(e) => patch({ settings: { ...req.settings, followRedirects: e.target.checked } })}
               />
-              Seguir redirecciones (máx. 10)
+              {t("Seguir redirecciones (máx. 10)")}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -128,11 +129,11 @@ export default function RequestTabs({ req, patch }: Props) {
                 checked={req.settings.verifySsl}
                 onChange={(e) => patch({ settings: { ...req.settings, verifySsl: e.target.checked } })}
               />
-              Verificar certificado SSL
-              {!req.settings.verifySsl && <span className="text-xs text-lav">⚠ desactivado: solo para pruebas</span>}
+              {t("Verificar certificado SSL")}
+              {!req.settings.verifySsl && <span className="text-xs text-lav">{t("⚠ desactivado: solo para pruebas")}</span>}
             </label>
             <label className="flex items-center gap-2">
-              Timeout (segundos)
+              {t("Timeout (segundos)")}
               <input
                 type="number"
                 min={1}
