@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { t } from "../lib/i18n";
 
 interface Props {
   query: string;
@@ -43,20 +44,20 @@ export default function FindBar({ query, onQuery, index, total, onNext, onPrev, 
             onClose();
           }
         }}
-        placeholder="Buscar…"
+        placeholder={t("Buscar…")}
         spellCheck={false}
         className="w-40 bg-transparent text-mist outline-none placeholder:text-slate/60"
       />
       <span className={`min-w-12 text-right tabular-nums ${query && total === 0 ? "text-rose" : "text-slate"}`}>
         {query ? (total ? `${index + 1}/${total}` : "0/0") : ""}
       </span>
-      <button onClick={onPrev} disabled={!total} className={btn} title="Anterior (Mayús+Enter)">
+      <button onClick={onPrev} disabled={!total} className={btn} title={t("Anterior (Mayús+Enter)")}>
         <ChevronUp size={14} />
       </button>
-      <button onClick={onNext} disabled={!total} className={btn} title="Siguiente (Enter)">
+      <button onClick={onNext} disabled={!total} className={btn} title={t("Siguiente (Enter)")}>
         <ChevronDown size={14} />
       </button>
-      <button onClick={onClose} className={btn} title="Cerrar (Esc)">
+      <button onClick={onClose} className={btn} title={t("Cerrar (Esc)")}>
         <X size={14} />
       </button>
     </div>

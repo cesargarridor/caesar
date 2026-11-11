@@ -2,6 +2,7 @@ import { Plus, X } from "lucide-react";
 import { METHOD_COLORS } from "./SidebarTree";
 import { suggestName } from "../lib/tree";
 import type { Tab } from "../types";
+import { t as tr } from "../lib/i18n";
 
 interface Props {
   tabs: Tab[];
@@ -11,7 +12,7 @@ interface Props {
   onNew: () => void;
 }
 
-export const tabTitle = (t: Tab) => (t.path ? t.name : t.req.url ? suggestName(t.req).replace(/^\S+\s/, "") : "Nueva petición");
+export const tabTitle = (t: Tab) => (t.path ? t.name : t.req.url ? suggestName(t.req).replace(/^\S+\s/, "") : tr("Nueva petición"));
 
 /** Pestañas de peticiones abiertas, como en Postman. El punto indica cambios sin guardar. */
 export default function TabBar({ tabs, activeId, onSelect, onClose, onNew }: Props) {
@@ -40,21 +41,21 @@ export default function TabBar({ tabs, activeId, onSelect, onClose, onNew }: Pro
           >
             <span className={`text-[10px] font-semibold ${METHOD_COLORS[t.req.method] ?? "text-silver"}`}>{t.req.method}</span>
             <span className="truncate">{tabTitle(t)}</span>
-            {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-lav" title="Cambios sin guardar" />}
+            {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-lav" title={tr("Cambios sin guardar")} />}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onClose(t.id);
               }}
               className="shrink-0 rounded p-0.5 text-slate opacity-0 hover:bg-fg/10 hover:text-mist group-hover:opacity-100"
-              title="Cerrar pestaña"
+              title={tr("Cerrar pestaña")}
             >
               <X size={12} />
             </button>
           </div>
         );
       })}
-      <button onClick={onNew} className="mb-1 shrink-0 rounded-[10px] p-1.5 text-slate hover:bg-fg/10 hover:text-mist" title="Nueva pestaña">
+      <button onClick={onNew} className="mb-1 shrink-0 rounded-[10px] p-1.5 text-slate hover:bg-fg/10 hover:text-mist" title={tr("Nueva pestaña")}>
         <Plus size={15} />
       </button>
     </div>

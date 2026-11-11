@@ -1,4 +1,5 @@
 import CatLogo from "./CatLogo";
+import { t } from "../lib/i18n";
 
 interface Props {
   version: string;
@@ -18,7 +19,7 @@ export default function UpdateOverlay({ version, downloaded, total }: Props) {
           <CatLogo size={112} />
         </div>
         <h2 className="cosmic-text text-3xl font-normal tracking-[-0.02em]">Caesar</h2>
-        <p className="mt-2 text-sm text-mist">Actualizando a la v{version}</p>
+        <p className="mt-2 text-sm text-mist">{t("Actualizando a la v{0}", version)}</p>
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-kelp">
           <div
             className={`h-full rounded-full ${pct === null ? "bar-indeterminate w-1/3" : "transition-[width] duration-300"}`}
@@ -26,9 +27,9 @@ export default function UpdateOverlay({ version, downloaded, total }: Props) {
           />
         </div>
         <p className="mt-2 text-xs text-slate">
-          {pct === null ? "Descargando…" : `${pct}% · ${mb(downloaded)} / ${mb(total!)} MB`}
+          {pct === null ? t("Descargando…") : `${pct}% · ${mb(downloaded)} / ${mb(total!)} MB`}
         </p>
-        <p className="mt-4 text-xs text-slate">Caesar se reiniciará solo. Tus pestañas y borradores se conservan.</p>
+        <p className="mt-4 text-xs text-slate">{t("Caesar se reiniciará solo. Tus pestañas y borradores se conservan.")}</p>
       </div>
     </div>
   );

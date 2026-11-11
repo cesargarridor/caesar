@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
+import { t } from "../lib/i18n";
 
 // Colores de método FIJOS: no cambian con el tema.
 export const METHOD_COLORS: Record<string, string> = {
@@ -85,7 +86,7 @@ export default function SidebarTree(props: Props) {
 
   const del = (
     <IconBtn
-      title={confirm ? "Pulsa otra vez para borrar" : "Eliminar"}
+      title={confirm ? t("Pulsa otra vez para borrar") : t("Eliminar")}
       danger={confirm}
       onClick={() => (confirm ? props.onDelete(path) : setConfirm(true))}
     >
@@ -115,10 +116,10 @@ export default function SidebarTree(props: Props) {
             <span className={`flex items-center gap-0.5 ${confirm ? "" : "invisible group-hover:visible"}`}>
               {!confirm && (
                 <>
-                  <IconBtn title="Nueva petición" onClick={() => { setOpen(true); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
-                  <IconBtn title="Nueva carpeta" onClick={() => { setOpen(true); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
-                  <IconBtn title="Renombrar" onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
-                  {depth === 0 && <IconBtn title="Exportar colección (Postman v2.1)" onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
+                  <IconBtn title={t("Nueva petición")} onClick={() => { setOpen(true); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
+                  <IconBtn title={t("Nueva carpeta")} onClick={() => { setOpen(true); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
+                  <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
+                  {depth === 0 && <IconBtn title={t("Exportar colección (Postman v2.1)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
                 </>
               )}
               {del}
@@ -127,7 +128,7 @@ export default function SidebarTree(props: Props) {
         </div>
         {open &&
           (node.children.length === 0 ? (
-            <p style={{ paddingLeft: indent + 34 }} className="py-1 text-xs text-slate">Vacío</p>
+            <p style={{ paddingLeft: indent + 34 }} className="py-1 text-xs text-slate">{t("Vacío")}</p>
           ) : (
             node.children.map((child, i) => (
               <SidebarTree key={i} {...props} node={child} path={`${path}/${i}`} depth={depth + 1} />
@@ -153,7 +154,7 @@ export default function SidebarTree(props: Props) {
       )}
       {!isRenaming && (
         <span className={`flex items-center gap-0.5 ${confirm ? "" : "invisible group-hover:visible"}`}>
-          {!confirm && <IconBtn title="Renombrar" onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>}
+          {!confirm && <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>}
           {del}
         </span>
       )}

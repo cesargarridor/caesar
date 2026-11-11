@@ -4,6 +4,7 @@ import KVEditor from "./KVEditor";
 import FormDataEditor from "./FormDataEditor";
 import JsonEditor from "./JsonEditor";
 import type { BodyData, BodyMode } from "../types";
+import { t } from "../lib/i18n";
 
 interface Props {
   body: BodyData;
@@ -26,7 +27,7 @@ export default function BodyEditor({ body, onChange }: Props) {
       onChange({ ...body, raw: JSON.stringify(JSON.parse(body.raw), null, indent) });
       setError(null);
     } catch (e) {
-      setError(`JSON inválido: ${e instanceof Error ? e.message : "error de sintaxis"}`);
+      setError(t("JSON inválido: {0}", e instanceof Error ? e.message : t("error de sintaxis")));
     }
   };
 
@@ -53,14 +54,14 @@ export default function BodyEditor({ body, onChange }: Props) {
             <button
               onClick={() => reformat(2)}
               className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
-              title="Formatear con indentación"
+              title={t("Formatear con indentación")}
             >
               <Sparkles size={13} /> Beautify
             </button>
             <button
               onClick={() => reformat(undefined)}
               className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
-              title="Compactar en una línea"
+              title={t("Compactar en una línea")}
             >
               <Minimize2 size={13} /> Minify
             </button>
@@ -70,14 +71,14 @@ export default function BodyEditor({ body, onChange }: Props) {
 
       {error && <p className="text-xs text-rose">{error}</p>}
 
-      {body.mode === "none" && <p className="text-xs text-slate">Esta petición no envía body.</p>}
+      {body.mode === "none" && <p className="text-xs text-slate">{t("Esta petición no envía body.")}</p>}
 
       {(body.mode === "json" || body.mode === "text") && (
         <JsonEditor
           value={body.raw}
           onChange={(raw) => onChange({ ...body, raw })}
           highlight={body.mode === "json"}
-          placeholder={body.mode === "json" ? '{ "clave": "valor" }' : "Texto plano"}
+          placeholder={body.mode === "json" ? '{ "clave": "valor" }' : t("Texto plano")}
           className="min-h-48 flex-1"
         />
       )}

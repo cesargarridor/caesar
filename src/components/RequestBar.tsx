@@ -1,6 +1,7 @@
 import { Check, Save, Send, Terminal } from "lucide-react";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
+import { t } from "../lib/i18n";
 
 export const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -49,18 +50,18 @@ export default function RequestBar({ method, url, sending, onMethod, onUrlEdit, 
           }
         }}
         onKeyDown={(e) => e.key === "Enter" && !e.ctrlKey && !e.metaKey && onSend()}
-        placeholder="Escribe una URL o pega un comando cURL"
+        placeholder={t("Escribe una URL o pega un comando cURL")}
         spellCheck={false}
         className="flex-1 rounded-[10px] bg-kelp px-5 py-2 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
       />
-      <button onClick={onCopyCurl} className={flash === "curl" ? done : ghost} title="Copiar como cURL">
-        {flash === "curl" ? <Check size={14} /> : <Terminal size={14} />} {flash === "curl" ? "Copiado" : "cURL"}
+      <button onClick={onCopyCurl} className={flash === "curl" ? done : ghost} title={t("Copiar como cURL")}>
+        {flash === "curl" ? <Check size={14} /> : <Terminal size={14} />} {flash === "curl" ? t("Copiado") : "cURL"}
       </button>
-      <button onClick={onSave} className={flash === "save" ? done : ghost} title="Guardar en la colección (Ctrl+S)">
-        {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? "Guardado" : "Guardar"}
+      <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
+        {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
       </button>
       <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
-        <Send size={14} /> {sending ? "Enviando…" : "Enviar"}
+        <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
       </button>
     </div>
   );

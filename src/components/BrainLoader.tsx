@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import StepList from "./StepList";
 import type { StepState } from "../types";
+import { t } from "../lib/i18n";
 
 const PALETTE = ["#8052ff", "#8052ff", "#a78bff", "#ffb829", "#3ccfae", "#ff4fd8", "#4f8cff", "#ffffff"];
 
@@ -132,7 +133,7 @@ export default function BrainLoader({ steps }: { steps: StepState[] }) {
       <canvas ref={ref} className="absolute inset-0 h-full w-full opacity-70" />
       <div className="relative z-10 flex h-full items-center justify-center">
         <div className="w-full max-w-md rounded-2xl bg-deep/80 glass p-8 backdrop-blur-sm">
-          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.025em] text-saffron">Pensando…</p>
+          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.025em] text-saffron">{t("Pensando…")}</p>
           <StepList steps={steps} />
         </div>
       </div>
