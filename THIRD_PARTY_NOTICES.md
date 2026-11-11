@@ -64,7 +64,7 @@ El tema «Caesar» (colores, gatito y degradados) es original del proyecto y se 
 ## Otros componentes
 
 - Iconos: [Lucide](https://lucide.dev) (licencia ISC).
-- Interfaz: React (MIT), Tailwind CSS (MIT), Vite (MIT).
+- Interfaz: React (MIT), Tailwind CSS (MIT), Vite (MIT), yaml de Eemeli Aro (ISC, para leer y escribir YAML).
 - Aplicación de escritorio: Tauri (MIT o Apache-2.0) y las bibliotecas de Rust indicadas en `src-tauri/Cargo.lock`, cada una
   con su propia licencia permisiva.
 - La tipografía «PP Neue Montreal» **no se distribuye** con Caesar: solo se usa si ya está instalada en el equipo y, si no,

@@ -19,8 +19,12 @@ export const openUrl = (url: string) => invoke<void>("open_url", { url });
 export interface PickedFile { path: string; name: string; size: number }
 export const pickFile = () => invoke<PickedFile | null>("pick_file");
 
-export const saveTextFile = (suggestedName: string, content: string) =>
-  invoke<string | null>("save_text_file", { suggestedName, content });
+export const saveTextFile = (suggestedName: string, content: string, ext?: string) =>
+  invoke<string | null>("save_text_file", { suggestedName, content, ext });
+
+export interface TextFile { name: string; content: string }
+export const pickTextFile = () => invoke<TextFile | null>("pick_text_file");
+export const parsePostmanContent = (content: string) => invoke<ImportedCollection>("parse_postman_content", { content });
 
 // Sincronización cifrada (Rust cifra y habla con Firebase; la interfaz nunca ve la clave).
 export interface SyncStatus {

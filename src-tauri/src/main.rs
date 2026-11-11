@@ -520,6 +520,45 @@ async fn import_postman_collection(
     parse_postman_collection(&content).map(Some)
 }
 
+#[derive(Debug, Serialize)]
+struct TextFile {
+    name: String,
+    content: String,
+}
+
+/// Elige un archivo de colección (Postman, Insomnia o HAR) y devuelve su texto. `Ok(None)` = canceló.
+#[tauri::command]
+async fn pick_text_file(app: tauri::AppHandle) -> Result<Option<TextFile>, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Postman, Insomnia o HAR", &["json", "yaml", "yml", "har"])
+        .blocking_pick_file();
+    let Some(file) = picked else {
+        return Ok(None);
+    };
+    let path = file.into_path().map_err(|e| format!("Ruta de archivo no válida: {e}"))?;
+    let meta = std::fs::metadata(&path).map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
+    if !meta.is_file() {
+        return Err("La selección no es un archivo".into());
+    }
+    if meta.len() > MAX_COLLECTION_BYTES {
+        return Err("El archivo supera el límite de 50 MB".into());
+    }
+    let content = std::fs::read_to_string(&path).map_err(|e| format!("No se pudo leer el archivo (¿es de texto?): {e}"))?;
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    Ok(Some(TextFile { name, content }))
+}
+
+/// Convierte el texto de una Postman Collection v2.1 (la interfaz ya detectó el formato).
+#[tauri::command]
+fn parse_postman_content(content: String) -> Result<ImportedCollection, String> {
+    if content.len() as u64 > MAX_COLLECTION_BYTES {
+        return Err("El contenido supera el límite de 50 MB".into());
+    }
+    parse_postman_collection(&content)
+}
+
 // ───────────────────────────── Comando IPC: elegir archivo para form-data ─────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -569,6 +608,7 @@ async fn save_text_file(
     app: tauri::AppHandle,
     suggested_name: String,
     content: String,
+    ext: Option<String>,
 ) -> Result<Option<String>, String> {
     if content.len() as u64 > MAX_COLLECTION_BYTES {
         return Err("El contenido supera el límite de 50 MB".into());
@@ -582,7 +622,18 @@ async fn save_text_file(
         .dialog()
         .file()
         .set_file_name(&name)
-        .add_filter("JSON", &["json"])
+        .add_filter(
+            match ext.as_deref() {
+                Some("yaml") => "YAML",
+                Some("har") => "HAR",
+                _ => "JSON",
+            },
+            match ext.as_deref() {
+                Some("yaml") => &["yaml", "yml"][..],
+                Some("har") => &["har"][..],
+                _ => &["json"][..],
+            },
+        )
         .blocking_save_file()
     else {
         return Ok(None);
@@ -1102,6 +1153,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             import_postman_collection,
+            pick_text_file,
+            parse_postman_content,
             execute_request,
             open_url,
             pick_file,
