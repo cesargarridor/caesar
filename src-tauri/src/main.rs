@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod vault;
+
 use std::time::{Duration, Instant};
 
 use reqwest::{
@@ -1091,6 +1093,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(GrantedFiles::default())
+        .manage(vault::VaultState::default())
         .invoke_handler(tauri::generate_handler![
             import_postman_collection,
             execute_request,
@@ -1099,7 +1102,19 @@ fn main() {
             save_text_file,
             app_version,
             check_update,
-            install_update
+            install_update,
+            vault::vault_status,
+            vault::vault_create,
+            vault::vault_restore,
+            vault::vault_forget,
+            vault::vault_encrypt,
+            vault::vault_decrypt,
+            vault::pairing_begin,
+            vault::pairing_code,
+            vault::pairing_finish,
+            vault::pairing_approve_start,
+            vault::pairing_approve_confirm,
+            vault::pairing_cancel
         ])
         .run(tauri::generate_context!());
 

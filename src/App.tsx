@@ -18,7 +18,8 @@ import { buildExecuteArgs, requestFromNode } from "./lib/request";
 import { applyUrlEdit, buildUrl } from "./lib/url";
 import { exportCollection, safeFileName } from "./lib/postmanExport";
 import {
-  addChild, getAt, newFolderNode, newRequestNode, nodeFromRequest, removeAt, renameAt, suggestName, updateAt,
+  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
+  removeAt, renameAt, suggestName, updateAt,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { runScript, type ScriptResult } from "./lib/script";
@@ -82,24 +83,21 @@ function loadTabs(): { tabs: Tab[]; activeId: string } {
   return { tabs, activeId: tabs.some((t) => t.id === saved.activeId) ? saved.activeId! : tabs[0].id };
 }
 
-/** Reajusta la ruta de una pestaña cuando se borra un nodo del árbol (los nodos se direccionan por índice). */
-function pathAfterDelete(tabPath: string | null, deleted: string): string | null {
-  if (!tabPath) return null;
-  const tp = tabPath.split("/");
-  const dp = deleted.split("/");
-  const pos = dp.length - 1;
-  if (tp.length < dp.length) return tabPath;
-  if (tp.slice(0, pos).join("/") !== dp.slice(0, pos).join("/")) return tabPath;
-  const ti = Number(tp[pos]);
-  const di = Number(dp[pos]);
-  if (ti === di) return null;
-  if (ti > di) tp[pos] = String(ti - 1);
-  return tp.join("/");
-}
-
 export default function App() {
   useLang(); // re-renderiza toda la interfaz al cambiar de idioma
-  const [collections, setCollections] = useState<TreeNode[]>(() => load("caesar.collections", []));
+  const [collections, setCollections] = useState<TreeNode[]>(() => ensureIds(load("caesar.collections", [])));
+  /** Carpetas desplegadas (por id estable, no por posición). Las colecciones empiezan abiertas. */
+  const [openIds, setOpenIds] = useState<Set<string>>(
+    () => new Set(collections.flatMap((c) => (c.type === "folder" && c.uid ? [c.uid] : []))),
+  );
+  const openFolder = (uid?: string) => uid && setOpenIds((s) => (s.has(uid) ? s : new Set(s).add(uid)));
+  const toggleFolder = (uid?: string) =>
+    uid &&
+    setOpenIds((s) => {
+      const n = new Set(s);
+      if (!n.delete(uid)) n.add(uid);
+      return n;
+    });
   const [vars, setVars] = useState<KV[]>(() => load("caesar.vars", []));
   const initial = useMemo(loadTabs, []);
   const [tabs, setTabs] = useState<Tab[]>(initial.tabs);
@@ -290,7 +288,9 @@ export default function App() {
         // Las variables de la colección importada viven en la propia colección (no en las globales).
         const root: TreeNode =
           imported.root.type === "folder" ? { ...imported.root, variables: imported.variables } : imported.root;
-        setCollections((c) => [...c, root]);
+        const [withId] = ensureIds([root]);
+        setCollections((c) => [...c, withId]);
+        openFolder(withId.type === "folder" ? withId.uid : undefined);
       }
     } catch (e) {
       setImportError(errMsg(e));
@@ -300,14 +300,31 @@ export default function App() {
   };
 
   const handleNewCollection = () => {
+    const node = newFolderNode(t("Nueva colección"));
     setRenamingPath(String(collections.length));
-    setCollections((c) => [...c, newFolderNode(t("Nueva colección"))]);
+    setCollections((c) => [...c, node]);
+    openFolder(node.type === "folder" ? node.uid : undefined);
   };
 
   const handleAddFolder = (path: string) => {
-    const { nodes, path: np } = addChild(collections, path, newFolderNode());
-    setCollections(nodes);
-    setRenamingPath(np);
+    // La carpeta nueva va justo después de la última carpeta; la de arriba se vuelve a desplegar.
+    const r = addFolder(collections, path, newFolderNode());
+    setCollections(r.nodes);
+    setTabs((ts) => ts.map((tb) => (tb.path ? { ...tb, path: pathAfterInsert(tb.path, path, r.index) } : tb)));
+    const parent = getAt(collections, path);
+    openFolder(parent?.type === "folder" ? parent.uid : undefined);
+    setRenamingPath(r.path);
+  };
+
+  /** Arrastrar y soltar en el árbol: mueve una carpeta o petición dentro de otra carpeta (o al nivel raíz). */
+  const handleMove = (from: string, to: string, pos?: "before" | "after") => {
+    const r = from.includes("/") ? moveNode(collections, from, to) : moveCollection(collections, from, to, pos ?? "after");
+    if (!r) return;
+    setCollections(r.nodes);
+    setTabs((ts) => ts.map((tb) => (tb.path ? { ...tb, path: r.mapPath(tb.path) } : tb)));
+    const dest = to === "root" || !from.includes("/") ? null : getAt(collections, to);
+    if (dest?.type === "folder") openFolder(dest.uid);
+    setRenamingPath(null);
   };
 
   const handleAddRequest = (path: string) => {
@@ -544,6 +561,10 @@ export default function App() {
         onCancelRename={() => setRenamingPath(null)}
         onAddRequest={handleAddRequest}
         onAddFolder={handleAddFolder}
+        onMove={handleMove}
+        isOpen={(uid) => !!uid && openIds.has(uid)}
+        onToggleOpen={toggleFolder}
+        onOpenFolder={openFolder}
         onDelete={handleDelete}
         onExport={handleExport}
       />

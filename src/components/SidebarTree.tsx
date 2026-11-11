@@ -22,9 +22,30 @@ export interface TreeActions {
   onAddFolder: (path: string) => void;
   onDelete: (path: string) => void;
   onExport: (path: string) => void;
+  /** Arrastrar y soltar: mueve `from` dentro de la carpeta `to` ("root" = nivel raíz). */
+  onMove: (from: string, to: string, pos?: "before" | "after") => void;
+  isOpen: (uid?: string) => boolean;
+  onToggleOpen: (uid?: string) => void;
+  onOpenFolder: (uid?: string) => void;
 }
 
-interface Props extends TreeActions {
+export interface DragState {
+  from: string;
+  /** Carpeta sobre la que está el cursor y donde se puede soltar (null = ninguna). */
+  over: string | null;
+  /** Solo al reordenar colecciones: dónde se insertará respecto a la colección `over`. */
+  pos?: "before" | "after";
+  x: number;
+  y: number;
+  label: string;
+}
+
+export interface DragProps {
+  drag: DragState | null;
+  onRowDown: (path: string, label: string, e: React.PointerEvent) => void;
+}
+
+interface Props extends TreeActions, DragProps {
   node: TreeNode;
   /** Ruta única del nodo ("0/2/1"). */
   path: string;
@@ -73,7 +94,6 @@ function IconBtn({ title, onClick, children, danger }: { title: string; onClick:
 /** Componente recursivo: Colección -> Carpetas -> Requests, con colapso y acciones al pasar el ratón. */
 export default function SidebarTree(props: Props) {
   const { node, path, depth, selectedPath, renaming } = props;
-  const [open, setOpen] = useState(depth === 0);
   const [confirm, setConfirm] = useState(false);
   const indent = 8 + depth * 14;
   const isCollection = depth === 0;
@@ -95,17 +115,33 @@ export default function SidebarTree(props: Props) {
     </IconBtn>
   );
 
+  const dragging = props.drag?.from === path;
+
   if (node.type === "folder") {
+    const open = props.isOpen(node.uid);
+    const isOver = props.drag?.over === path;
+    const reorder = isOver && !!props.drag?.pos && isCollection;
+    const dropHere = isOver && !reorder;
     return (
-      <div>
+      <div
+        data-drop={path}
+        style={
+          reorder
+            ? { boxShadow: `0 ${props.drag?.pos === "before" ? "-" : ""}2px 0 0 var(--t-accent)` }
+            : undefined
+        }
+      >
         <div
           style={{ paddingLeft: indent }}
           className={`group flex items-center gap-1.5 pr-2 text-sm ${
-            isCollection
-              ? "mt-1 border-l-[3px] border-iris bg-iris/10 py-1.5 hover:bg-iris/20"
-              : "py-1 hover:bg-fg/5"
-          }`}
-          onClick={() => !isRenaming && setOpen((o) => !o)}
+            dropHere
+              ? "bg-aqua/20 ring-1 ring-inset ring-aqua"
+              : isCollection
+                ? "mt-1 border-l-[3px] border-iris bg-iris/10 py-1.5 hover:bg-iris/20"
+                : "py-1 hover:bg-fg/5"
+          } ${isCollection && dropHere ? "mt-1 py-1.5" : ""} ${dragging ? "opacity-40" : ""}`}
+          onClick={() => !isRenaming && props.onToggleOpen(node.uid)}
+          onPointerDown={(e) => !isRenaming && props.onRowDown(path, node.name, e)}
           role="button"
         >
           {open ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
@@ -127,8 +163,8 @@ export default function SidebarTree(props: Props) {
             <span className={`flex items-center gap-0.5 ${confirm ? "" : "invisible group-hover:visible"}`}>
               {!confirm && (
                 <>
-                  <IconBtn title={t("Nueva petición")} onClick={() => { setOpen(true); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
-                  <IconBtn title={t("Nueva carpeta")} onClick={() => { setOpen(true); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
+                  <IconBtn title={t("Nueva petición")} onClick={() => { props.onOpenFolder(node.uid); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
+                  <IconBtn title={t("Nueva carpeta")} onClick={() => { props.onOpenFolder(node.uid); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
                   <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
                   {depth === 0 && <IconBtn title={t("Exportar colección (Postman v2.1)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
                 </>
@@ -139,10 +175,10 @@ export default function SidebarTree(props: Props) {
         </div>
         {open &&
           (node.children.length === 0 ? (
-            <p style={{ paddingLeft: indent + 34 }} className="py-1 text-xs text-slate">{t("Vacío")}</p>
+            <p style={{ paddingLeft: indent + 34 }} className="py-1 text-xs text-slate" data-drop={path}>{t("Vacío")}</p>
           ) : (
             node.children.map((child, i) => (
-              <SidebarTree key={i} {...props} node={child} path={`${path}/${i}`} depth={depth + 1} />
+              <SidebarTree key={child.type === "folder" ? (child.uid ?? i) : i} {...props} node={child} path={`${path}/${i}`} depth={depth + 1} />
             ))
           ))}
       </div>
@@ -153,8 +189,9 @@ export default function SidebarTree(props: Props) {
   return (
     <div
       style={{ paddingLeft: indent + 18 }}
-      className={`group flex items-center gap-2 py-1 pr-2 text-sm hover:bg-fg/5 ${selected ? "bg-fg/10" : ""}`}
+      className={`group flex items-center gap-2 py-1 pr-2 text-sm hover:bg-fg/5 ${selected ? "bg-fg/10" : ""} ${dragging ? "opacity-40" : ""}`}
       onClick={() => !isRenaming && props.onSelect(path, node)}
+      onPointerDown={(e) => !isRenaming && props.onRowDown(path, node.name, e)}
       role="button"
     >
       <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.method] ?? "text-silver"}`}>{node.method}</span>

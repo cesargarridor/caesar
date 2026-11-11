@@ -19,6 +19,22 @@ tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs"] }
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart", "gzip", "deflate"] }
 
+# Cifrado de extremo a extremo y vinculación de dispositivos (ver src/vault.rs)
+aes-gcm = "0.10"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+hkdf = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+zeroize = "1"
+
+# Llavero del sistema operativo (cada plataforma usa el suyo)
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
+
 [profile.release]
 codegen-units = 1
 lto = true
