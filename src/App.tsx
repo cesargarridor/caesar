@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import BrainLoader from "./components/BrainLoader";
+import NetworkLoader from "./components/NetworkLoader";
 import SettingsModal from "./components/SettingsModal";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
@@ -616,7 +616,7 @@ export default function App() {
         <RequestTabs key={active.id} req={req} patch={patch} />
         </div>
         <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
-        {sending && <BrainLoader steps={steps} />}
+        {sending && <NetworkLoader steps={steps} method={req.method} />}
         {showSettings && (
           <SettingsModal
             themeId={themeId}
