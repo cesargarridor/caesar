@@ -13,6 +13,10 @@ interface Props extends TreeActions {
   error: string | null;
   vars: KV[];
   onVars: (v: KV[]) => void;
+  /** Variables de la colección de la pestaña activa (pisan a las globales). */
+  collName: string | null;
+  collVars: KV[];
+  onCollVars: (v: KV[]) => void;
   onImport: () => void;
   onNewCollection: () => void;
   onSettings: () => void;
@@ -22,9 +26,10 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
+  const [showColl, setShowColl] = useState(false);
   const [showExport, setShowExport] = useState(false);
   /** Colecciones de primer nivel (las que se pueden exportar). */
   const exportable = collections.flatMap((c, i) => (c.type === "folder" ? [{ path: String(i), name: c.name }] : []));
@@ -49,26 +54,26 @@ export default function Sidebar({
   };
 
   return (
-    <aside style={{ width }} className="fs-scale fs-sidebar relative flex shrink-0 flex-col bg-deep">
+    <aside style={{ width }} className="fs-scale fs-sidebar relative flex shrink-0 flex-col overflow-y-auto overflow-x-hidden bg-deep">
       {/* Asa para cambiar el ancho (doble clic = tamaño original) */}
       <div
         onPointerDown={startDrag}
         onDoubleClick={() => onWidth(SIDEBAR_DEFAULT)}
         title="Arrastra para cambiar el ancho · doble clic para restaurar"
-        className="group absolute -right-1.5 top-0 z-30 flex h-full w-3 cursor-col-resize justify-center"
+        className="group absolute right-0 top-0 z-30 flex h-full w-2 cursor-col-resize justify-center"
       >
         <span className="h-full w-0.5 rounded-full bg-transparent group-hover:bg-iris" />
       </div>
-      <div className="p-4">
+      <div className="shrink-0 p-4">
         <div className="mb-4 flex items-center gap-2 text-2xl font-normal tracking-[-0.04em] text-mist">
           <CatLogo size={30} />
           <span className="cosmic-text">Caesar</span>
         </div>
-        <div className="relative flex gap-2">
+        <div className="relative flex shrink-0 gap-2">
           <button
             onClick={onImport}
             disabled={importing}
-            className="btn-aurora flex flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
+            className="btn-aurora flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
           >
             <FileUp size={15} /> {importing ? "Importando…" : "Importar"}
           </button>
@@ -114,7 +119,7 @@ export default function Sidebar({
         {error && <p className="mt-2 text-xs text-rose">{error}</p>}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-2">
+      <div className="min-h-[8rem] flex-1 overflow-y-auto pb-2">
         {collections.length === 0 ? (
           <p className="p-4 text-center text-xs font-light text-slate">
             Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.
@@ -126,7 +131,7 @@ export default function Sidebar({
         )}
       </div>
 
-      <div className="border-t border-fg/10">
+      <div className="shrink-0 border-t border-fg/10">
         <button
           onClick={onSettings}
           className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
@@ -134,11 +139,31 @@ export default function Sidebar({
           <Settings size={14} /> Ajustes
         </button>
         <button
+          onClick={() => setShowColl((s) => !s)}
+          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
+        >
+          {showColl ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <span className="truncate">Variables de colección</span>{" "}
+          <span className="font-light text-slate">({collVars.filter((v) => v.key).length})</span>
+        </button>
+        {showColl && (
+          <div className="max-h-64 overflow-y-auto p-2">
+            {collName === null ? (
+              <p className="px-2 py-2 text-xs text-slate">Abre una petición de una colección para editar sus variables.</p>
+            ) : (
+              <>
+                <p className="eyebrow truncate px-1 pb-1.5" title={collName}>{collName}</p>
+                <KVEditor rows={collVars} onChange={onCollVars} keyPlaceholder="nombre" />
+              </>
+            )}
+          </div>
+        )}
+        <button
           onClick={() => setShowVars((s) => !s)}
           className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
         >
           {showVars ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          Variables <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
+          Variables globales <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
         </button>
         {showVars && (
           <div className="max-h-64 overflow-y-auto p-2">
