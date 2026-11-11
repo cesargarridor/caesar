@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, Search } from "lucide-react";
 import FindBar from "./FindBar";
 import { findAll, MAX_MATCHES, wrapIndex } from "../lib/find";
+import { t } from "../lib/i18n";
 
 interface Props {
   text: string;
@@ -66,7 +67,7 @@ function linkify(text: string, keyBase: string, onOpen: (u: string) => void, off
         <span
           role="link"
           tabIndex={0}
-          title="Abrir en el navegador"
+          title={t("Abrir en el navegador")}
           onClick={() => onOpen(url)}
           onKeyDown={(e) => e.key === "Enter" && onOpen(url)}
           style={{ color: "var(--t-r-link)" }} className="cursor-pointer font-normal underline decoration-1 underline-offset-2 hover:decoration-2"
@@ -381,7 +382,7 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
             return (
               <button
                 onClick={() => copyValue(i, v)}
-                title={done ? "Copiado" : "Copiar solo el valor"}
+                title={done ? t("Copiado") : t("Copiar solo el valor")}
                 className={`ml-2 inline-flex h-5 w-5 items-center justify-center rounded align-middle hover:bg-fg/10 ${
                   done ? "text-leaf opacity-100" : "text-slate opacity-0 hover:text-mist group-hover:opacity-100"
                 }`}
@@ -432,7 +433,7 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
             setFocusKey((k) => k + 1);
           }}
           className="flex items-center gap-1 hover:text-mist"
-          title="Buscar (Ctrl+F)"
+          title={t("Buscar (Ctrl+F)")}
         >
           <Search size={13} /> Buscar
         </button>

@@ -1,4 +1,5 @@
 import type { AuthData, AuthType } from "../types";
+import { t } from "../lib/i18n";
 
 interface Props {
   auth: AuthData;
@@ -21,7 +22,7 @@ export default function AuthEditor({ auth, onChange }: Props) {
   const set = (patch: Partial<AuthData>) => onChange({ ...auth, ...patch });
   return (
     <div className="space-y-3">
-      <Field label="Tipo">
+      <Field label={t("Tipo")}>
         <select value={auth.type} onChange={(e) => set({ type: e.target.value as AuthType })} className={input}>
           <option value="none">No Auth</option>
           <option value="bearer">Bearer Token</option>
@@ -30,7 +31,7 @@ export default function AuthEditor({ auth, onChange }: Props) {
         </select>
       </Field>
 
-      {auth.type === "none" && <p className="text-xs text-slate">Esta petición no usa autorización.</p>}
+      {auth.type === "none" && <p className="text-xs text-slate">{t("Esta petición no usa autorización.")}</p>}
 
       {auth.type === "bearer" && (
         <Field label="Token">
@@ -57,7 +58,7 @@ export default function AuthEditor({ auth, onChange }: Props) {
           <Field label="Value">
             <input className={input} value={auth.value} onChange={(e) => set({ value: e.target.value })} />
           </Field>
-          <Field label="Añadir a">
+          <Field label={t("Añadir a")}>
             <select value={auth.in} onChange={(e) => set({ in: e.target.value as "header" | "query" })} className={input}>
               <option value="header">Header</option>
               <option value="query">Query Params</option>

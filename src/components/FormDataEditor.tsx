@@ -3,6 +3,7 @@ import { FileUp, Plus, Trash2 } from "lucide-react";
 import TextEditorModal from "./TextEditorModal";
 import { pickFile } from "../api";
 import type { KV } from "../types";
+import { t } from "../lib/i18n";
 
 interface Props {
   rows: KV[];
@@ -74,11 +75,11 @@ export default function FormDataEditor({ rows, onChange }: Props) {
                 className={`${cell} flex items-center gap-2 text-left ${row.value ? "text-mist" : "text-slate"} ${
                   row.value && !row.path ? "ring-lav/60" : ""
                 }`}
-                title={row.path || "Seleccionar archivo"}
+                title={row.path || t("Seleccionar archivo")}
               >
                 <FileUp size={14} className="shrink-0" />
                 <span className="truncate">
-                  {row.value ? row.value : "Seleccionar archivo…"}
+                  {row.value ? row.value : t("Seleccionar archivo…")}
                   {row.value && !row.path ? "  (vuelve a seleccionarlo)" : ""}
                 </span>
               </button>
@@ -86,7 +87,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
               <input
                 readOnly
                 className={`${cell} cursor-pointer truncate`}
-                placeholder="Value (clic para editar)"
+                placeholder={t("Value (clic para editar)")}
                 value={oneLine(row.value)}
                 onClick={() => setEditing(i)}
                 onFocus={() => setEditing(i)}
@@ -96,10 +97,10 @@ export default function FormDataEditor({ rows, onChange }: Props) {
             <select
               value={row.contentType ?? ""}
               onChange={(e) => update(i, { contentType: e.target.value })}
-              title="Content-Type de esta parte"
+              title={t("Content-Type de esta parte")}
               className="w-44 shrink-0 rounded-xl bg-kelp px-2 py-1.5 text-xs outline-none ring-1 ring-fg/10"
             >
-              <option value="">Content-Type: auto</option>
+              <option value="">{t("Content-Type: auto")}</option>
               {(row.contentType && !CT_OPTIONS.includes(row.contentType) ? [...CT_OPTIONS, row.contentType] : CT_OPTIONS)
                 .filter(Boolean)
                 .map((t) => (
@@ -110,7 +111,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
             <button
               onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
               className="text-slate hover:text-rose"
-              title="Eliminar"
+              title={t("Eliminar")}
             >
               <Trash2 size={15} />
             </button>
@@ -121,7 +122,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
         onClick={() => onChange([...rows, { key: "", value: "", enabled: true, kind: "text" }])}
         className="flex items-center gap-1 pt-1 text-xs text-silver hover:text-mist"
       >
-        <Plus size={14} /> Añadir fila
+        <Plus size={14} /> {t("Añadir fila")}
       </button>
       {fileError && <p className="text-xs text-rose">{fileError}</p>}
 

@@ -23,6 +23,7 @@ import {
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut } from "./lib/find";
+import { t, useLang } from "./lib/i18n";
 import {
   applyFonts, loadAutoUpdate, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
@@ -45,7 +46,7 @@ const STARS = (() => {
   return Array.from({ length: 70 }, () => `${Math.floor(rnd() * 2200)}px ${Math.floor(rnd() * 1400)}px 0 0 currentColor`).join(", ");
 })();
 
-const errMsg = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : "Error desconocido");
+const errMsg = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
 
 // Persistencia local (solo comodidad; si falla, la app sigue funcionando).
 function load<T>(key: string, fallback: T): T {
@@ -66,7 +67,7 @@ function save(key: string, value: unknown) {
 
 let idSeq = 0;
 const newId = () => `t${Date.now().toString(36)}${(idSeq++).toString(36)}`;
-const blankTab = (): Tab => ({ id: newId(), req: emptyRequest(), path: null, name: "Nueva petición", dirty: false });
+const blankTab = (): Tab => ({ id: newId(), req: emptyRequest(), path: null, name: t("Nueva petición"), dirty: false });
 
 /** Tabs guardadas: se valida la forma por si el formato cambió. */
 function loadTabs(): { tabs: Tab[]; activeId: string } {
@@ -97,6 +98,7 @@ function pathAfterDelete(tabPath: string | null, deleted: string): string | null
 }
 
 export default function App() {
+  useLang(); // re-renderiza toda la interfaz al cambiar de idioma
   const [collections, setCollections] = useState<TreeNode[]>(() => load("caesar.collections", []));
   const [vars, setVars] = useState<KV[]>(() => load("caesar.vars", []));
   const initial = useMemo(loadTabs, []);
@@ -299,7 +301,7 @@ export default function App() {
 
   const handleNewCollection = () => {
     setRenamingPath(String(collections.length));
-    setCollections((c) => [...c, newFolderNode("Nueva colección")]);
+    setCollections((c) => [...c, newFolderNode(t("Nueva colección"))]);
   };
 
   const handleAddFolder = (path: string) => {
@@ -348,7 +350,7 @@ export default function App() {
     let base = collections;
     let target = "0";
     if (base.length === 0 || base[0].type !== "folder") {
-      base = [...base, newFolderNode("Mi colección")];
+      base = [...base, newFolderNode(t("Mi colección"))];
       target = String(base.length - 1);
     }
     const { nodes, path } = addChild(base, target, node);
@@ -362,7 +364,7 @@ export default function App() {
     if (!node) return;
     try {
       const saved = await saveTextFile(safeFileName(node.name), exportCollection(node, vars));
-      if (saved) setNotice({ kind: "ok", text: `Colección exportada: ${saved}` });
+      if (saved) setNotice({ kind: "ok", text: t("Colección exportada: {0}", saved) });
     } catch (e) {
       setNotice({ kind: "err", text: errMsg(e) });
     }
@@ -373,7 +375,7 @@ export default function App() {
       await navigator.clipboard.writeText(generateCurl(buildExecuteArgs(req, effVars)));
       setFlash("curl");
     } catch {
-      setNotice({ kind: "err", text: "No se pudo copiar al portapapeles." });
+      setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
     }
   };
 
@@ -553,9 +555,9 @@ export default function App() {
         {pendingClose && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={() => setPendingClose(null)}>
             <div className="w-full max-w-md rounded-2xl bg-kelp glass p-7" onMouseDown={(e) => e.stopPropagation()}>
-              <h2 className="text-xl text-mist">¿Cerrar sin guardar?</h2>
+              <h2 className="text-xl text-mist">{t("¿Cerrar sin guardar?")}</h2>
               <p className="mt-2 text-sm text-slate">
-                Esta pestaña tiene cambios sin guardar. Si la cierras, se perderán.
+                {t("Esta pestaña tiene cambios sin guardar. Si la cierras, se perderán.")}
               </p>
               <div className="mt-6 flex justify-end gap-3">
                 <button
@@ -563,7 +565,7 @@ export default function App() {
                   onClick={() => setPendingClose(null)}
                   className="rounded-[10px] px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
                 >
-                  Cancelar
+                  {t("Cancelar")}
                 </button>
                 <button
                   onClick={() => {
@@ -572,7 +574,7 @@ export default function App() {
                   }}
                   className="rounded-[10px] px-4 py-2 text-sm text-rose ring-1 ring-rose/40 hover:ring-rose"
                 >
-                  Cerrar sin guardar
+                  {t("Cerrar sin guardar")}
                 </button>
                 <button
                   onClick={() => {
@@ -583,7 +585,7 @@ export default function App() {
                   }}
                   className="btn-aurora px-5 py-2 text-sm font-semibold"
                 >
-                  Guardar y cerrar
+                  {t("Guardar y cerrar")}
                 </button>
               </div>
             </div>
