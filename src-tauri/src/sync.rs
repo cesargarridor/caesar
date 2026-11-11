@@ -41,6 +41,9 @@ struct Cfg {
     /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
     #[serde(rename = "githubClientId", default)]
     github_client_id: String,
+    /// Enlace de compra de Lemon Squeezy (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
+    #[serde(rename = "checkoutUrl", default)]
+    checkout_url: String,
 }
 
 fn cfg() -> Option<Cfg> {
@@ -59,6 +62,8 @@ struct Session {
 pub struct SyncState {
     session: Mutex<Option<Session>>,
     dirty: AtomicBool,
+    /// La nube rechazó la subida por falta de suscripción: se deja de insistir hasta que cambie.
+    blocked: AtomicBool,
     /// Marca de tiempo (ms) del último documento remoto que ya conocemos.
     last_remote: Mutex<i64>,
     last_sync: Mutex<i64>,
@@ -72,6 +77,7 @@ impl Default for SyncState {
         Self {
             session: Mutex::new(None),
             dirty: AtomicBool::new(false),
+            blocked: AtomicBool::new(false),
             last_remote: Mutex::new(0),
             last_sync: Mutex::new(0),
             last_error: Mutex::new(None),
@@ -232,9 +238,14 @@ async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
         .send()
         .await
         .map_err(|_| "Sin conexión con Firebase.".to_string())?;
+    if res.status().as_u16() == 403 && cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false) {
+        st.blocked.store(true, Ordering::SeqCst);
+        return Err("Tu suscripción no está activa: tus datos siguen guardados en este equipo y en la nube, pero no se suben cambios nuevos.".into());
+    }
     if !res.status().is_success() {
         return Err(format!("Firebase rechazó la subida ({}).", res.status().as_u16()));
     }
+    st.blocked.store(false, Ordering::SeqCst);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = stamp;
     *st.last_sync.lock().map_err(|_| "Estado bloqueado")? = stamp;
     Ok(())
@@ -325,7 +336,7 @@ pub fn start_worker(app: AppHandle) {
             if !signed {
                 continue;
             }
-            let r = if st.dirty.load(Ordering::SeqCst) {
+            let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 20 == 0) {
                 // Baja la bandera ANTES de subir: si el usuario edita durante la subida, vuelve a levantarse.
                 st.dirty.store(false, Ordering::SeqCst);
                 let r = push(&app, &st).await;
@@ -393,6 +404,10 @@ async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<Strin
 pub struct SyncStatus {
     configured: bool,
     github: bool,
+    /// Hay cobro configurado (si no, la sincronización es gratuita).
+    billing: bool,
+    /// La nube rechazó la última subida por falta de suscripción.
+    blocked: bool,
     signed_in: bool,
     email: String,
     has_key: bool,
@@ -411,6 +426,8 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
     SyncStatus {
         configured: cfg().is_some(),
         github: cfg().map(|c| !c.github_client_id.is_empty()).unwrap_or(false),
+        billing: cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false),
+        blocked: st.blocked.load(Ordering::SeqCst),
         signed_in,
         email,
         has_key: vault::load_key().map(|k| k.is_some()).unwrap_or(false),
@@ -547,6 +564,85 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
     Ok(())
 }
 
+#[derive(Serialize)]
+pub struct Billing {
+    active: bool,
+    status: String,
+    ends_at: i64,
+    portal: String,
+}
+
+/// Estado de la suscripción (lo escribe el Worker de Cloudflare cuando Lemon Squeezy avisa de un pago).
+#[tauri::command]
+pub async fn sync_billing(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
+    let (uid, tok) = valid_token(&st).await?;
+    let c = cfg().ok_or("Sincronización no configurada.")?;
+    let url = format!(
+        "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/billing/status",
+        c.project_id
+    );
+    let res = st.client.get(url).bearer_auth(tok).send().await.map_err(|_| "Sin conexión con Firebase.".to_string())?;
+    let status = res.status();
+    if status.as_u16() == 404 {
+        return Ok(Billing { active: false, status: "none".into(), ends_at: 0, portal: String::new() });
+    }
+    if !status.is_success() {
+        return Err(format!("No se pudo leer la suscripción ({}).", status.as_u16()));
+    }
+    let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).map_err(|e| e.to_string())?;
+    let f = &v["fields"];
+    let active = f["active"]["booleanValue"].as_bool().unwrap_or(false);
+    if active {
+        st.blocked.store(false, Ordering::SeqCst);
+    }
+    Ok(Billing {
+        active,
+        status: f["status"]["stringValue"].as_str().unwrap_or("").to_string(),
+        ends_at: f["endsAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0),
+        portal: f["portal"]["stringValue"].as_str().unwrap_or("").to_string(),
+    })
+}
+
+/// Enlace de pago de Lemon Squeezy con el uid de la cuenta (así el Worker sabe a quién activar). No se envía el correo.
+#[tauri::command]
+pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> {
+    let base = cfg().map(|c| c.checkout_url).filter(|u| !u.is_empty()).ok_or("El cobro no está configurado.")?;
+    let uid = st.session.lock().map_err(|_| "Estado bloqueado")?.as_ref().map(|s| s.uid.clone()).filter(|u| !u.is_empty()).ok_or("Inicia sesión primero.")?;
+    let sep = if base.contains('?') { '&' } else { '?' };
+    Ok(format!("{base}{sep}checkout%5Bcustom%5D%5Buid%5D={uid}"))
+}
+
+/// Borra la cuenta: primero los datos de la nube y después el usuario de Firebase. Los datos locales no se tocan.
+#[tauri::command]
+pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    let c = cfg().ok_or("Sincronización no configurada.")?;
+    let (uid, tok) = valid_token(&st).await?;
+    for doc in ["sync/main", "billing/status"] {
+        let url = format!(
+            "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/{doc}",
+            c.project_id
+        );
+        let res = st.client.delete(url).bearer_auth(&tok).send().await.map_err(|_| "Sin conexión con Firebase.".to_string())?;
+        // 404 = no existía; 403 en billing se ignora (reglas antiguas).
+        if !res.status().is_success() && res.status().as_u16() != 404 && !(doc == "billing/status" && res.status().as_u16() == 403) {
+            return Err(format!("No se pudieron borrar los datos de la nube ({}).", res.status().as_u16()));
+        }
+    }
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:delete?key={}", c.api_key);
+    if let Err(e) = post_json(&st, &url, json!({ "idToken": tok })).await {
+        return Err(if e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN") {
+            "Por seguridad, cierra sesión, vuelve a entrar y repite el borrado.".to_string()
+        } else {
+            e
+        });
+    }
+    clear_refresh();
+    *st.session.lock().map_err(|_| "Estado bloqueado")? = None;
+    st.dirty.store(false, Ordering::SeqCst);
+    set_error(&st, None);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn sync_sign_out(st: tauri::State<SyncState>) {
     clear_refresh();
@@ -560,6 +656,7 @@ pub fn sync_sign_out(st: tauri::State<SyncState>) {
 /// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos.
 #[tauri::command]
 pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    st.blocked.store(false, Ordering::SeqCst);
     if st.dirty.load(Ordering::SeqCst) {
         st.dirty.store(false, Ordering::SeqCst);
         if let Err(e) = push(&app, &st).await {
