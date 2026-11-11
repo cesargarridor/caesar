@@ -54,8 +54,21 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 
 ## Sincronización cifrada de extremo a extremo (en desarrollo)
 
-> **Estado:** la parte local (`src-tauri/src/vault.rs`) está hecha y probada. Aún faltan la cuenta y el almacenamiento en
-> la nube (Firebase), los pagos (Lemon Squeezy) y las pantallas. Por ahora no hay ninguna sincronización activa.
+> **Estado:** el cifrado local, la cuenta (Firebase Auth, correo y contraseña), la base de datos (Firestore) y la
+> sincronización en segundo plano están hechos (Ajustes → Sincronización). Faltan la vinculación con QR en pantalla y los
+> pagos (Lemon Squeezy). Todo funciona en el plan gratuito (Spark) de Firebase, sin tarjeta.
+
+### Cómo se sincroniza sin gastar cuota
+
+1. **Debounce (React):** hasta que no pasan 2 s sin teclear, no se envía nada a Rust.
+2. **Disco (Rust):** `local_save` escribe `datos.json` de forma atómica y levanta una bandera; no toca internet.
+3. **Trabajador (Rust, tokio):** cada 30 s mira la bandera; si está levantada cifra el archivo y lo sube en una sola
+   petición. Sin cambios no hace ninguna llamada. Cada 5 min comprueba si otro equipo ha subido algo.
+   Conflictos: gana la última escritura; antes de aplicar lo remoto se guarda `datos.json.bak`.
+
+Firebase: proyecto `caesar-sync-app`, reglas en [firebase/firestore.rules](firebase/firestore.rules) (cada persona solo
+accede a `users/<su uid>/sync/*`). La `apiKey` de `src-tauri/sync_config.json` es un identificador público, no un secreto.
+Límite: ~650 KB de colecciones (documento de 1 MiB de Firestore).
 
 El objetivo es poder usar las mismas peticiones y colecciones en varios ordenadores sin que el servidor pueda leerlas.
 Todo el cifrado ocurre en Rust, en tu equipo; la interfaz nunca ve la clave.

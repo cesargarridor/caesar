@@ -33,7 +33,7 @@ const PAIRING_TTL: Duration = Duration::from_secs(10 * 60);
 /// Alfabeto de la clave de recuperación: 32 símbolos sin I, O, 0 ni 1 para evitar confusiones.
 const ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-pub type Key = Zeroizing<[u8; 32]>;
+pub(crate) type Key = Zeroizing<[u8; 32]>;
 
 // ───────────────────────── cifrado ─────────────────────────
 
@@ -182,7 +182,7 @@ fn entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
 }
 
-fn load_key() -> Result<Option<Key>, String> {
+pub(crate) fn load_key() -> Result<Option<Key>, String> {
     match entry()?.get_secret() {
         Ok(v) => {
             let arr: [u8; 32] = v.try_into().map_err(|_| "La clave guardada está dañada.".to_string())?;

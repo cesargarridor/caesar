@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod sync;
 mod vault;
 
 use std::time::{Duration, Instant};
@@ -1094,6 +1095,11 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(GrantedFiles::default())
         .manage(vault::VaultState::default())
+        .manage(sync::SyncState::default())
+        .setup(|app| {
+            sync::start_worker(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             import_postman_collection,
             execute_request,
@@ -1114,7 +1120,12 @@ fn main() {
             vault::pairing_finish,
             vault::pairing_approve_start,
             vault::pairing_approve_confirm,
-            vault::pairing_cancel
+            vault::pairing_cancel,
+            sync::sync_status,
+            sync::local_save,
+            sync::sync_sign_in,
+            sync::sync_sign_out,
+            sync::sync_now
         ])
         .run(tauri::generate_context!());
 
