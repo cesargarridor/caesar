@@ -149,3 +149,12 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
 .bar-indeterminate { animation: bar-slide 1.2s ease-in-out infinite; }
 @keyframes bar-slide { 0% { margin-left: -33%; } 100% { margin-left: 100%; } }
 @media (prefers-reduced-motion: reduce) { .cat-bounce, .bar-indeterminate { animation: none; } }
+
+/* Gatito: clic = ojos felices + ronroneo + corazones. Con data-cat-static (ajuste) todo queda quieto. */
+.cat-happy .cat-logo { animation: cat-purr .18s ease-in-out infinite, cat-hop .6s ease-out 1 !important; }
+@keyframes cat-purr { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-1px) rotate(-2deg); } 75% { transform: translateX(1px) rotate(2deg); } }
+@keyframes cat-hop { 0% { margin-top: 0; } 40% { margin-top: -8px; } 100% { margin-top: 0; } }
+.cat-heart { position: absolute; top: 0; font-size: 12px; line-height: 1; color: #ff6b9a; pointer-events: none; opacity: 0; animation: cat-heart 1.4s ease-out forwards; }
+@keyframes cat-heart { 0% { opacity: 0; transform: translateY(4px) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px) scale(1.1); } }
+[data-cat-static] .cat-logo, .cat-static .cat-logo { animation: none !important; transform: none !important; }
+[data-cat-static] .cat-bounce { animation: none; }

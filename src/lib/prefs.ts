@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 /** Preferencias de visualización: tamaños de letra por zona y ancho del lateral. */
 
 export interface FontPrefs {
@@ -121,3 +123,38 @@ export function saveSidebarWidth(w: number) {
 }
 
 export const clampSidebar = (w: number) => clamp(w, SIDEBAR_MIN, SIDEBAR_MAX);
+
+const CAT_KEY = "caesar.catAnim";
+
+/** Animaciones del gatito (idle, clic y pantalla de actualización): activadas por defecto. */
+let catAnim = (() => {
+  try {
+    return localStorage.getItem(CAT_KEY) !== "0";
+  } catch {
+    return true;
+  }
+})();
+const catListeners = new Set<() => void>();
+
+export function setCatAnim(on: boolean) {
+  catAnim = on;
+  try {
+    localStorage.setItem(CAT_KEY, on ? "1" : "0");
+  } catch {
+    /* sin almacenamiento */
+  }
+  document.documentElement.toggleAttribute("data-cat-static", !on);
+  catListeners.forEach((f) => f());
+}
+
+export const getCatAnim = () => catAnim;
+
+export function useCatAnim(): boolean {
+  return useSyncExternalStore(
+    (f) => {
+      catListeners.add(f);
+      return () => catListeners.delete(f);
+    },
+    () => catAnim,
+  );
+}

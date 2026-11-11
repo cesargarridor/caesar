@@ -3,10 +3,11 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import { applyTheme, loadThemeId } from "./lib/themes";
-import { applyFonts, loadFonts } from "./lib/prefs";
+import { applyFonts, getCatAnim, loadFonts } from "./lib/prefs";
 import { getLang } from "./lib/i18n";
 
 document.documentElement.lang = getLang();
+document.documentElement.toggleAttribute("data-cat-static", !getCatAnim());
 applyTheme(loadThemeId());
 applyFonts(loadFonts());
 
