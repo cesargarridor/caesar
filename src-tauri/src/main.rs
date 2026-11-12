@@ -1012,7 +1012,8 @@ async fn execute_request(
     };
     tr.done("dns", L_DNS, t, dns_detail);
 
-    let timeout = args.settings.timeout_secs.clamp(1, 600);
+    // 0 = sin límite de tiempo (útil al depurar el servidor: la petición espera todo lo que haga falta).
+    let timeout = args.settings.timeout_secs;
     let policy = if args.settings.follow_redirects {
         redirect::Policy::limited(10)
     } else {
@@ -1035,8 +1036,10 @@ async fn execute_request(
                 "2" => builder.http2_prior_knowledge(),
                 _ => builder,
             };
+            if timeout > 0 {
+                builder = builder.timeout(Duration::from_secs(timeout));
+            }
             let c = builder
-                .timeout(Duration::from_secs(timeout))
                 .redirect(policy)
                 .danger_accept_invalid_certs(!args.settings.verify_ssl)
                 .user_agent(concat!("Caesar/", env!("CARGO_PKG_VERSION")))
