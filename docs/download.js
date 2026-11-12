@@ -56,4 +56,29 @@
       fetch(u, { method: "HEAD" }).then(function (r) { if (r.ok) { var im = new Image(); im.src = u; im.alt = ""; im.loading = "lazy"; g.appendChild(im); } }).catch(function () {});
     });
   });
+
+  // Aviso que puede salir tras descargar, según el sistema (pestañas; sin JS se ven los tres).
+  (function () {
+    var sec = document.getElementById("avisos") || document.getElementById("warnings"); if (!sec) return;
+    var tabs = [].slice.call(sec.querySelectorAll(".os-tabs [data-os]")), panels = [].slice.call(sec.querySelectorAll(".os-panel"));
+    if (!tabs.length || !panels.length) return;
+    document.body.classList.add("os-js");
+    function pick(k, flash) {
+      if (!k) k = "macos";
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", t.getAttribute("data-os") === k ? "true" : "false"); });
+      panels.forEach(function (p) {
+        var on = p.getAttribute("data-os") === k; p.classList.toggle("on", on); p.classList.remove("flash");
+        if (on && flash) { void p.offsetWidth; p.classList.add("flash"); }
+      });
+    }
+    tabs.forEach(function (t) { t.addEventListener("click", function () { pick(t.getAttribute("data-os")); }); });
+    pick(os || "macos");
+    qa("[data-dl],[data-dl-os]").forEach(function (a) {
+      a.addEventListener("click", function () {
+        var k = a.getAttribute("data-dl-os"); if (k === "deb") k = "linux"; if (!k) k = os || "macos";
+        pick(k, true);
+        setTimeout(function () { sec.scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
+      });
+    });
+  })();
 })();
