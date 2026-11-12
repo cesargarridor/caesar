@@ -69,6 +69,17 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Personal": ["Personal", "Persönlich", "Personnel", "Personale"],
+  "Espacio de trabajo": ["Workspace", "Arbeitsbereich", "Espace de travail", "Spazio di lavoro"],
+  "Espacios de trabajo": ["Workspaces", "Arbeitsbereiche", "Espaces de travail", "Spazi di lavoro"],
+  "Nuevo espacio de trabajo": ["New workspace", "Neuer Arbeitsbereich", "Nouvel espace de travail", "Nuovo spazio di lavoro"],
+  "Renombrar este espacio": ["Rename this workspace", "Diesen Arbeitsbereich umbenennen", "Renommer cet espace", "Rinomina questo spazio"],
+  "Eliminar este espacio": ["Delete this workspace", "Diesen Arbeitsbereich löschen", "Supprimer cet espace", "Elimina questo spazio"],
+  "Pulsa otra vez: se borra con todo lo que contiene": ["Press again: it is deleted with everything in it", "Erneut drücken: wird samt Inhalt gelöscht", "Appuie encore : il est supprimé avec tout son contenu", "Premi ancora: viene eliminato con tutto il contenuto"],
+  "Nombre del espacio": ["Workspace name", "Name des Arbeitsbereichs", "Nom de l’espace", "Nome dello spazio"],
+  "Actualizar colección de equipo": ["Refresh team collection", "Teamsammlung aktualisieren", "Actualiser la collection d’équipe", "Aggiorna raccolta di team"],
+  "Colección actualizada.": ["Collection updated.", "Sammlung aktualisiert.", "Collection mise à jour.", "Raccolta aggiornata."],
+  "Ya tienes la última versión.": ["You already have the latest version.", "Du hast bereits die neueste Version.", "Tu as déjà la dernière version.", "Hai già l’ultima versione."],
   "Registrarse con Google": ["Sign up with Google", "Mit Google registrieren", "S’inscrire avec Google", "Registrati con Google"],
   "Registrarse con GitHub": ["Sign up with GitHub", "Mit GitHub registrieren", "S’inscrire avec GitHub", "Registrati con GitHub"],
   "Sesión iniciada": ["Signed in", "Angemeldet", "Connecté", "Accesso effettuato"],
@@ -298,7 +309,7 @@ const D: Record<string, Row> = {
   "Seguir redirecciones (máx. 10)": ["Follow redirects (max. 10)", "Weiterleitungen folgen (max. 10)", "Suivre les redirections (max. 10)", "Segui i reindirizzamenti (max. 10)"],
   "Verificar certificado SSL": ["Verify SSL certificate", "SSL-Zertifikat prüfen", "Vérifier le certificat SSL", "Verifica il certificato SSL"],
   "⚠ desactivado: solo para pruebas": ["⚠ disabled: for testing only", "⚠ deaktiviert: nur zum Testen", "⚠ désactivé : uniquement pour les tests", "⚠ disattivato: solo per prove"],
-  "Timeout (segundos)": ["Timeout (seconds)", "Timeout (Sekunden)", "Délai d'attente (secondes)", "Timeout (secondi)"],
+  "Timeout (segundos, 0 = sin límite)": ["Timeout (seconds, 0 = no limit)", "Timeout (Sekunden, 0 = unbegrenzt)", "Délai d'attente (secondes, 0 = illimité)", "Timeout (secondi, 0 = nessun limite)"],
 
   // ── Panel de respuesta ──
   "Arrastra para redimensionar · doble clic para maximizar": ["Drag to resize · double-click to maximise", "Ziehen zum Ändern der Größe · Doppelklick zum Maximieren", "Glisser pour redimensionner · double-clic pour agrandir", "Trascina per ridimensionare · doppio clic per massimizzare"],
