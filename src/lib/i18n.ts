@@ -333,7 +333,7 @@ const D: Record<string, Row> = {
   "Seguir redirecciones (máx. 10)": ["Follow redirects (max. 10)", "Weiterleitungen folgen (max. 10)", "Suivre les redirections (max. 10)", "Segui i reindirizzamenti (max. 10)"],
   "Verificar certificado SSL": ["Verify SSL certificate", "SSL-Zertifikat prüfen", "Vérifier le certificat SSL", "Verifica il certificato SSL"],
   "⚠ desactivado: solo para pruebas": ["⚠ disabled: for testing only", "⚠ deaktiviert: nur zum Testen", "⚠ désactivé : uniquement pour les tests", "⚠ disattivato: solo per prove"],
-  "Timeout (segundos, 0 = sin límite)": ["Timeout (seconds, 0 = no limit)", "Timeout (Sekunden, 0 = unbegrenzt)", "Délai d'attente (secondes, 0 = illimité)", "Timeout (secondi, 0 = nessun limite)"],
+  "Timeout (segundos, 0 = 1 hora, máx. 3600)": ["Timeout (seconds, 0 = 1 hour, max 3600)", "Timeout (Sekunden, 0 = 1 Stunde, max. 3600)", "Délai d'attente (secondes, 0 = 1 heure, max 3600)", "Timeout (secondi, 0 = 1 ora, max 3600)"],
 
   // ── Panel de respuesta ──
   "Arrastra para redimensionar · doble clic para maximizar": ["Drag to resize · double-click to maximise", "Ziehen zum Ändern der Größe · Doppelklick zum Maximieren", "Glisser pour redimensionner · double-clic pour agrandir", "Trascina per ridimensionare · doppio clic per massimizzare"],
