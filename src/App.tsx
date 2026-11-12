@@ -9,6 +9,7 @@ import TabBar from "./components/TabBar";
 import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
+import VarPicker from "./components/VarPicker";
 import {
   appVersion, checkUpdate, executeRequest, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
@@ -16,7 +17,8 @@ import UpdateOverlay from "./components/UpdateOverlay";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, parseCurl } from "./lib/curl";
-import { buildExecuteArgs, requestFromNode } from "./lib/request";
+import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./lib/request";
+import { signRequest, SIGNED_TYPES } from "./lib/authSign";
 import { applyUrlEdit, buildUrl } from "./lib/url";
 import { exportCollection } from "./lib/postmanExport";
 import { detectAndParse, exportExt, exportFileName, exportHar, exportInsomniaYaml, type ExportFormat } from "./lib/interchange";
@@ -183,6 +185,9 @@ export default function App() {
   const rootNode = rootIdx !== null ? collections[rootIdx] : undefined;
   const collVars: KV[] = rootNode && rootNode.type === "folder" ? rootNode.variables ?? [] : [];
   const effVars = useMemo(() => [...vars, ...collVars], [vars, collVars]);
+  /** Autorización efectiva: con "Inherit" sube por las carpetas hasta la de la colección. */
+  const effAuth = useMemo(() => resolveInherit(req.auth, collections, active.path), [req.auth, collections, active.path]);
+  const collAuth = rootNode && rootNode.type === "folder" ? normAuth(rootNode.auth ?? { type: "none" }) : null;
   const res = results[active.id] ?? { response: null, error: null };
   const fullUrl = useMemo(() => buildUrl(req.url, req.params), [req.url, req.params]);
 
@@ -427,7 +432,7 @@ export default function App() {
 
   const handleCopyCurl = async () => {
     try {
-      await navigator.clipboard.writeText(generateCurl(buildExecuteArgs(req, effVars)));
+      await navigator.clipboard.writeText(generateCurl(buildExecuteArgs({ ...req, auth: effAuth }, effVars)));
       setFlash("curl");
     } catch {
       setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
@@ -451,7 +456,10 @@ export default function App() {
     setResults((r) => ({ ...r, [id]: { response: null, error: null } }));
     setSteps(freshSteps());
     try {
-      const response = await executeRequest(buildExecuteArgs(req, effVars));
+      const base = buildExecuteArgs({ ...req, auth: effAuth }, effVars);
+      // Digest, NTLM, OAuth, AWS… se firman o negocian justo antes de enviar.
+      const args = SIGNED_TYPES.includes(effAuth.type) ? await signRequest(effAuth, base, effVars, executeRequest) : base;
+      const response = await executeRequest(args);
       // Tests / automatizaciones post-respuesta (intérprete propio, sin eval ni red).
       let script: ScriptResult | null = null;
       if (req.tests?.trim()) {
@@ -587,6 +595,11 @@ export default function App() {
           rootIdx !== null &&
           setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v } : n)))
         }
+        collAuth={collAuth}
+        onCollAuth={(a) =>
+          rootIdx !== null &&
+          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a } : n)))
+        }
         onImport={handleImport}
         onNewCollection={handleNewCollection}
         onSettings={() => setShowSettings(true)}
@@ -672,7 +685,7 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        <RequestTabs key={active.id} req={req} patch={patch} />
+        <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} />
         </div>
         <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
         {sending && <NetworkLoader steps={steps} method={req.method} />}
@@ -696,6 +709,7 @@ export default function App() {
           />
         )}
         {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
+        <VarPicker vars={effVars} />
         {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
     </div>
