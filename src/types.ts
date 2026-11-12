@@ -57,10 +57,13 @@ export interface RequestState {
 }
 
 export type TreeNode =
-  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[]; /** Colección compartida con un equipo (solo carpeta raíz): código, si la creó esta cuenta y marca de la última versión de la nube. */ team?: { code: string; owner: boolean; seen: number; /** Huella del contenido de la última versión sincronizada (evita subidas innecesarias). */ h?: string }; /** Autorización de la colección o carpeta (la heredan las peticiones con "Inherit"). */ auth?: Partial<AuthData> & { type?: string } }
+  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Última modificación (ms), para el merge LWW. */ updatedAt?: number; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[]; /** Colección compartida con un equipo (solo carpeta raíz): código, si la creó esta cuenta y marca de la última versión de la nube. */ team?: { code: string; owner: boolean; seen: number; /** Huella del contenido de la última versión sincronizada (evita subidas innecesarias). */ h?: string }; /** Autorización de la colección o carpeta (la heredan las peticiones con "Inherit"). */ auth?: Partial<AuthData> & { type?: string } }
   | {
       type: "request";
       name: string;
+      /** Id estable y última modificación (ms) para el merge LWW. */
+      id?: string;
+      updatedAt?: number;
       method: string;
       url: string;
       headers: KV[];
@@ -121,3 +124,6 @@ export interface Tab {
   name: string;
   dirty: boolean;
 }
+
+/** Lápida de un nodo borrado (merge LWW entre equipos). */
+export interface Tombstone { id: string; at: number }

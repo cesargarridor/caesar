@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import NetworkLoader from "./components/NetworkLoader";
 import SettingsModal from "./components/SettingsModal";
 import Welcome from "./components/Welcome";
+import { useToast } from "./components/Toast";
+import { useAccount, planError } from "./lib/account";
 import { isOnboarded } from "./lib/legal";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
@@ -14,10 +16,10 @@ import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog 
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
-  DEFAULT_WS, loadWsActive, loadWsList, newWsId, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
-  appVersion, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -95,8 +97,16 @@ function loadTabs(wsId: string): { tabs: Tab[]; activeId: string } {
   return { tabs, activeId: tabs.some((t) => t.id === saved.activeId) ? saved.activeId! : tabs[0].id };
 }
 
+/** Convierte PRO_REQUIRED / GUEST_LIMIT_WORKSPACES en un mensaje claro; el resto se relanza igual. */
+const planThrow = (e: unknown): never => {
+  const m = planError(e);
+  throw m ? new Error(m) : e;
+};
+
 export default function App() {
   useLang(); // re-renderiza toda la interfaz al cambiar de idioma
+  const toast = useToast();
+  const { account, setAccount } = useAccount();
   // Espacios de trabajo: cada uno guarda sus propias colecciones, variables y pestañas (ver lib/workspaces.ts).
   const [wsList, setWsList] = useState<WsMeta[]>(loadWsList);
   const [wsId, setWsId] = useState<string>(() => loadWsActive(wsList));
@@ -195,6 +205,19 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"ui" | "edit">("ui");
   const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
+  // Arranque: comprueba prueba de 7 días / lista blanca (Rust hace la red). Si la cuenta se borró, vuelve al modo Invitado.
+  useEffect(() => {
+    checkTrialAndWhitelist()
+      .then((a) => {
+        setAccount(a);
+        if (a.deleted) {
+          setShowWelcome(true);
+          toast.show(t("Prueba de 7 días caducada: tu cuenta se ha eliminado y vuelves al modo Invitado."), "err", 12000);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -242,8 +265,12 @@ export default function App() {
     setOpenIds(new Set(cols.flatMap((c) => (c.type === "folder" && c.uid ? [c.uid] : []))));
   };
   const addWs = (name: string) => {
+    if (!canCreateWorkspace(account.mode, wsList)) {
+      setNotice({ kind: "err", text: planError("GUEST_LIMIT_WORKSPACES") ?? "" });
+      return;
+    }
     const id = newWsId();
-    const list = [...wsList, { id, name }];
+    const list = [...wsList, { id, name, updatedAt: Date.now() }];
     setWsList(list);
     saveWsList(list);
     save(wsKey("collections", id), []);
@@ -251,7 +278,7 @@ export default function App() {
     enterWs(id);
   };
   const renameWs = (id: string, name: string) => {
-    const list = wsList.map((w) => (w.id === id ? { ...w, name } : w));
+    const list = wsList.map((w) => (w.id === id ? { ...w, name, updatedAt: Date.now() } : w));
     setWsList(list);
     saveWsList(list);
   };
@@ -280,7 +307,7 @@ export default function App() {
     }
     // Los espacios compartidos con un equipo no viajan por la cuenta: los locales se conservan tal cual.
     const list: WsMeta[] = [
-      ...ws.map((w) => ({ id: w.id, name: typeof w.name === "string" && w.name ? w.name : t("Personal") })),
+      ...ws.map((w) => ({ id: w.id, name: typeof w.name === "string" && w.name ? w.name : t("Personal"), ...(typeof w.updatedAt === "number" ? { updatedAt: w.updatedAt } : {}) })),
       ...wsList.filter((w) => w.team),
     ];
     for (const w of ws) {
@@ -443,7 +470,7 @@ export default function App() {
     const norm = normCode(code);
     if (collections.some((c) => c.type === "folder" && c.team && normCode(c.team.code) === norm)) throw new Error(t("Ya tienes esa colección de equipo."));
     if (wsList.some((w) => w.team && normCode(w.team.code) === norm)) throw new Error(t("Ya tienes ese espacio de equipo."));
-    const doc = await teamJoin(code);
+    const doc = await teamJoin(code).catch(planThrow);
     const wsp = parseWsPayload(doc.json);
     if (wsp) {
       // El código era de un espacio entero: se crea un espacio nuevo con su contenido.
@@ -472,7 +499,7 @@ export default function App() {
     if (!ws) throw new Error(t("Espacio no encontrado."));
     if (hasTeamCollections(collections)) throw new Error(t("Este espacio tiene colecciones de equipo: deja de compartirlas antes de compartir el espacio entero."));
     const json = wsPayloadJson(ws.name, collections, includeVars ? vars : null);
-    const code = await teamPublish(json);
+    const code = await teamPublish(json).catch(planThrow);
     const norm = normCode(code);
     setWsList((l) => l.map((w) => (w.id === wsId ? { ...w, team: { code: norm, owner: true, seen: Date.now(), h: hashJson(json), vars: includeVars } } : w)));
     return code;
@@ -491,7 +518,7 @@ export default function App() {
     const node = getAt(collections, path);
     if (!node || node.type !== "folder") throw new Error(t("Colección no encontrada."));
     const json = teamJson(node);
-    const code = await teamPublish(json);
+    const code = await teamPublish(json).catch(planThrow);
     const norm = normCode(code);
     team.markSynced(norm, json);
     setCollections((c) => updateAt(c, path, (n) => (n.type === "folder" ? { ...n, team: { code: norm, owner: true, seen: Date.now(), h: hashJson(json) } } : n)));
@@ -634,6 +661,8 @@ export default function App() {
   }, []);
 
   const handleDelete = (path: string) => {
+    const gone = getAt(collections, path);
+    if (gone) addTombstones(collectNodeIds(gone));
     setCollections((c) => removeAt(c, path));
     // Las pestañas abiertas sobre lo borrado pasan a ser borradores; las demás se reindexan.
     setTabs((ts) =>
@@ -649,7 +678,7 @@ export default function App() {
     const req = tab.req;
     const current = tab.path ? getAt(collections, tab.path) : null;
     if (tab.path && current && current.type === "request") {
-      setCollections((c) => updateAt(c, tab.path!, (n) => nodeFromRequest(n.name, req)));
+      setCollections((c) => updateAt(c, tab.path!, (n) => nodeFromRequest(n.name, req, n)));
       patchTab(tab.id, (t) => ({ ...t, dirty: false }));
       if (!silent) setFlash("save");
       return;
@@ -889,15 +918,15 @@ export default function App() {
         collVars={collVars}
         onCollVars={(v) =>
           rootIdx !== null &&
-          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v } : n)))
+          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v, updatedAt: Date.now() } : n)))
         }
         collAuth={collAuth}
         onCollAuth={(a) =>
           rootIdx !== null &&
-          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a } : n)))
+          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a, updatedAt: Date.now() } : n)))
         }
         onImport={handleImport}
-        onNewCollection={() => setTeamDialog({ kind: "new" })}
+        onNewCollection={() => (account.mode === "guest" ? handleNewCollection() : setTeamDialog({ kind: "new" }))}
         onShare={(path) => setTeamDialog({ kind: "share", path })}
         onTeamInfo={(path) => setTeamDialog({ kind: "info", path })}
         onTeamRefresh={(code) => void team.refresh(code)}

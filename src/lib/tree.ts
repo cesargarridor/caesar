@@ -31,8 +31,12 @@ export const updateAt = (nodes: TreeNode[], path: string, fn: (n: TreeNode) => T
 
 export const removeAt = (nodes: TreeNode[], path: string) => updateAt(nodes, path, () => null);
 
+/** Marca un nodo como modificado ahora (y le da id si es petición y no tenía). */
+export const touch = (n: TreeNode): TreeNode =>
+  n.type === "request" ? { ...n, id: n.id ?? crypto.randomUUID(), updatedAt: Date.now() } : { ...n, updatedAt: Date.now() };
+
 export const renameAt = (nodes: TreeNode[], path: string, name: string) =>
-  updateAt(nodes, path, (n) => ({ ...n, name }));
+  updateAt(nodes, path, (n) => touch({ ...n, name }));
 
 /** Añade un hijo a una carpeta y devuelve el nuevo árbol y la ruta del hijo creado. */
 export function addChild(nodes: TreeNode[], path: string, child: TreeNode): { nodes: TreeNode[]; path: string } {
@@ -47,6 +51,8 @@ export function addChild(nodes: TreeNode[], path: string, child: TreeNode): { no
 export const newRequestNode = (name = "Nueva petición"): RequestNode => ({
   type: "request",
   name,
+  id: crypto.randomUUID(),
+  updatedAt: Date.now(),
   method: "GET",
   url: "",
   headers: [],
@@ -57,11 +63,11 @@ export const newRequestNode = (name = "Nueva petición"): RequestNode => ({
 let uidSeq = 0;
 export const newUid = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}${(uidSeq++).toString(36)}`;
 
-export const newFolderNode = (name = "Nueva carpeta"): TreeNode => ({ type: "folder", name, children: [], uid: newUid() });
+export const newFolderNode = (name = "Nueva carpeta"): TreeNode => ({ type: "folder", name, children: [], uid: newUid(), updatedAt: Date.now() });
 
 /** Da un id estable a toda carpeta que no lo tenga (colecciones guardadas antes o importadas). */
 export function ensureIds(nodes: TreeNode[]): TreeNode[] {
-  return nodes.map((n) => (n.type === "folder" ? { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) } : n));
+  return nodes.map((n) => (n.type === "folder" ? { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) } : n.id ? n : { ...n, id: crypto.randomUUID() }));
 }
 
 /** Ruta de una pestaña tras borrar el nodo `deleted` (null si estaba dentro de lo borrado). */
@@ -138,7 +144,8 @@ export function canMoveRelative(from: string, target: string): boolean {
 /** Mueve `from` para que quede justo antes o después de `target`, en la carpeta que contiene a `target`. */
 export function moveRelative(nodes: TreeNode[], from: string, target: string, pos: "before" | "after") {
   if (!canMoveRelative(from, target)) return null;
-  const node = getAt(nodes, from);
+  const found = getAt(nodes, from);
+  const node = found ? touch(found) : null;
   const adj = pathAfterDelete(target, from);
   if (!node || adj === null) return null;
   const segs = adj.split("/");
@@ -182,8 +189,9 @@ export function moveCollection(nodes: TreeNode[], from: string, to: string, pos:
 /** Mueve un nodo a otra carpeta (o al nivel raíz). Devuelve el árbol nuevo y cómo reubicar rutas abiertas. */
 export function moveNode(nodes: TreeNode[], from: string, to: string) {
   if (!canMove(from, to)) return null;
-  const node = getAt(nodes, from);
-  if (!node) return null;
+  const found = getAt(nodes, from);
+  if (!found) return null;
+  const node = touch(found);
   const dest = to === "root" ? "" : (pathAfterDelete(to, from) as string);
   const removed = removeAt(nodes, from);
   const r = insertInto(removed, dest, node);
@@ -198,10 +206,12 @@ export function moveNode(nodes: TreeNode[], from: string, to: string) {
 
 
 /** Estado de la UI -> nodo guardable en la colección. */
-export function nodeFromRequest(name: string, req: RequestState): RequestNode {
+export function nodeFromRequest(name: string, req: RequestState, prev?: TreeNode | null): RequestNode {
   return {
     type: "request",
     name,
+    id: (prev?.type === "request" && prev.id) || crypto.randomUUID(),
+    updatedAt: Date.now(),
     method: req.method,
     url: buildUrl(req.url, req.params),
     headers: req.headers,

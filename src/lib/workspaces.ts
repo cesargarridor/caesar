@@ -1,5 +1,6 @@
 import { t } from "./i18n";
-import type { KV, TreeNode } from "../types";
+import type { KV, Tombstone, TreeNode } from "../types";
+import type { AccountMode } from "../api";
 
 /**
  * Espacios de trabajo: cada uno es un conjunto independiente de colecciones, variables y pestañas guardado en local.
@@ -9,6 +10,8 @@ import type { KV, TreeNode } from "../types";
 export interface WsMeta {
   id: string;
   name: string;
+  /** Última modificación del espacio (ms), para el merge LWW. */
+  updatedAt?: number;
   /** Espacio compartido con un equipo: código, si lo creó esta cuenta, marca de la última versión de la nube, huella del contenido y si también se comparten las variables. */
   team?: { code: string; owner: boolean; seen: number; h?: string; vars: boolean };
 }
@@ -75,6 +78,30 @@ export interface WsData {
   name: string;
   collections: TreeNode[];
   vars: KV[];
+  updatedAt?: number;
+}
+
+/** Invitado: un solo espacio de trabajo. Pro y limbo: sin límite. */
+export const canCreateWorkspace = (mode: AccountMode, list: WsMeta[]) => mode !== "guest" || list.length < 1;
+
+// ───── lápidas de nodos borrados (se emiten en el snapshot para que el merge no los resucite) ─────
+const TOMB_KEY = "caesar.tombstones";
+const TOMB_TTL = 90 * 24 * 3600 * 1000;
+export function loadTombstones(): Tombstone[] {
+  const l = read<Tombstone[]>(TOMB_KEY, []);
+  const min = Date.now() - TOMB_TTL;
+  return Array.isArray(l) ? l.filter((x) => x && typeof x.id === "string" && typeof x.at === "number" && x.at > min) : [];
+}
+export function addTombstones(ids: string[]) {
+  if (!ids.length) return;
+  const at = Date.now();
+  const have = new Set(ids);
+  write(TOMB_KEY, [...loadTombstones().filter((x) => !have.has(x.id)), ...ids.map((id) => ({ id, at }))]);
+}
+/** Ids (de carpetas con `uid` y peticiones con `id`) de un nodo y todo lo que contiene. */
+export function collectNodeIds(n: TreeNode): string[] {
+  if (n.type === "request") return n.id ? [n.id] : [];
+  return [...(n.uid ? [n.uid] : []), ...n.children.flatMap(collectNodeIds)];
 }
 
 /**
@@ -84,9 +111,9 @@ export interface WsData {
 export function snapshotAll(list: WsMeta[], activeId: string, collections: TreeNode[], vars: KV[]) {
   const workspaces: WsData[] = list.filter((w) => !w.team).map((w) =>
     w.id === activeId
-      ? { id: w.id, name: w.name, collections, vars }
-      : { id: w.id, name: w.name, collections: read<TreeNode[]>(wsKey("collections", w.id), []), vars: read<KV[]>(wsKey("vars", w.id), []) },
+      ? { id: w.id, name: w.name, collections, vars, updatedAt: w.updatedAt }
+      : { id: w.id, name: w.name, collections: read<TreeNode[]>(wsKey("collections", w.id), []), vars: read<KV[]>(wsKey("vars", w.id), []), updatedAt: w.updatedAt },
   );
   const main = workspaces.find((w) => w.id === DEFAULT_WS) ?? workspaces[0];
-  return { v: 2, workspaces, collections: main?.collections ?? [], vars: main?.vars ?? [] };
+  return { v: 3, workspaces, collections: main?.collections ?? [], vars: main?.vars ?? [], tombstones: loadTombstones() };
 }

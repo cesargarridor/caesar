@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod account;
+mod keyrole;
+mod merge;
 mod sync;
 mod team;
 mod vault;
@@ -1339,6 +1342,15 @@ fn main() {
             team::team_join,
             team::team_push,
             team::team_pull,
+            account::check_trial_and_whitelist,
+            account::account_state,
+            sync::sync_link_idp,
+            keyrole::sync_role,
+            keyrole::sync_activate,
+            keyrole::sync_show_key,
+            keyrole::sync_regenerate_key,
+            keyrole::sync_enter_key,
+            keyrole::sync_make_master,
             team::team_unshare
         ])
         .run(tauri::generate_context!());

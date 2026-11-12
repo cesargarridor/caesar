@@ -40,7 +40,7 @@ pub(crate) struct Cfg {
     #[serde(rename = "projectId")]
     pub(crate) project_id: String,
     #[serde(rename = "apiKey")]
-    api_key: String,
+    pub(crate) api_key: String,
     /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
     #[serde(rename = "githubClientId", default)]
     github_client_id: String,
@@ -67,7 +67,7 @@ pub(crate) fn cfg() -> Option<Cfg> {
     (!c.project_id.is_empty() && !c.api_key.is_empty()).then_some(c)
 }
 
-struct Session {
+pub(crate) struct Session {
     uid: String,
     email: String,
     id_token: String,
@@ -76,12 +76,18 @@ struct Session {
 }
 
 pub struct SyncState {
-    session: Mutex<Option<Session>>,
-    dirty: AtomicBool,
+    pub(crate) session: Mutex<Option<Session>>,
+    /// Cuenta Pro (de pago o en la lista blanca): solo entonces se toca Firestore.
+    pub(crate) is_pro: AtomicBool,
+    /// "guest" | "limbo" | "pro".
+    pub(crate) mode: Mutex<String>,
+    /// Último estado de cuenta calculado (para `account_state`, sin red).
+    pub(crate) account: Mutex<Option<crate::account::AccountState>>,
+    pub(crate) dirty: AtomicBool,
     /// La nube rechazó la subida por falta de suscripción: se deja de insistir hasta que cambie.
     blocked: AtomicBool,
     /// Marca de tiempo (ms) del último documento remoto que ya conocemos.
-    last_remote: Mutex<i64>,
+    pub(crate) last_remote: Mutex<i64>,
     last_sync: Mutex<i64>,
     last_error: Mutex<Option<String>>,
     /// Entrada con GitHub/Google pendiente de vincular a una cuenta que ya existe: (postBody, correo).
@@ -94,6 +100,44 @@ impl SyncState {
     pub(crate) fn mark_dirty(&self) {
         self.dirty.store(true, Ordering::SeqCst);
     }
+    pub(crate) fn has_session(&self) -> bool {
+        self.session.lock().map(|g| g.is_some()).unwrap_or(false)
+    }
+    pub(crate) fn session_email(&self) -> String {
+        self.session.lock().ok().and_then(|g| g.as_ref().map(|s| s.email.clone())).unwrap_or_default()
+    }
+    pub(crate) fn set_email(&self, email: &str) {
+        if let Ok(mut g) = self.session.lock() {
+            if let Some(s) = g.as_mut() {
+                s.email = email.to_string();
+            }
+        }
+    }
+    pub(crate) fn set_mode(&self, mode: &str, pro: bool) {
+        if let Ok(mut g) = self.mode.lock() {
+            *g = mode.to_string();
+        }
+        self.is_pro.store(pro, Ordering::SeqCst);
+    }
+    pub(crate) fn mode_is(&self, m: &str) -> bool {
+        self.mode.lock().map(|g| g.as_str() == m).unwrap_or(false)
+    }
+    /// Vuelve al estado de invitado (sin sesión).
+    pub(crate) fn reset_account(&self) {
+        self.set_mode("guest", false);
+        if let Ok(mut g) = self.account.lock() {
+            *g = None;
+        }
+    }
+}
+
+/// Barrera Pro: sin cuenta de pago (o en lista blanca) no se escribe nada en Firestore.
+pub(crate) fn require_pro(st: &SyncState) -> Result<(), String> {
+    if st.is_pro.load(Ordering::SeqCst) {
+        Ok(())
+    } else {
+        Err("PRO_REQUIRED".into())
+    }
 }
 
 impl Default for SyncState {
@@ -101,6 +145,9 @@ impl Default for SyncState {
         let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().unwrap_or_default();
         Self {
             session: Mutex::new(None),
+            is_pro: AtomicBool::new(false),
+            mode: Mutex::new("guest".to_string()),
+            account: Mutex::new(None),
             dirty: AtomicBool::new(false),
             blocked: AtomicBool::new(false),
             last_remote: Mutex::new(0),
@@ -116,7 +163,7 @@ fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
-fn data_file(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn data_file(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| format!("Sin carpeta de datos: {e}"))?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("No se pudo crear la carpeta de datos: {e}"))?;
     Ok(dir.join("datos.json"))
@@ -135,7 +182,7 @@ fn save_refresh(t: &str) {
 fn load_refresh() -> Option<String> {
     token_entry().ok()?.get_password().ok()
 }
-fn clear_refresh() {
+pub(crate) fn clear_refresh() {
     if let Ok(e) = token_entry() {
         let _ = e.delete_credential();
     }
@@ -191,6 +238,9 @@ fn session_from(v: &Value, fallback_email: &str) -> Result<Session, String> {
     })
 }
 
+/// Error de `valid_token` cuando Firebase dice que la cuenta ya no existe / se revocó la sesión.
+pub(crate) const SESSION_GONE: &str = "La cuenta ya no existe o la sesión fue revocada. Vuelve a iniciar sesión.";
+
 /// Devuelve (uid, idToken) válidos, renovando el token si hace falta.
 pub(crate) async fn valid_token(st: &SyncState) -> Result<(String, String), String> {
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
@@ -214,6 +264,10 @@ pub(crate) async fn valid_token(st: &SyncState) -> Result<(String, String), Stri
     let ok = res.status().is_success();
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).unwrap_or(Value::Null);
     if !ok {
+        let code = v["error"]["message"].as_str().unwrap_or("");
+        if ["INVALID_REFRESH_TOKEN", "USER_DISABLED", "USER_NOT_FOUND", "TOKEN_EXPIRED"].iter().any(|c| code.starts_with(c)) {
+            return Err(SESSION_GONE.into());
+        }
         return Err("La sesión caducó. Vuelve a iniciar sesión.".into());
     }
     let new_id = v["id_token"].as_str().ok_or("Respuesta de sesión incompleta.")?.to_string();
@@ -233,19 +287,141 @@ pub(crate) async fn valid_token(st: &SyncState) -> Result<(String, String), Stri
 // ───────────────────────── Firestore (REST) ─────────────────────────
 
 fn doc_url(uid: &str) -> Option<String> {
+    sync_doc_url(uid, "main")
+}
+
+pub(crate) fn sync_doc_url(uid: &str, name: &str) -> Option<String> {
     let c = cfg()?;
     Some(format!(
-        "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/sync/main",
+        "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/sync/{name}",
         c.project_id
     ))
 }
 
-fn context(uid: &str) -> String {
+pub(crate) fn context(uid: &str) -> String {
     format!("sync:{uid}")
 }
 
+/// Esquema del documento `sync/main`; las reglas de Firestore exigen este valor y rechazan clientes viejos.
+pub(crate) const SYNC_SCHEMA: i64 = 3;
+
+/// Sube `sync/main` (blob + schema + updatedAt). Un 403 es suscripción inactiva o cliente desactualizado.
+pub(crate) async fn put_main(st: &SyncState, uid: &str, tok: &str, blob: &str, stamp: i64) -> Result<(), String> {
+    let body = json!({ "fields": {
+        "blob": { "stringValue": blob },
+        "schema": { "integerValue": SYNC_SCHEMA.to_string() },
+        "updatedAt": { "integerValue": stamp.to_string() },
+    } });
+    let res = st
+        .client
+        .patch(doc_url(uid).ok_or("Sincronización no configurada.")?)
+        .bearer_auth(tok)
+        .header("content-type", "application/json")
+        .body(serde_json::to_vec(&body).map_err(|e| e.to_string())?)
+        .send()
+        .await
+        .map_err(|_| "Sin conexión con Firebase.".to_string())?;
+    let code = res.status().as_u16();
+    if code == 403 {
+        let entitled = st.account.lock().ok().and_then(|g| g.as_ref().map(|a| a.whitelisted)).unwrap_or(false)
+            || billing_status(st).await.map(|b| b.active).unwrap_or(false);
+        if entitled {
+            return Err("Actualiza Caesar para sincronizar".into());
+        }
+        if cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false) {
+            st.blocked.store(true, Ordering::SeqCst);
+            return Err("Tu suscripción no está activa: tus datos siguen guardados en este equipo y en la nube, pero no se suben cambios nuevos.".into());
+        }
+    }
+    if !res.status().is_success() {
+        return Err(format!("Firebase rechazó la subida ({code})."));
+    }
+    Ok(())
+}
+
+/// Lee `sync/main`: `(blob, updatedAt)`; `None` si no existe.
+pub(crate) async fn get_main(st: &SyncState, uid: &str, tok: &str) -> Result<Option<(String, i64)>, String> {
+    let res = st
+        .client
+        .get(doc_url(uid).ok_or("Sincronización no configurada.")?)
+        .bearer_auth(tok)
+        .send()
+        .await
+        .map_err(|_| "Sin conexión con Firebase.".to_string())?;
+    let code = res.status().as_u16();
+    if code == 404 {
+        return Ok(None);
+    }
+    if !res.status().is_success() {
+        return Err(format!("Firebase rechazó la lectura ({code})."));
+    }
+    let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).map_err(|e| e.to_string())?;
+    let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento remoto no tiene datos.")?.to_string();
+    let ms = v["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+    Ok(Some((blob, ms)))
+}
+
+/// Resultado de consultar la cuenta en Firebase Auth.
+pub(crate) enum Lookup {
+    Ok(UserInfo),
+    /// Firebase dice que el usuario ya no existe o está deshabilitado (borrado de cuenta).
+    Gone,
+    /// Red u otro fallo: no se puede concluir nada.
+    Unknown,
+}
+
+pub(crate) async fn lookup_checked(st: &SyncState, key: &str, id_token: &str) -> Lookup {
+    let res = match st
+        .client
+        .post(format!("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={key}"))
+        .header("content-type", "application/json")
+        .body(json!({ "idToken": id_token }).to_string())
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(_) => return Lookup::Unknown,
+    };
+    let ok = res.status().is_success();
+    let v: Value = match res.bytes().await {
+        Ok(b) => serde_json::from_slice(&b).unwrap_or(Value::Null),
+        Err(_) => return Lookup::Unknown,
+    };
+    if !ok {
+        let code = v["error"]["message"].as_str().unwrap_or("");
+        return if code.starts_with("USER_NOT_FOUND") || code.starts_with("USER_DISABLED") { Lookup::Gone } else { Lookup::Unknown };
+    }
+    if v["users"][0].is_null() {
+        return Lookup::Unknown;
+    }
+    let u = &v["users"][0];
+    Lookup::Ok(UserInfo {
+        email: u["email"].as_str().unwrap_or("").to_string(),
+        email_verified: u["emailVerified"].as_bool().unwrap_or(false),
+        created_at_ms: u["createdAt"].as_str().and_then(|s| s.parse().ok()).or_else(|| u["createdAt"].as_i64()).unwrap_or(0),
+    })
+}
+
+/// Cierra la sesión local por borrado/desactivación de la cuenta: sin llavero de token ni clave de cifrado.
+pub(crate) fn drop_local_session(st: &SyncState) {
+    clear_refresh();
+    let _ = crate::vault::vault_forget();
+    if let Ok(mut g) = st.session.lock() {
+        *g = None;
+    }
+    st.dirty.store(false, Ordering::SeqCst);
+    st.blocked.store(false, Ordering::SeqCst);
+    if let Ok(mut g) = st.last_remote.lock() {
+        *g = 0;
+    }
+    if let Ok(mut g) = st.last_sync.lock() {
+        *g = 0;
+    }
+}
+
 /// Sube el archivo local (cifrado) en una sola petición.
-async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
+pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
+    require_pro(st)?;
     let (uid, tok) = valid_token(st).await?;
     let plain = std::fs::read(data_file(app)?).map_err(|e| format!("No se pudo leer datos.json: {e}"))?;
     let key = vault::load_key()?.ok_or("Activa el cifrado (clave de recuperación) antes de sincronizar.")?;
@@ -253,24 +429,12 @@ async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     if blob.len() > MAX_BLOB {
         return Err("Tus colecciones superan el límite de la nube gratuita (~650 KB). Exporta o divide las colecciones.".into());
     }
+    // Un equipo con clave revocada (otro Master rotó la clave) no debe pisar la nube con sus datos.
+    if !crate::keyrole::key_is_current(st, &uid, &tok, &key).await? {
+        return Err("La clave de este equipo ya no es la vigente: introduce la clave nueva en Ajustes → Sincronización.".into());
+    }
     let stamp = now_ms();
-    let body = json!({ "fields": { "blob": { "stringValue": blob }, "updatedAt": { "integerValue": stamp.to_string() } } });
-    let res = st
-        .client
-        .patch(doc_url(&uid).ok_or("Sincronización no configurada.")?)
-        .bearer_auth(tok)
-        .header("content-type", "application/json")
-        .body(serde_json::to_vec(&body).map_err(|e| e.to_string())?)
-        .send()
-        .await
-        .map_err(|_| "Sin conexión con Firebase.".to_string())?;
-    if res.status().as_u16() == 403 && cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false) {
-        st.blocked.store(true, Ordering::SeqCst);
-        return Err("Tu suscripción no está activa: tus datos siguen guardados en este equipo y en la nube, pero no se suben cambios nuevos.".into());
-    }
-    if !res.status().is_success() {
-        return Err(format!("Firebase rechazó la subida ({}).", res.status().as_u16()));
-    }
+    put_main(st, &uid, &tok, &blob, stamp).await?;
     st.blocked.store(false, Ordering::SeqCst);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = stamp;
     *st.last_sync.lock().map_err(|_| "Estado bloqueado")? = stamp;
@@ -278,7 +442,8 @@ async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
 }
 
 /// Baja el documento remoto; si es más nuevo y no hay cambios locales pendientes, lo aplica y avisa a la interfaz.
-async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
+pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
+    require_pro(st)?;
     let (uid, tok) = valid_token(st).await?;
     let url = doc_url(&uid).ok_or("Sincronización no configurada.")?;
     // 1) Solo la fecha (unos bytes). El documento entero se descarga únicamente si hay algo más nuevo.
@@ -292,7 +457,7 @@ async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     if head.status().is_success() {
         let hv: Value = serde_json::from_slice(&head.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).unwrap_or(Value::Null);
         let ms: i64 = hv["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
-        if ms <= *st.last_remote.lock().map_err(|_| "Estado bloqueado")? || st.dirty.load(Ordering::SeqCst) {
+        if ms <= *st.last_remote.lock().map_err(|_| "Estado bloqueado")? {
             return Ok(());
         }
     }
@@ -317,19 +482,37 @@ async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).map_err(|e| e.to_string())?;
     let remote_ms: i64 = v["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
     let known = *st.last_remote.lock().map_err(|_| "Estado bloqueado")?;
-    if remote_ms <= known || st.dirty.load(Ordering::SeqCst) {
-        return Ok(()); // nada nuevo, o lo local gana (se subirá en el próximo ciclo)
+    if remote_ms <= known {
+        return Ok(()); // nada nuevo
     }
     let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento remoto no tiene datos.")?;
     let key = vault::load_key()?.ok_or("Falta la clave de cifrado en este equipo: vincúlalo o restaura la clave de recuperación.")?;
     let plain = vault::decrypt_any(&key, &context(&uid), blob)?;
     let text = String::from_utf8(plain).map_err(|_| "Los datos remotos no son texto válido.".to_string())?;
+    let remote: Value = serde_json::from_str(&text).map_err(|_| "Los datos remotos no son JSON válido.".to_string())?;
     let file = data_file(app)?;
-    let _ = std::fs::copy(&file, file.with_extension("json.bak")); // copia de seguridad de lo local
-    write_atomic(&file, text.as_bytes())?;
+    // Fusión por elemento (gana la última edición de cada petición/carpeta): ya no se descarta lo local por tener cambios pendientes.
+    let local_bytes = std::fs::read(&file).ok();
+    let local: Option<Value> = local_bytes.as_ref().and_then(|b| serde_json::from_slice(b).ok());
+    let merged = match &local {
+        Some(l) => crate::merge::merge_snapshots(l, &remote),
+        None => remote.clone(),
+    };
+    let merged_text = serde_json::to_string(&merged).map_err(|e| e.to_string())?;
+    if local.as_ref() != Some(&merged) {
+        // Si el usuario guardó mientras tanto, no se pisa: se reintenta en la próxima bajada.
+        if std::fs::read(&file).ok() != local_bytes {
+            return Ok(());
+        }
+        let _ = std::fs::copy(&file, file.with_extension("json.bak")); // copia de seguridad de lo local
+        write_atomic(&file, merged_text.as_bytes())?;
+        let _ = app.emit("sync-remote", merged_text);
+    }
+    if merged != remote {
+        st.dirty.store(true, Ordering::SeqCst); // lo fusionado tiene algo que la nube no tiene: se sube
+    }
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = remote_ms;
     *st.last_sync.lock().map_err(|_| "Estado bloqueado")? = now_ms();
-    let _ = app.emit("sync-remote", text);
     Ok(())
 }
 
@@ -365,8 +548,12 @@ pub fn start_worker(app: AppHandle) {
                 });
             }
             if restore_identity(&st).await.is_ok() {
-                if let Err(e) = pull(&app, &st).await {
-                    set_error(&st, Some(e));
+                st.set_mode("limbo", false);
+                let _ = crate::account::evaluate(&app, &st, false).await;
+                if st.is_pro.load(Ordering::SeqCst) {
+                    if let Err(e) = pull(&app, &st).await {
+                        set_error(&st, Some(e));
+                    }
                 }
             }
         }
@@ -376,6 +563,14 @@ pub fn start_worker(app: AppHandle) {
             n = n.wrapping_add(1);
             let signed = st.session.lock().map(|g| g.is_some()).unwrap_or(false);
             if !signed {
+                continue;
+            }
+            // Cada 5 min se vuelve a comprobar el plan (un pago nuevo o una baja cambian el modo). Sin borrar nada.
+            if n % PULL_EVERY == 0 {
+                let _ = crate::account::evaluate(&app, &st, false).await;
+            }
+            // Barrera: sin cuenta Pro (invitado o limbo) no se hace ninguna petición a Firestore.
+            if !st.is_pro.load(Ordering::SeqCst) {
                 continue;
             }
             let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 20 == 0) {
@@ -437,9 +632,26 @@ async fn restore_identity(st: &SyncState) -> Result<(), String> {
     Ok(())
 }
 
-async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<String> {
+pub(crate) struct UserInfo {
+    pub(crate) email: String,
+    #[allow(dead_code)]
+    pub(crate) email_verified: bool,
+    /// Alta de la cuenta (ms desde 1970); 0 si no se conoce.
+    pub(crate) created_at_ms: i64,
+}
+
+pub(crate) async fn lookup_user(st: &SyncState, key: &str, id_token: &str) -> Option<UserInfo> {
     let v = post_json(st, &format!("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={key}"), json!({ "idToken": id_token })).await.ok()?;
-    v["users"][0]["email"].as_str().map(str::to_string)
+    let u = &v["users"][0];
+    Some(UserInfo {
+        email: u["email"].as_str().unwrap_or("").to_string(),
+        email_verified: u["emailVerified"].as_bool().unwrap_or(false),
+        created_at_ms: u["createdAt"].as_str().and_then(|s| s.parse().ok()).or_else(|| u["createdAt"].as_i64()).unwrap_or(0),
+    })
+}
+
+async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<String> {
+    lookup_user(st, key, id_token).await.map(|u| u.email).filter(|e| !e.is_empty())
 }
 
 // ───────────────────────── comandos ─────────────────────────
@@ -490,6 +702,15 @@ pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> 
     if std::fs::read(&path).map(|old| old == json.as_bytes()).unwrap_or(false) {
         return Ok(()); // sin cambios reales: no se levanta la bandera
     }
+    // Invitado: un solo espacio de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
+    if st.mode_is("guest") {
+        let count = |b: &[u8]| serde_json::from_slice::<Value>(b).ok().and_then(|v| v["workspaces"].as_array().map(|a| a.len())).unwrap_or(0);
+        let new_n = count(json.as_bytes());
+        let old_n = std::fs::read(&path).map(|b| count(&b)).unwrap_or(0);
+        if new_n > 1 && new_n > old_n {
+            return Err("GUEST_LIMIT_WORKSPACES".into());
+        }
+    }
     write_atomic(&path, json.as_bytes())?;
     // Solo se marca para subir si hay sesión: un equipo nuevo, sin sesión, no debe pisar la nube con datos vacíos.
     if st.session.lock().map(|g| g.is_some()).unwrap_or(false) {
@@ -499,7 +720,7 @@ pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> 
 }
 
 #[tauri::command]
-pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email: String, password: String, create: bool) -> Result<(), String> {
+pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email: String, password: String, create: bool) -> Result<String, String> {
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     if email.trim().is_empty() || password.is_empty() {
         return Err("Escribe tu correo y tu contraseña.".into());
@@ -508,17 +729,11 @@ pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email
     let url = format!("https://identitytoolkit.googleapis.com/v1/{endpoint}?key={}", c.api_key);
     let v = post_json(&st, &url, json!({ "email": email.trim(), "password": password, "returnSecureToken": true })).await?;
     let s = session_from(&v, email.trim())?;
-    save_refresh(&s.refresh_token);
-    *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
-    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
-    // Al entrar manda lo que haya en la nube (si no hay nada, se sube lo de este equipo).
-    st.dirty.store(false, Ordering::SeqCst);
-    let r = pull(&app, &st).await;
-    set_error(&st, r.err());
-    Ok(())
+    // Al entrar manda lo que haya en la nube (si es Pro; si no, nada se sube). Devuelve el modo: "pro" | "limbo".
+    finish_session(&app, &st, s).await
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct DeviceCode {
     user_code: String,
     verification_uri: String,
@@ -545,8 +760,12 @@ async fn gh_post(st: &SyncState, url: &str, form: String) -> Result<Value, Strin
 /// GitHub paso 1: pide un código para que el usuario lo escriba en github.com/login/device.
 #[tauri::command]
 pub async fn sync_github_begin(st: tauri::State<'_, SyncState>) -> Result<DeviceCode, String> {
+    github_begin(&st).await
+}
+
+async fn github_begin(st: &SyncState) -> Result<DeviceCode, String> {
     let c = cfg().filter(|c| !c.github_client_id.is_empty()).ok_or("El inicio de sesión con GitHub no está configurado.")?;
-    let v = gh_post(&st, "https://github.com/login/device/code", format!("client_id={}&scope=read:user%20user:email", c.github_client_id)).await?;
+    let v = gh_post(st, "https://github.com/login/device/code", format!("client_id={}&scope=read:user%20user:email", c.github_client_id)).await?;
     if let Some(e) = v["error"].as_str() {
         return Err(format!("GitHub: {e}"));
     }
@@ -562,6 +781,11 @@ pub async fn sync_github_begin(st: tauri::State<'_, SyncState>) -> Result<Device
 /// GitHub paso 2: espera a que el usuario autorice y entra en Firebase con el token de GitHub.
 #[tauri::command]
 pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>, device_code: String, interval: u64, expires_in: u64) -> Result<(), String> {
+    let gh_token = github_token(&st, &device_code, interval, expires_in).await?;
+    idp_sign_in(&app, &st, format!("access_token={gh_token}&providerId=github.com"), "GitHub").await
+}
+
+async fn github_token(st: &SyncState, device_code: &str, interval: u64, expires_in: u64) -> Result<String, String> {
     let c = cfg().filter(|c| !c.github_client_id.is_empty()).ok_or("El inicio de sesión con GitHub no está configurado.")?;
     let deadline = Instant::now() + Duration::from_secs(expires_in.min(900));
     let mut wait = interval.max(5);
@@ -571,7 +795,7 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
             return Err("El código de GitHub caducó. Inténtalo de nuevo.".into());
         }
         let v = gh_post(
-            &st,
+            st,
             "https://github.com/login/oauth/access_token",
             format!("client_id={}&device_code={device_code}&grant_type=urn:ietf:params:oauth:grant-type:device_code", c.github_client_id),
         )
@@ -587,12 +811,18 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
             e => return Err(format!("GitHub: {e}")),
         }
     };
-    idp_sign_in(&app, &st, format!("access_token={gh_token}&providerId=github.com"), "GitHub").await
+    Ok(gh_token)
 }
 
 /// Inicio de sesión con Google: abre el navegador, recibe el código en 127.0.0.1 (OAuth con PKCE) y entra en Firebase.
 #[tauri::command]
 pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    let body = google_post_body(&st).await?;
+    idp_sign_in(&app, &st, body, "Google").await
+}
+
+/// Flujo OAuth de Google: devuelve el `postBody` para `signInWithIdp`.
+async fn google_post_body(st: &SyncState) -> Result<String, String> {
     use aes_gcm::aead::{rand_core::RngCore, OsRng};
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
     use sha2::{Digest, Sha256};
@@ -693,7 +923,7 @@ pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Res
     }
     let id_token = tok["id_token"].as_str().ok_or("Google no devolvió la identidad.")?;
 
-    idp_sign_in(&app, &st, form(&[("id_token", id_token), ("providerId", "google.com")]), "Google").await
+    Ok(form(&[("id_token", id_token), ("providerId", "google.com")]))
 }
 
 /// Entra en Firebase con las credenciales de un proveedor. Si el correo ya existe con otro método de acceso,
@@ -709,23 +939,39 @@ async fn idp_sign_in(app: &AppHandle, st: &SyncState, post_body: String, fallbac
     .await?;
     if v["idToken"].is_null() {
         if let Some(email) = v["email"].as_str() {
-            let others = v["allProviders"].as_array().map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(",")).unwrap_or_default();
+            let list: Vec<&str> = v["allProviders"].as_array().map(|a| a.iter().filter_map(|x| x.as_str()).collect()).unwrap_or_default();
+            let attempted = if post_body.contains("providerId=github.com") { "github.com" } else { "google.com" };
+            // El correo ya existe con OTRO proveedor (Google/GitHub) y sin contraseña: se vincula entrando con ese proveedor.
+            let other_idp = list.iter().find(|p| matches!(**p, "google.com" | "github.com") && **p != attempted).copied();
+            let by_password = list.contains(&"password");
+            let others = list.join(",");
             *st.pending_link.lock().map_err(|_| "Estado bloqueado")? = Some((post_body, email.to_string()));
+            if let (Some(p), false) = (other_idp, by_password) {
+                return Err(format!("LINK_VIA_IDP|{email}|{p}"));
+            }
             return Err(format!("LINK_REQUIRED|{email}|{others}"));
         }
     }
     let name = v["screenName"].as_str().map(|n| format!("{fallback}: {n}")).unwrap_or_else(|| fallback.to_string());
-    finish_session(app, st, session_from(&v, &name)?).await
+    finish_session(app, st, session_from(&v, &name)?).await.map(|_| ())
 }
 
-async fn finish_session(app: &AppHandle, st: &SyncState, s: Session) -> Result<(), String> {
+/// Guarda la sesión, calcula el modo de la cuenta (pro / limbo) y, si es Pro, baja los datos de la nube.
+/// Devuelve el modo: "pro" | "limbo".
+async fn finish_session(app: &AppHandle, st: &SyncState, s: Session) -> Result<String, String> {
     save_refresh(&s.refresh_token);
     *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
     st.dirty.store(false, Ordering::SeqCst);
-    let r = pull(app, st).await;
-    set_error(st, r.err());
-    Ok(())
+    st.set_mode("limbo", false);
+    let _ = crate::account::evaluate(app, st, false).await;
+    if st.is_pro.load(Ordering::SeqCst) {
+        let r = pull(app, st).await;
+        set_error(st, r.err());
+    } else {
+        set_error(st, None);
+    }
+    Ok(st.mode.lock().map(|g| g.clone()).unwrap_or_else(|_| "limbo".into()))
 }
 
 /// Confirma la vinculación: la contraseña demuestra que la cuenta existente es tuya y se le añade GitHub/Google.
@@ -739,7 +985,48 @@ pub async fn sync_link_confirm(app: AppHandle, st: tauri::State<'_, SyncState>, 
     let v = post_json(&st, &url, json!({ "idToken": id_token, "postBody": post_body, "requestUri": "http://localhost", "returnSecureToken": true, "returnIdpCredential": true })).await?;
     let s = session_from(&v, &email)?;
     *st.pending_link.lock().map_err(|_| "Estado bloqueado")? = None;
-    finish_session(&app, &st, s).await
+    finish_session(&app, &st, s).await?;
+    let _ = app.emit("account-linked", email);
+    Ok(())
+}
+
+/// Vincula la entrada pendiente (GitHub/Google) a una cuenta que ya existe con OTRO proveedor: el usuario entra con ese
+/// proveedor (`google.com` | `github.com`), lo que demuestra que la cuenta es suya. Devuelve "linked".
+/// Con GitHub, el código a escribir llega en el evento `link-github-code` ({user_code, verification_uri, ...}).
+#[tauri::command]
+pub async fn sync_link_idp(app: AppHandle, st: tauri::State<'_, SyncState>, provider: String) -> Result<String, String> {
+    let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
+    let (post_body, email) = st.pending_link.lock().map_err(|_| "Estado bloqueado")?.clone().ok_or("No hay ninguna vinculación pendiente.")?;
+    let existing_body = match provider.as_str() {
+        "google.com" => google_post_body(&st).await?,
+        "github.com" => {
+            let dc = github_begin(&st).await?;
+            let _ = open::that_detached(&dc.verification_uri);
+            let (code, interval, expires) = (dc.device_code.clone(), dc.interval, dc.expires_in);
+            let _ = app.emit("link-github-code", dc);
+            let tok = github_token(&st, &code, interval, expires).await?;
+            format!("access_token={tok}&providerId=github.com")
+        }
+        _ => return Err("Proveedor no válido.".into()),
+    };
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
+    let base = json!({ "requestUri": "http://localhost", "returnSecureToken": true, "returnIdpCredential": true });
+    let mut b1 = base.clone();
+    b1["postBody"] = json!(existing_body);
+    let first = post_json(&st, &url, b1).await?;
+    let id_token = first["idToken"].as_str().ok_or("Esa cuenta no es la del correo que intentas vincular.")?.to_string();
+    if first["email"].as_str().map(|e| !e.eq_ignore_ascii_case(&email)).unwrap_or(false) {
+        return Err("Esa cuenta tiene otro correo distinto.".into());
+    }
+    let mut b2 = base;
+    b2["idToken"] = json!(id_token);
+    b2["postBody"] = json!(post_body);
+    let v = post_json(&st, &url, b2).await?;
+    let s = session_from(&v, &email)?;
+    *st.pending_link.lock().map_err(|_| "Estado bloqueado")? = None;
+    finish_session(&app, &st, s).await?;
+    let _ = app.emit("account-linked", email);
+    Ok("linked".into())
 }
 
 #[tauri::command]
@@ -751,7 +1038,7 @@ pub fn sync_link_cancel(st: tauri::State<'_, SyncState>) {
 
 #[derive(Serialize)]
 pub struct Billing {
-    active: bool,
+    pub(crate) active: bool,
     status: String,
     ends_at: i64,
     portal: String,
@@ -760,7 +1047,11 @@ pub struct Billing {
 /// Estado de la suscripción (lo escribe el Worker de Cloudflare cuando Lemon Squeezy avisa de un pago).
 #[tauri::command]
 pub async fn sync_billing(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
-    let (uid, tok) = valid_token(&st).await?;
+    billing_status(&st).await
+}
+
+pub(crate) async fn billing_status(st: &SyncState) -> Result<Billing, String> {
+    let (uid, tok) = valid_token(st).await?;
     let c = cfg().ok_or("Sincronización no configurada.")?;
     let url = format!(
         "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/billing/status",
@@ -800,10 +1091,14 @@ pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> 
 /// Borra la cuenta: primero los datos de la nube y después el usuario de Firebase. Los datos locales no se tocan.
 #[tauri::command]
 pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    delete_account(&st).await
+}
+
+pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
     let c = cfg().ok_or("Sincronización no configurada.")?;
-    let (uid, tok) = valid_token(&st).await?;
+    let (uid, tok) = valid_token(st).await?;
     // Las colecciones de equipo creadas por esta cuenta se eliminan con ella.
-    crate::team::delete_owned(&st, &uid, &tok).await?;
+    crate::team::delete_owned(st, &uid, &tok).await?;
     for doc in ["sync/main", "billing/status"] {
         let url = format!(
             "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/{doc}",
@@ -816,7 +1111,19 @@ pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), 
         }
     }
     let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:delete?key={}", c.api_key);
-    if let Err(e) = post_json(&st, &url, json!({ "idToken": tok })).await {
+    let mut res = post_json(st, &url, json!({ "idToken": tok })).await;
+    if matches!(&res, Err(e) if e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN")) {
+        // Un intento más con el token renovado.
+        if let Ok(mut g) = st.session.lock() {
+            if let Some(s) = g.as_mut() {
+                s.expires = Instant::now();
+            }
+        }
+        if let Ok((_, fresh)) = valid_token(st).await {
+            res = post_json(st, &url, json!({ "idToken": fresh })).await;
+        }
+    }
+    if let Err(e) = res {
         return Err(if e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN") {
             "Por seguridad, cierra sesión, vuelve a entrar y repite el borrado.".to_string()
         } else {
@@ -824,12 +1131,13 @@ pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), 
         });
     }
     clear_refresh();
+    st.reset_account();
     *st.session.lock().map_err(|_| "Estado bloqueado")? = None;
     st.dirty.store(false, Ordering::SeqCst);
     st.blocked.store(false, Ordering::SeqCst);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
     *st.last_sync.lock().map_err(|_| "Estado bloqueado")? = 0;
-    set_error(&st, None);
+    set_error(st, None);
     Ok(())
 }
 
@@ -837,13 +1145,14 @@ pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), 
 /// borra el token del llavero y todo el estado de la cuenta. Los datos locales (`datos.json`) no se tocan.
 #[tauri::command]
 pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
-    if st.dirty.load(Ordering::SeqCst) && !st.blocked.load(Ordering::SeqCst) {
+    if st.dirty.load(Ordering::SeqCst) && !st.blocked.load(Ordering::SeqCst) && st.is_pro.load(Ordering::SeqCst) {
         let _ = tokio::time::timeout(Duration::from_secs(8), push(&app, &st)).await;
     }
     clear_refresh();
     if let Ok(mut g) = st.session.lock() {
         *g = None;
     }
+    st.reset_account();
     st.dirty.store(false, Ordering::SeqCst);
     st.blocked.store(false, Ordering::SeqCst);
     if let Ok(mut g) = st.last_remote.lock() {
@@ -859,6 +1168,7 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
 /// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos.
 #[tauri::command]
 pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    require_pro(&st)?;
     st.blocked.store(false, Ordering::SeqCst);
     if st.dirty.load(Ordering::SeqCst) {
         st.dirty.store(false, Ordering::SeqCst);
