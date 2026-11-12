@@ -81,25 +81,6 @@ export function saveHideEmpty(on: boolean) {
   }
 }
 
-const CHANNEL_KEY = "caesar.channel";
-
-/** Canal de actualizaciones: "stable" (lo que ve todo el mundo) o "dev" (versiones de prueba de la rama develop). */
-export type Channel = "stable" | "dev";
-export function loadChannel(): Channel {
-  try {
-    return localStorage.getItem(CHANNEL_KEY) === "dev" ? "dev" : "stable";
-  } catch {
-    return "stable";
-  }
-}
-export function saveChannel(c: Channel) {
-  try {
-    localStorage.setItem(CHANNEL_KEY, c);
-  } catch {
-    /* sin almacenamiento */
-  }
-}
-
 const UPDATE_KEY = "caesar.autoUpdate";
 
 /** Actualizaciones automáticas: activadas por defecto. */

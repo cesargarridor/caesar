@@ -33,7 +33,7 @@ import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut } from "./lib/find";
 import { t, useLang } from "./lib/i18n";
 import {
-  applyFonts, loadAutoUpdate, loadChannel, saveChannel, type Channel, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
+  applyFonts, loadAutoUpdate, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
@@ -136,17 +136,13 @@ export default function App() {
   // ───── Actualizaciones ─────
   const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
   const [version, setVersion] = useState("");
-  const [channel, setChannel] = useState<Channel>(loadChannel);
-  const channelRef = useRef(channel);
-  channelRef.current = channel;
-  useEffect(() => saveChannel(channel), [channel]);
   const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
   useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
 
   const installNow = async (v: string) => {
     setUpd({ phase: "installing", version: v, downloaded: 0, total: null });
     try {
-      await installUpdate(channelRef.current); // al terminar, Rust reinicia la app
+      await installUpdate(); // al terminar, Rust reinicia la app
     } catch (e) {
       setUpd({ phase: "error", message: errMsg(e) });
     }
@@ -155,7 +151,7 @@ export default function App() {
   const runCheck = async (auto: boolean) => {
     setUpd({ phase: "checking" });
     try {
-      const info = await checkUpdate(channelRef.current);
+      const info = await checkUpdate();
       if (!info) setUpd({ phase: "uptodate" });
       else if (auto) await installNow(info.version);
       else setUpd({ phase: "available", version: info.version, notes: info.notes });
@@ -753,8 +749,6 @@ export default function App() {
             onHideEmpty={setHideEmpty}
             updates={{
               version,
-              channel,
-              onChannel: setChannel,
               auto: autoUpdate,
               onAuto: setAutoUpdate,
               state: upd,
