@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncGoogle, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -21,6 +21,8 @@ export default function SyncSettings() {
   const [confirmDel, setConfirmDel] = useState(false);
   const [device, setDevice] = useState<DeviceCode | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Pestaña de acceso abierta. Con sesión iniciada solo se ve si el usuario pulsa una (para entrar con otra cuenta). */
+  const [mode, setMode] = useState<"login" | "register" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const refresh = useCallback(() => syncStatus().then(setSt).catch(() => {}), []);
@@ -60,67 +62,95 @@ export default function SyncSettings() {
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
       {/* 1. Cuenta */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <h3 className="text-sm text-mist">{t("Cuenta")}</h3>
-        {st.signed_in ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-silver">{st.email || t("Sesión iniciada")}</span>
-            <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await syncSignOut(); })}>
+        {st.signed_in && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-deep p-3 ring-1 ring-fg/10">
+            <span className="text-sm text-silver">
+              {t("Sesión iniciada")}: <b className="text-mist">{st.email || "—"}</b>
+            </span>
+            <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await syncSignOut(); setMode(null); })}>
               {t("Cerrar sesión")}
             </button>
           </div>
-        ) : (
-          <form
-            className="max-w-sm space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              run(async () => { await syncSignIn(email, password, false); setPassword(""); });
-            }}
-          >
-            <input className={inputCls} type="email" autoComplete="username" placeholder={t("Correo")} value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className={inputCls} type="password" autoComplete="current-password" placeholder={t("Contraseña")} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <div className="flex gap-2">
-              <button className={btnCls} disabled={busy} type="submit">{t("Iniciar sesión")}</button>
+        )}
+        <div className="flex gap-1 border-b border-fg/10">
+          {(["login", "register"] as const).map((m) => {
+            const open = (st.signed_in ? mode : mode ?? "login") === m;
+            return (
               <button
-                className={ghostCls}
-                disabled={busy}
-                type="button"
-                onClick={() => run(async () => { await syncSignIn(email, password, true); setPassword(""); })}
+                key={m}
+                onClick={() => setMode(st.signed_in && open ? null : m)}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm ${open ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"}`}
               >
-                {t("Crear cuenta")}
+                {m === "login" ? t("Iniciar sesión") : t("Registrarse")}
               </button>
+            );
+          })}
+        </div>
+        {(st.signed_in ? mode : mode ?? "login") && (() => {
+          const reg = (st.signed_in ? mode : mode ?? "login") === "register";
+          const done = () => { setPassword(""); setMode(null); };
+          return (
+            <div className="max-w-sm space-y-4">
+              {st.signed_in && (
+                <p className="text-xs text-slate">
+                  {reg ? t("Crea otra cuenta: este equipo pasará a usarla.") : t("Entra con otra cuenta: este equipo pasará a usarla.")}
+                </p>
+              )}
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  run(async () => { await syncSignIn(email, password, reg); done(); });
+                }}
+              >
+                <input className={inputCls} type="email" autoComplete="username" placeholder={t("Correo")} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className={inputCls} type="password" autoComplete={reg ? "new-password" : "current-password"} placeholder={t("Contraseña")} value={password} onChange={(e) => setPassword(e.target.value)} />
+                <button className={btnCls} disabled={busy} type="submit">{reg ? t("Crear cuenta") : t("Iniciar sesión")}</button>
+              </form>
+              {(st.google || st.github) && <p className="text-xs text-slate">{t("o")}</p>}
+              {st.google && (
+                <div className="space-y-2">
+                  <button className={`${ghostCls} w-full`} disabled={busy} onClick={() => run(async () => { await syncGoogle(); done(); })}>
+                    {busy ? t("Esperando al navegador…") : reg ? t("Registrarse con Google") : t("Continuar con Google")}
+                  </button>
+                  {busy && <p className="text-xs text-slate">{t("Se ha abierto tu navegador: elige tu cuenta de Google y vuelve aquí.")}</p>}
+                </div>
+              )}
+              {st.github && (
+                <div className="space-y-3">
+                  <button
+                    className={`${ghostCls} w-full`}
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        const d = await syncGithubBegin();
+                        setDevice(d);
+                        openUrl(d.verification_uri).catch(() => {});
+                        try {
+                          await syncGithubFinish(d);
+                          done();
+                        } finally {
+                          setDevice(null);
+                        }
+                      })
+                    }
+                  >
+                    {reg ? t("Registrarse con GitHub") : t("Continuar con GitHub")}
+                  </button>
+                  {device && (
+                    <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+                      <p className="mb-2 text-xs text-slate">{t("Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:")}</p>
+                      <code className="block select-all text-xl tracking-widest text-mist">{device.user_code}</code>
+                      <p className="mt-2 break-all text-xs text-slate">{device.verification_uri}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </form>
-        )}
-        {!st.signed_in && st.github && (
-          <div className="max-w-sm space-y-3">
-            <button
-              className={ghostCls}
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const d = await syncGithubBegin();
-                  setDevice(d);
-                  openUrl(d.verification_uri).catch(() => {});
-                  try {
-                    await syncGithubFinish(d);
-                  } finally {
-                    setDevice(null);
-                  }
-                })
-              }
-            >
-              {t("Continuar con GitHub")}
-            </button>
-            {device && (
-              <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-                <p className="mb-2 text-xs text-slate">{t("Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:")}</p>
-                <code className="block select-all text-xl tracking-widest text-mist">{device.user_code}</code>
-                <p className="mt-2 break-all text-xs text-slate">{device.verification_uri}</p>
-              </div>
-            )}
-          </div>
-        )}
+          );
+        })()}
       </section>
 
       {/* 2. Clave de cifrado */}
