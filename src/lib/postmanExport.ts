@@ -70,6 +70,39 @@ function pmAuth(a: Partial<AuthData> & { type?: string }): Record<string, unknow
       return { type: "basic", basic: [s("username", a.username), s("password", a.password)] };
     case "apikey":
       return { type: "apikey", apikey: [s("key", a.key), s("value", a.value), s("in", a.in ?? "header")] };
+    case "digest":
+      return { type: "digest", digest: [s("username", a.username), s("password", a.password)] };
+    case "ntlm":
+      return { type: "ntlm", ntlm: [s("username", a.username), s("password", a.password), s("domain", a.extra?.domain), s("workstation", a.extra?.workstation)] };
+    case "oauth1": {
+      const x = a.extra ?? {};
+      return {
+        type: "oauth1",
+        oauth1: [s("consumerKey", x.consumerKey), s("consumerSecret", x.consumerSecret), s("token", x.token), s("tokenSecret", x.tokenSecret), s("signatureMethod", x.signatureMethod || "HMAC-SHA1"), s("realm", x.realm), s("addParamsToHeader", x.addTo === "query" ? "false" : "true")],
+      };
+    }
+    case "oauth2": {
+      const x = a.extra ?? {};
+      return {
+        type: "oauth2",
+        oauth2: [
+          s("grant_type", x.grantType === "password" ? "password_credentials" : x.grantType === "client_credentials" ? "client_credentials" : "authorization_code"),
+          s("accessToken", x.accessToken), s("accessTokenUrl", x.accessTokenUrl), s("clientId", x.clientId), s("clientSecret", x.clientSecret), s("scope", x.scope),
+          s("username", a.username), s("password", a.password), s("headerPrefix", x.headerPrefix || "Bearer"), s("addTokenTo", x.addTokenTo === "query" ? "queryParams" : "header"),
+        ],
+      };
+    }
+    case "awsv4": {
+      const x = a.extra ?? {};
+      return { type: "awsv4", awsv4: [s("accessKey", x.accessKey), s("secretKey", x.secretKey), s("region", x.region), s("service", x.service), s("sessionToken", x.sessionToken)] };
+    }
+    case "akamai": {
+      const x = a.extra ?? {};
+      return {
+        type: "edgegrid",
+        edgegrid: [s("accessToken", x.accessToken), s("clientToken", x.clientToken), s("clientSecret", x.clientSecret), s("baseURL", x.baseUri), s("nonce", x.nonce), s("timestamp", x.timestamp), s("headersToSign", x.headersToSign)],
+      };
+    }
     default:
       return undefined;
   }

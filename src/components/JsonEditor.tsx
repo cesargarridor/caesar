@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import FindBar from "./FindBar";
 import { findAll, wrapIndex } from "../lib/find";
 import { handleEditKey, handlePasteJson, parsePairs } from "../lib/editing";
+import { checkJson, issueText } from "../lib/jsonCheck";
+import { AlertCircle } from "lucide-react";
 
 interface Props {
   value: string;
@@ -82,6 +84,19 @@ export default function JsonEditor({
   const pre = useRef<HTMLPreElement>(null);
   const markPre = useRef<HTMLPreElement>(null);
   const colored = highlight && value.length <= MAX;
+
+  // ── validación del JSON con el error exacto ──
+  const issue = useMemo(() => (highlight && value.length <= MAX ? checkJson(value) : null), [highlight, value]);
+  const goTo = (pos: number) => {
+    const t = ta.current;
+    if (!t) return;
+    t.focus();
+    t.setSelectionRange(pos, Math.min(value.length, pos + 1));
+    const before = value.slice(0, pos);
+    const line = before.split("\n").length - 1;
+    const { lineH } = metrics(t);
+    t.scrollTop = Math.max(0, PAD + line * lineH - t.clientHeight / 2 + lineH / 2);
+  };
 
   // ── búsqueda (Ctrl+F) ──
   const [findOpen, setFindOpen] = useState(false);
@@ -214,6 +229,17 @@ export default function JsonEditor({
         style={{ ...mono, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
         className={`absolute inset-0 block h-full w-full resize-none bg-transparent outline-none placeholder:text-slate/60 ${shared} ${colored ? "" : "text-silver"}`}
       />
+      {issue && (
+        <button
+          type="button"
+          onClick={() => goTo(issue.pos)}
+          title={issue.snippet.trim().slice(0, 200)}
+          className="absolute inset-x-0 bottom-0 z-10 flex items-start gap-2 bg-deep/95 px-3 py-1.5 text-left text-xs text-rose ring-1 ring-rose/40 hover:bg-deep"
+        >
+          <AlertCircle size={14} className="mt-px shrink-0" />
+          <span className="min-w-0 break-words">{issueText(issue)}</span>
+        </button>
+      )}
       {findOpen && (
         <FindBar
           className="absolute right-4 top-2 z-20"

@@ -45,7 +45,11 @@ export function detectAndParse(text: string): Detected {
     return { kind: "ready", data: parseInsomniaV5(doc) };
   }
   if (isObj(doc.info) && Array.isArray(doc.item)) return { kind: "postman" };
-  throw new Error("Formato no reconocido. Se admite Postman v2.1, Insomnia (v4 y v5, JSON o YAML) y HAR.");
+  // Entorno (o globales) exportado de Postman: solo trae variables.
+  if (Array.isArray(doc.values) && (typeof doc._postman_variable_scope === "string" || typeof doc.name === "string")) {
+    return { kind: "ready", data: parsePostmanEnv(doc) };
+  }
+  throw new Error("Formato no reconocido. Se admite Postman v2.1 (colecciones y entornos), Insomnia (v4 y v5, JSON o YAML) y HAR.");
 }
 
 // ───────────────────────── piezas comunes de Insomnia ─────────────────────────
@@ -86,9 +90,66 @@ function insAuth(a: unknown): Partial<AuthData> & { type: string } {
         value: fromInsomniaVars(str(a.value)),
         in: a.addTo === "queryParams" ? "query" : "header",
       };
+    case "digest":
+      return { type: "digest", username: fromInsomniaVars(str(a.username)), password: fromInsomniaVars(str(a.password)) };
+    case "ntlm":
+      return {
+        type: "ntlm",
+        username: fromInsomniaVars(str(a.username)),
+        password: fromInsomniaVars(str(a.password)),
+        extra: cleanExtra({ domain: str(a.domain), workstation: str(a.workstation) }),
+      };
+    case "iam":
+      return {
+        type: "awsv4",
+        extra: cleanExtra({
+          accessKey: fromInsomniaVars(str(a.accessKeyId)),
+          secretKey: fromInsomniaVars(str(a.secretAccessKey)),
+          sessionToken: fromInsomniaVars(str(a.sessionToken)),
+          region: str(a.region),
+          service: str(a.service),
+        }),
+      };
+    case "oauth1":
+      return {
+        type: "oauth1",
+        extra: cleanExtra({
+          consumerKey: fromInsomniaVars(str(a.consumerKey)),
+          consumerSecret: fromInsomniaVars(str(a.consumerSecret)),
+          token: fromInsomniaVars(str(a.tokenKey)),
+          tokenSecret: fromInsomniaVars(str(a.tokenSecret)),
+          signatureMethod: str(a.signatureMethod) || "HMAC-SHA1",
+          realm: str(a.realm),
+          verifier: str(a.verifier),
+        }),
+      };
+    case "oauth2": {
+      const g = str(a.grantType);
+      const grant = g === "client_credentials" ? "client_credentials" : g === "password" ? "password" : "manual";
+      return {
+        type: "oauth2",
+        username: fromInsomniaVars(str(a.username)),
+        password: fromInsomniaVars(str(a.password)),
+        extra: cleanExtra({
+          grantType: grant,
+          accessTokenUrl: fromInsomniaVars(str(a.accessTokenUrl)),
+          clientId: fromInsomniaVars(str(a.clientId)),
+          clientSecret: fromInsomniaVars(str(a.clientSecret)),
+          scope: str(a.scope),
+          accessToken: fromInsomniaVars(str(a.accessToken)),
+          headerPrefix: str(a.tokenPrefix) || "Bearer",
+          credentialsIn: a.credentialsInBody === true ? "body" : "basic",
+        }),
+      };
+    }
     default:
       return { type: "none" };
   }
+}
+
+/** Quita los campos vacíos de un objeto de extras. */
+function cleanExtra(o: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== ""));
 }
 
 function insUrl(url: string, params: Obj[]): string {
@@ -114,9 +175,33 @@ function insRequest(r: Obj): RequestNode {
   };
 }
 
-function envVars(data: unknown): KV[] {
-  if (!isObj(data)) return [];
-  return Object.entries(data).map(([k, v]) => kv(k, fromInsomniaVars(str(v))));
+/** Aplana objetos anidados a claves con puntos (a.b), que es como se usan en Insomnia ({{ _.a.b }}). */
+function flatten(o: Obj, prefix = ""): [string, string][] {
+  return Object.entries(o).flatMap(([k, v]): [string, string][] =>
+    isObj(v) ? flatten(v, prefix + k + ".") : [[prefix + k, fromInsomniaVars(str(v))]],
+  );
+}
+
+/** Variables de uno o varios entornos: el primero que tenga valor para una clave gana. */
+function envVars(...datas: unknown[]): KV[] {
+  const out = new Map<string, string>();
+  for (const d of datas) {
+    if (!isObj(d)) continue;
+    for (const [k, v] of flatten(d)) if (!out.has(k) || (out.get(k) === "" && v !== "")) out.set(k, v);
+  }
+  return [...out].map(([k, v]) => kv(k, v));
+}
+
+// ───────────────────────── entorno de Postman ─────────────────────────
+
+function parsePostmanEnv(doc: Obj): ImportedCollection {
+  const variables = arr(doc.values)
+    .filter((v) => str(v.key))
+    .map((v) => {
+      const value = [v.value, v.currentValue, v.initialValue].map(str).find((s) => s !== "") ?? "";
+      return kv(str(v.key), value, v.enabled !== false && v.disabled !== true);
+    });
+  return { root: { type: "folder", name: str(doc.name) || "Entorno", children: [] }, variables };
 }
 
 // ───────────────────────── Insomnia v4 (lista plana "resources") ─────────────────────────
@@ -135,10 +220,12 @@ function parseInsomniaV4(doc: Obj): ImportedCollection {
           ? { type: "folder", name: str(r.name) || "Carpeta", children: childrenOf(str(r._id)) }
           : insRequest(r),
       );
-  const env =
+  const base =
     res.find((r) => r._type === "environment" && str(r.parentId) === wsId && !r.isPrivate) ??
     res.find((r) => r._type === "environment" && str(r.parentId) === wsId);
-  const variables = envVars(env?.data);
+  // Si el entorno base no trae valores, se completan con los de sus subentornos.
+  const subs = res.filter((r) => r._type === "environment" && r !== base && (str(r.parentId) === str(base?._id) || str(r.parentId) === wsId));
+  const variables = envVars(base?.data, ...subs.map((r) => r.data));
   const name = str(ws?.name) || "Insomnia";
   return { root: { type: "folder", name, children: childrenOf(wsId) }, variables };
 }
@@ -153,10 +240,11 @@ function v5Node(n: Obj): TreeNode {
 }
 
 function parseInsomniaV5(doc: Obj): ImportedCollection {
-  const env = isObj(doc.environments) ? doc.environments : undefined;
+  const envs = Array.isArray(doc.environments) ? arr(doc.environments) : isObj(doc.environments) ? [doc.environments] : [];
+  const subs = envs.flatMap((e) => arr(e.subEnvironments));
   return {
     root: { type: "folder", name: str(doc.name) || "Insomnia", children: arr(doc.collection).map(v5Node) },
-    variables: envVars(env?.data),
+    variables: envVars(...envs.map((e) => e.data), ...subs.map((e) => e.data)),
   };
 }
 
@@ -340,6 +428,28 @@ function insNodeOut(n: TreeNode, i: number): Obj {
   else if (a.type === "basic") authentication = { type: "basic", username: toInsomniaVars(a.username ?? ""), password: toInsomniaVars(a.password ?? "") };
   else if (a.type === "apikey") {
     authentication = { type: "apikey", key: toInsomniaVars(a.key ?? ""), value: toInsomniaVars(a.value ?? ""), addTo: a.in === "query" ? "queryParams" : "header" };
+  } else if (a.type === "digest") authentication = { type: "digest", username: toInsomniaVars(a.username ?? ""), password: toInsomniaVars(a.password ?? "") };
+  else if (a.type === "ntlm") {
+    authentication = { type: "ntlm", username: toInsomniaVars(a.username ?? ""), password: toInsomniaVars(a.password ?? ""), domain: a.extra?.domain ?? "", workstation: a.extra?.workstation ?? "" };
+  } else if (a.type === "awsv4") {
+    const x = a.extra ?? {};
+    authentication = { type: "iam", accessKeyId: toInsomniaVars(x.accessKey ?? ""), secretAccessKey: toInsomniaVars(x.secretKey ?? ""), sessionToken: toInsomniaVars(x.sessionToken ?? ""), region: x.region ?? "", service: x.service ?? "" };
+  } else if (a.type === "oauth1") {
+    const x = a.extra ?? {};
+    authentication = { type: "oauth1", consumerKey: toInsomniaVars(x.consumerKey ?? ""), consumerSecret: toInsomniaVars(x.consumerSecret ?? ""), tokenKey: toInsomniaVars(x.token ?? ""), tokenSecret: toInsomniaVars(x.tokenSecret ?? ""), signatureMethod: x.signatureMethod || "HMAC-SHA1", realm: x.realm ?? "", verifier: x.verifier ?? "" };
+  } else if (a.type === "oauth2") {
+    const x = a.extra ?? {};
+    authentication = {
+      type: "oauth2",
+      grantType: x.grantType === "password" ? "password" : "client_credentials",
+      accessTokenUrl: toInsomniaVars(x.accessTokenUrl ?? ""),
+      clientId: toInsomniaVars(x.clientId ?? ""),
+      clientSecret: toInsomniaVars(x.clientSecret ?? ""),
+      scope: x.scope ?? "",
+      username: toInsomniaVars(a.username ?? ""),
+      password: toInsomniaVars(a.password ?? ""),
+      credentialsInBody: x.credentialsIn !== "basic",
+    };
   }
   return {
     url: toInsomniaVars(n.url),

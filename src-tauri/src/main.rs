@@ -170,6 +170,11 @@ struct PmKeyValue {
     src: Option<Value>,
     #[serde(rename = "contentType")]
     content_type: Option<String>,
+    /// Entornos/variables de Postman: el valor actual y el inicial pueden venir aparte de `value`.
+    #[serde(rename = "currentValue")]
+    current_value: Option<Value>,
+    #[serde(rename = "initialValue")]
+    initial_value: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,6 +198,18 @@ struct PmAuth {
     basic: Vec<PmKeyValue>,
     #[serde(default, deserialize_with = "lenient_vec")]
     apikey: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    digest: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    ntlm: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    oauth1: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    oauth2: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    awsv4: Vec<PmKeyValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    edgegrid: Vec<PmKeyValue>,
 }
 
 // ───────────────────────────── Árbol seguro (salida hacia el frontend) ─────────────────────────────
@@ -242,7 +259,7 @@ struct BodyData {
 
 #[derive(Debug, Serialize, Clone, Default)]
 struct AuthData {
-    /// "none" | "bearer" | "basic" | "apikey"
+    /// "none" | "bearer" | "basic" | "apikey" | "digest" | "ntlm" | "oauth1" | "oauth2" | "awsv4" | "akamai"
     #[serde(rename = "type")]
     kind: String,
     token: String,
@@ -252,6 +269,8 @@ struct AuthData {
     value: String,
     #[serde(rename = "in")]
     location: String,
+    /// Campos propios de cada tipo (OAuth, AWS, NTLM…), con los mismos nombres que usa la interfaz.
+    extra: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -287,6 +306,17 @@ fn value_to_string(v: &Option<Value>) -> String {
     }
 }
 
+/// Primer valor no vacío de la lista (value → currentValue → initialValue).
+fn first_value(vals: &[&Option<Value>]) -> String {
+    for v in vals {
+        let s = value_to_string(v);
+        if !s.is_empty() {
+            return s;
+        }
+    }
+    String::new()
+}
+
 fn convert_kvs(list: Vec<PmKeyValue>) -> Vec<Kv> {
     list.into_iter()
         .map(|kv| {
@@ -303,7 +333,7 @@ fn convert_kvs(list: Vec<PmKeyValue>) -> Vec<Kv> {
             Kv {
                 key: kv.key.unwrap_or_default(),
                 // Archivo importado: solo mostramos el nombre; hay que reseleccionarlo para poder enviarlo.
-                value: if is_file { name } else { value_to_string(&kv.value) },
+                value: if is_file { name } else { first_value(&[&kv.value, &kv.current_value, &kv.initial_value]) },
                 enabled: !kv.disabled.unwrap_or(false),
                 kind: if is_file { "file".into() } else { "text".into() },
                 path: String::new(),
@@ -345,9 +375,79 @@ fn convert_auth(auth: Option<PmAuth>) -> Option<AuthData> {
                 "header".into()
             };
         }
+        Some("digest") => {
+            out.kind = "digest".into();
+            out.username = kv_get(&a.digest, "username");
+            out.password = kv_get(&a.digest, "password");
+        }
+        Some("ntlm") => {
+            out.kind = "ntlm".into();
+            out.username = kv_get(&a.ntlm, "username");
+            out.password = kv_get(&a.ntlm, "password");
+            put(&mut out, "domain", kv_get(&a.ntlm, "domain"));
+            put(&mut out, "workstation", kv_get(&a.ntlm, "workstation"));
+        }
+        Some("oauth1") => {
+            out.kind = "oauth1".into();
+            for k in ["consumerKey", "consumerSecret", "token", "tokenSecret", "signatureMethod", "realm"] {
+                put(&mut out, k, kv_get(&a.oauth1, k));
+            }
+            let in_header = kv_get(&a.oauth1, "addParamsToHeader") != "false";
+            put(&mut out, "addTo", if in_header { "header" } else { "query" }.into());
+        }
+        Some("oauth2") => {
+            out.kind = "oauth2".into();
+            let grant = kv_get(&a.oauth2, "grant_type");
+            let g = match grant.as_str() {
+                "client_credentials" => "client_credentials",
+                "password_credentials" | "password" => "password",
+                _ => "manual",
+            };
+            // Sin URL de token no se puede pedir uno: se queda con el token que traiga el archivo.
+            let url = kv_get(&a.oauth2, "accessTokenUrl");
+            let g = if g != "manual" && url.is_empty() { "manual" } else { g };
+            put(&mut out, "grantType", g.into());
+            put(&mut out, "accessToken", kv_get(&a.oauth2, "accessToken"));
+            put(&mut out, "accessTokenUrl", url);
+            put(&mut out, "clientId", kv_get(&a.oauth2, "clientId"));
+            put(&mut out, "clientSecret", kv_get(&a.oauth2, "clientSecret"));
+            put(&mut out, "scope", kv_get(&a.oauth2, "scope"));
+            let prefix = kv_get(&a.oauth2, "headerPrefix");
+            put(&mut out, "headerPrefix", if prefix.is_empty() { "Bearer".into() } else { prefix });
+            let to = if kv_get(&a.oauth2, "addTokenTo") == "queryParams" { "query" } else { "header" };
+            put(&mut out, "addTokenTo", to.into());
+            out.username = kv_get(&a.oauth2, "username");
+            out.password = kv_get(&a.oauth2, "password");
+        }
+        Some("awsv4") => {
+            out.kind = "awsv4".into();
+            for k in ["accessKey", "secretKey", "region", "service", "sessionToken"] {
+                put(&mut out, k, kv_get(&a.awsv4, k));
+            }
+        }
+        Some("edgegrid") => {
+            out.kind = "akamai".into();
+            for (to, from) in [
+                ("accessToken", "accessToken"),
+                ("clientToken", "clientToken"),
+                ("clientSecret", "clientSecret"),
+                ("baseUri", "baseURL"),
+                ("nonce", "nonce"),
+                ("timestamp", "timestamp"),
+                ("headersToSign", "headersToSign"),
+            ] {
+                put(&mut out, to, kv_get(&a.edgegrid, from));
+            }
+        }
         _ => return None,
     }
     Some(out)
+}
+
+fn put(a: &mut AuthData, k: &str, v: String) {
+    if !v.is_empty() {
+        a.extra.insert(k.to_string(), v);
+    }
 }
 
 fn none_auth() -> AuthData {
@@ -686,7 +786,13 @@ struct RequestArgs {
     headers: Vec<Kv>,
     body: BodyData,
     settings: Settings,
+    /// Misma sesión = mismo cliente HTTP y misma conexión (necesario para NTLM, que autentica la conexión).
+    #[serde(default)]
+    session: String,
 }
+
+/// Último cliente de sesión usado (solo se guarda uno).
+static SESSION_CLIENT: std::sync::Mutex<Option<(String, reqwest::Client)>> = std::sync::Mutex::new(None);
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -902,13 +1008,32 @@ async fn execute_request(
     } else {
         redirect::Policy::none()
     };
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(timeout))
-        .redirect(policy)
-        .danger_accept_invalid_certs(!args.settings.verify_ssl)
-        .user_agent("PostmanRuntime/7.43.0")
-        .build()
-        .map_err(|e| format!("No se pudo crear el cliente HTTP: {e}"))?;
+    let reused = if args.session.is_empty() {
+        None
+    } else {
+        SESSION_CLIENT
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().filter(|(id, _)| *id == args.session).map(|(_, c)| c.clone()))
+    };
+    let client = match reused {
+        Some(c) => c,
+        None => {
+            let c = reqwest::Client::builder()
+                .timeout(Duration::from_secs(timeout))
+                .redirect(policy)
+                .danger_accept_invalid_certs(!args.settings.verify_ssl)
+                .user_agent("PostmanRuntime/7.43.0")
+                .build()
+                .map_err(|e| format!("No se pudo crear el cliente HTTP: {e}"))?;
+            if !args.session.is_empty() {
+                if let Ok(mut g) = SESSION_CLIENT.lock() {
+                    *g = Some((args.session.clone(), c.clone()));
+                }
+            }
+            c
+        }
+    };
 
     let can_have_body = !matches!(method, Method::GET | Method::HEAD);
     let mut multipart_form = None;
