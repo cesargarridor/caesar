@@ -10,6 +10,8 @@ export const METHOD_COLORS: Record<string, string> = {
   PUT: "text-[#b9a2ff]",
   PATCH: "text-[#ffb829]",
   DELETE: "text-[#ff6b6b]",
+  HEAD: "text-[#3ccfae]",
+  OPTIONS: "text-[#b9a2ff]",
 };
 
 export interface TreeActions {
@@ -211,7 +213,7 @@ export default function SidebarTree(props: Props) {
       role="button"
     >
       {lineHere && <DropLine pos={lineHere} indent={indent + 6} />}
-      <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.method] ?? "text-silver"}`}>{node.method}</span>
+      <span className={`min-w-[3rem] shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.method] ?? "text-silver"}`}>{node.method}</span>
       {isRenaming ? (
         <RenameInput initial={node.name} onDone={(v) => props.onRename(path, v)} onCancel={props.onCancelRename} />
       ) : (
