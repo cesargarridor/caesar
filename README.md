@@ -1,3 +1,9 @@
+> ## Caesar es Fair Source
+>
+> **Caesar es Fair Source. Puedes leer y usar el código libremente. He elegido este modelo para garantizar que el proyecto sea sostenible a largo plazo, protegiendo el negocio mientras mantengo una transparencia del 100% sobre cómo manejo tus datos locales y tokens.**
+>
+> Licencia: [FSL-1.1-MIT](LICENSE) · No es de código abierto · Prohibido venderlo ([detalles](#licencia))
+
 <p align="center">
   <img src="src-tauri/icons/icon.png" alt="Caesar" width="160" height="160">
 </p>
@@ -11,9 +17,12 @@
 Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y exporta colecciones (JSON, YAML y HAR), pega un
 `cURL` en la barra de URL, scripts de Tests, varios temas y mucho más.
 
-> **Proyecto de código abierto, de uso libre.** Caesar se ofrece tal cual, sin ninguna garantía, y el autor no se hace
-> responsable de ningún daño, pérdida de datos o problema derivado de su uso. Puedes usarlo, copiarlo y modificarlo
-> libremente según la [licencia MIT](LICENSE).
+> **Licencia FSL (Functional Source License): código disponible, pero NO es de código abierto.** Caesar se publica bajo la
+> [FSL-1.1-MIT](LICENSE). Puedes usarlo gratis, estudiarlo, modificarlo y compartir tus cambios, **pero está prohibido
+> venderlo** y usarlo para ofrecer a otros un producto o servicio comercial que lo sustituya o tenga una funcionalidad
+> similar (revenderlo, redistribuirlo de pago o alojarlo como servicio). Cada versión pasa a licencia MIT a los dos años de
+> publicarse. Se ofrece tal cual, sin ninguna garantía, y el autor no se hace responsable de ningún daño, pérdida de datos o
+> problema derivado de su uso.
 
 ## Descargas
 
@@ -48,7 +57,7 @@ Estado a 12 de noviembre de 2026:
 - **macOS:** firmado y notarizado con Apple (ver `.github/workflows/release.yml`).
 - **Windows y Linux:** sin firma de código por ahora (Windows puede mostrar SmartScreen o "editor desconocido").
 - **Actualizaciones:** firmadas con minisign; la app verifica la firma antes de instalar.
-- **Futuro:** se prevé solicitar firma gratuita para código abierto en Windows, sin garantías ni fecha.
+- **Futuro:** se estudiará una opción de firma de código para Windows, sin garantías ni fecha. Los programas de firma gratuita para código abierto no valen para Caesar, porque su licencia FSL no es de código abierto.
 - **Equipo:** una sola persona, Cesar Garrido, autor, revisor y aprobador de las versiones. Se activará MFA en las
   cuentas implicadas en la publicación (intención, no verificada públicamente).
 - **Privacidad:** [política de privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html). Detalle:
@@ -66,7 +75,29 @@ Caesar se actualiza solo, así que solo tienes que instalarlo a mano la primera 
 
 ## Licencia
 
-[MIT](LICENSE): uso libre, sin garantía y sin responsabilidad del autor. Las contribuciones son bienvenidas.
+Caesar usa la **[Functional Source License, versión 1.1, con licencia futura MIT (FSL-1.1-MIT)](LICENSE)**, una licencia
+«Fair Source» ([fsl.software](https://fsl.software/)). **No es una licencia de código abierto** (no cumple la definición de la OSI)
+ni de software libre: el código es público para que puedas leerlo y usarlo, con límites.
+
+**Permitido** (cualquier uso que no sea un «Uso competidor»):
+
+- Usarlo para tu trabajo y para uso interno, en tu empresa o por tu cuenta.
+- Estudiarlo, usarlo en educación y en investigación no comercial.
+- Modificarlo y compartir tus cambios (con una copia de la licencia), por ejemplo proponiéndolos aquí.
+- Prestar servicios profesionales a quien use Caesar conforme a esta licencia.
+
+**Prohibido:**
+
+- **Venderlo**, revenderlo o redistribuirlo como producto de pago.
+- Ofrecer a otros, de forma comercial, un producto o servicio que sustituya a Caesar o que tenga la misma funcionalidad o una
+  muy parecida (incluido un servicio alojado o una versión modificada que se venda).
+- Usar el nombre, marca o logotipo de Caesar más allá de indicar su origen.
+
+**Pasados dos años**, cada versión se puede usar también bajo la licencia **MIT** (a partir del segundo aniversario de su
+publicación). Las versiones publicadas hasta la v0.11.2 se distribuyeron bajo licencia MIT; los permisos ya concedidos sobre
+esas copias no se pueden retirar, pero **todas las versiones nuevas son FSL**.
+
+Las contribuciones son bienvenidas y quedan sujetas a esta misma licencia.
 
 Los temas de color (Monokai, Dracula, Tokyo Night, Nord, One Dark y GitHub Light) y otros componentes de terceros tienen su
 origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar no usa Monokai Pro, que es de pago.
