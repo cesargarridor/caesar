@@ -124,6 +124,7 @@ export default function SyncSettings() {
       </section>
 
       {/* 2. Clave de cifrado */}
+      {st.signed_in && (
       <section className="space-y-3">
         <h3 className="text-sm text-mist">{t("Cifrado de extremo a extremo")}</h3>
         {st.has_key ? (
@@ -207,6 +208,7 @@ export default function SyncSettings() {
           </div>
         )}
       </section>
+      )}
 
       {/* Suscripción */}
       {st.signed_in && st.billing && (
