@@ -1219,22 +1219,11 @@ fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
-/// Dónde se publican las versiones de desarrollo (rama develop): una Release fija llamada `dev`.
-const DEV_ENDPOINT: &str = "https://github.com/cesargarridor/caesar/releases/download/dev/latest.json";
-
-/// Actualizador del canal elegido: "stable" (el de tauri.conf.json) o "dev" (versiones de prueba).
-fn updater_for(app: &tauri::AppHandle, channel: &str) -> Result<tauri_plugin_updater::Updater, String> {
-    let mut b = app.updater_builder();
-    if channel == "dev" {
-        let url: Url = DEV_ENDPOINT.parse().map_err(|e| format!("Dirección del canal de desarrollo no válida: {e}"))?;
-        b = b.endpoints(vec![url]).map_err(|e| format!("Canal de desarrollo no disponible: {e}"))?;
-    }
-    b.build().map_err(|e| format!("Actualizador no disponible: {e}"))
-}
-
 #[tauri::command]
-async fn check_update(app: tauri::AppHandle, channel: Option<String>) -> Result<Option<UpdateInfo>, String> {
-    let updater = updater_for(&app, channel.as_deref().unwrap_or("stable"))?;
+async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
+    let updater = app
+        .updater()
+        .map_err(|e| format!("Actualizador no disponible: {e}"))?;
     let found = updater
         .check()
         .await
@@ -1248,8 +1237,10 @@ async fn check_update(app: tauri::AppHandle, channel: Option<String>) -> Result<
 
 /// Descarga e instala la última versión (emite `update-progress`) y reinicia la app.
 #[tauri::command]
-async fn install_update(app: tauri::AppHandle, channel: Option<String>) -> Result<(), String> {
-    let updater = updater_for(&app, channel.as_deref().unwrap_or("stable"))?;
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let updater = app
+        .updater()
+        .map_err(|e| format!("Actualizador no disponible: {e}"))?;
     let update = updater
         .check()
         .await

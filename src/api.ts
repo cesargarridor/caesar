@@ -70,7 +70,7 @@ export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync
 // Actualizaciones: la red la hace Rust (paquetes firmados); aquí solo se invocan los comandos.
 export interface UpdateInfo { version: string; current: string; notes: string | null }
 export const appVersion = () => invoke<string>("app_version");
-export const checkUpdate = (channel: string) => invoke<UpdateInfo | null>("check_update", { channel });
-export const installUpdate = (channel: string) => invoke<void>("install_update", { channel });
+export const checkUpdate = () => invoke<UpdateInfo | null>("check_update");
+export const installUpdate = () => invoke<void>("install_update");
 export const onUpdateProgress = (cb: (p: { downloaded: number; total: number | null }) => void) =>
   listen<{ downloaded: number; total: number | null }>("update-progress", (e) => cb(e.payload));

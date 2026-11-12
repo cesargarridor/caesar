@@ -11,9 +11,6 @@ import { FONT_OPTIONS, applyFontFamily, loadFontId, saveFontId } from "../lib/fo
 
 export interface UpdatesProps {
   version: string;
-  /** Canal de actualizaciones; el selector solo aparece tras pulsar 5 veces la versión. */
-  channel: "stable" | "dev";
-  onChannel: (c: "stable" | "dev") => void;
   auto: boolean;
   onAuto: (on: boolean) => void;
   state: UpdateState;
@@ -220,26 +217,14 @@ function CatControls() {
 }
 
 function UpdateControls({ u }: { u: UpdatesProps }) {
-  const [taps, setTaps] = useState(0);
-  const showChannel = taps >= 5 || u.channel === "dev";
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
-      <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10" onClick={() => setTaps((n) => n + 1)}>
+      <div className="shrink-0 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
         <p className="eyebrow mb-1">{t("Versión instalada")}</p>
         <p className="text-lg text-mist">{u.version ? `v${u.version}` : "—"}</p>
       </div>
-
-      {showChannel && (
-        <label className="flex cursor-pointer items-start gap-3">
-          <input type="checkbox" checked={u.channel === "dev"} onChange={(e) => u.onChannel(e.target.checked ? "dev" : "stable")} className="mt-1 accent-[var(--t-accent)]" />
-          <span>
-            <span className="block text-sm text-mist">{t("Recibir versiones de desarrollo")}</span>
-            <span className="block text-xs text-slate">{t("Versiones de prueba de la rama develop: pueden fallar. Desmárcalo para volver a las versiones estables en la siguiente actualización.")}</span>
-          </span>
-        </label>
-      )}
 
       <label className="flex cursor-pointer items-start gap-3">
         <input
