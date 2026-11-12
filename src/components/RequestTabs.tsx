@@ -135,6 +135,18 @@ export default function RequestTabs({ req, patch, inherited }: Props) {
               {!req.settings.verifySsl && <span className="text-xs text-lav">{t("⚠ desactivado: solo para pruebas")}</span>}
             </label>
             <label className="flex items-center gap-2">
+              {t("Versión de HTTP")}
+              <select
+                className={box.replace("w-24", "w-36")}
+                value={req.settings.httpVersion ?? "auto"}
+                onChange={(e) => patch({ settings: { ...req.settings, httpVersion: e.target.value as "auto" | "1.1" | "2" } })}
+              >
+                <option value="auto">{t("Automática")}</option>
+                <option value="1.1">HTTP/1.x</option>
+                <option value="2">HTTP/2</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
               {t("Timeout (segundos)")}
               <input
                 type="number"
