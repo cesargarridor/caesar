@@ -34,7 +34,7 @@ import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut } from "./lib/find";
 import { t, useLang } from "./lib/i18n";
 import {
-  applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
+  applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
@@ -140,6 +140,8 @@ export default function App() {
   const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
   const [updPrompt, setUpdPrompt] = useState(false);
   const [autosave, setAutosave] = useState(loadAutosave);
+  const [extraMethods, setExtraMethods] = useState(loadExtraMethods);
+  useEffect(() => saveExtraMethods(extraMethods), [extraMethods]);
   useEffect(() => saveAutosave(autosave), [autosave]);
   useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
 
@@ -768,6 +770,8 @@ export default function App() {
         )}
         <RequestBar
           method={req.method}
+          methods={[...BASE_METHODS, ...extraMethods]}
+          onMore={() => { setSettingsSection("edit"); setShowSettings(true); }}
           url={fullUrl}
           sending={sending}
           onMethod={(method) => patch({ method })}
@@ -802,6 +806,8 @@ export default function App() {
             onHideEmpty={setHideEmpty}
             autosave={autosave}
             onAutosave={setAutosave}
+            extraMethods={extraMethods}
+            onExtraMethods={setExtraMethods}
             initialSection={settingsSection}
             updates={{
               version,

@@ -3,13 +3,13 @@ import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import { t } from "../lib/i18n";
 
-export const METHODS = [
-  "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
-  "PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "PURGE", "LINK", "UNLINK", "VIEW",
-];
 
 interface Props {
   method: string;
+  /** Métodos que ofrece el desplegable (los base + los que el usuario activó en Ajustes). */
+  methods: string[];
+  /** Abre Ajustes para activar más métodos. */
+  onMore: () => void;
   /** URL completa (base + params activos). */
   url: string;
   sending: boolean;
@@ -29,18 +29,19 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, flash }: Props) {
-  const options = METHODS.includes(method) ? METHODS : [method, ...METHODS];
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, flash }: Props) {
+  const options = methods.includes(method) ? methods : [method, ...methods];
   return (
     <div className="flex gap-2 p-4">
       <select
         value={method}
-        onChange={(e) => onMethod(e.target.value)}
+        onChange={(e) => (e.target.value === "__more__" ? onMore() : onMethod(e.target.value))}
         className={`rounded-[10px] bg-kelp px-4 py-2 text-sm font-semibold outline-none ring-1 ring-fg/10 focus:ring-aqua ${METHOD_COLORS[method] ?? ""}`}
       >
         {options.map((m) => (
           <option key={m} value={m}>{m}</option>
         ))}
+        <option value="__more__">{t("+ Más métodos…")}</option>
       </select>
       <input
         id="caesar-url"
