@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Link2, Pencil, Plus, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import { t } from "../lib/i18n";
-import type { WsMeta } from "../lib/workspaces";
+import { canCreateWorkspace, type WsMeta } from "../lib/workspaces";
+import { useAccount } from "../lib/account";
 
 interface Props {
   list: WsMeta[];
@@ -24,6 +25,10 @@ const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text
 
 /** Selector de espacio de trabajo: el cambio es instantáneo (todo vive en local). */
 export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onRename, onDelete, onShare, onInfo, onJoin, onRefresh, refreshing }: Props) {
+  const { account } = useAccount();
+  const guest = account.mode === "guest";
+  const canNew = canCreateWorkspace(account.mode, list);
+  const proTip = t("Requiere el plan Pro");
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<null | "new" | "rename" | "join">(null);
   const [err, setErr] = useState<string | null>(null);
@@ -128,10 +133,10 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
             </div>
           ) : (
             <>
-              <button className={item} onClick={() => { setText(""); setMode("new"); }}>
+              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Modo Invitado: un solo espacio. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
                 <Plus size={14} /> {t("Nuevo espacio de trabajo")}
               </button>
-              <button className={item} onClick={() => { setText(""); setMode("join"); }}>
+              <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { setText(""); setMode("join"); }}>
                 <Link2 size={14} /> {t("Unirme a un espacio con un código")}
               </button>
               {active.team ? (
@@ -139,7 +144,7 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
                   <Users size={14} /> {t("Equipo: código y opciones")}
                 </button>
               ) : (
-                <button className={item} onClick={() => { onShare(); close(); }}>
+                <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { onShare(); close(); }}>
                   <Share2 size={14} /> {t("Compartir este espacio con un equipo")}
                 </button>
               )}

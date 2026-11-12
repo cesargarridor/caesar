@@ -44,7 +44,7 @@ fn random_bytes<const N: usize>() -> [u8; N] {
     b
 }
 
-fn new_key() -> Key {
+pub(crate) fn new_key() -> Key {
     Zeroizing::new(random_bytes::<32>())
 }
 
@@ -225,7 +225,7 @@ fn save_prev(keys: &[Key]) -> Result<(), String> {
 }
 
 /// Pone `new` como clave actual y guarda la anterior en el historial (así no se pierden datos cifrados con ella).
-fn switch_key(new: Key) -> Result<(), String> {
+pub(crate) fn switch_key(new: Key) -> Result<(), String> {
     if let Some(old) = load_key()? {
         if old.as_slice() == new.as_slice() {
             return Ok(());
@@ -251,7 +251,7 @@ pub(crate) fn decrypt_any(key: &Key, context: &str, envelope: &str) -> Result<Ve
     Err("Los datos de la nube están cifrados con otra clave. En Ajustes → Sincronización pulsa «Usar otra clave de recuperación» y pega la clave más reciente.".into())
 }
 
-fn store_key(key: &Key) -> Result<(), String> {
+pub(crate) fn store_key(key: &Key) -> Result<(), String> {
     entry()?.set_secret(key.as_slice()).map_err(|e| format!("No se pudo guardar en el llavero: {e}"))
 }
 
@@ -342,7 +342,8 @@ pub fn vault_decrypt(context: String, envelope: String) -> Result<String, String
 
 /// 1. El equipo nuevo genera un par de claves efímero y devuelve su clave pública (va en el QR/enlace).
 #[tauri::command]
-pub fn pairing_begin(state: tauri::State<VaultState>) -> Result<String, String> {
+pub fn pairing_begin(state: tauri::State<VaultState>, sync: tauri::State<crate::sync::SyncState>) -> Result<String, String> {
+    crate::sync::require_pro(&sync)?;
     if load_key()?.is_some() {
         return Err("Este equipo ya tiene una clave.".into());
     }
@@ -396,7 +397,8 @@ pub struct ApproverStart {
 /// 2. El equipo vinculado lee el código del nuevo, genera su par efímero y muestra el código de verificación.
 ///    Aún NO envía nada: espera a que el usuario compare los códigos.
 #[tauri::command]
-pub fn pairing_approve_start(state: tauri::State<VaultState>, new_pub: String) -> Result<ApproverStart, String> {
+pub fn pairing_approve_start(state: tauri::State<VaultState>, sync: tauri::State<crate::sync::SyncState>, new_pub: String) -> Result<ApproverStart, String> {
+    crate::sync::require_pro(&sync)?;
     require_key()?;
     let new_pub = pub_from_b64(&new_pub)?;
     let secret = StaticSecret::random_from_rng(OsRng);

@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { ToastProvider } from "./components/Toast";
+import { AccountProvider } from "./lib/account";
 import { applyTheme, loadThemeId } from "./lib/themes";
 import { applyFonts, getCatAnim, loadFonts } from "./lib/prefs";
 import { getLang } from "./lib/i18n";
@@ -15,6 +17,10 @@ applyFontFamily(loadFontId());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <ToastProvider>
+      <AccountProvider>
+        <App />
+      </AccountProvider>
+    </ToastProvider>
   </StrictMode>,
 );
