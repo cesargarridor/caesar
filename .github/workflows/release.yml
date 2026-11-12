@@ -1,9 +1,12 @@
 name: Release
 
-# Se ejecuta al publicar un tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a master).
+# · Tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a master) → versión ESTABLE: la ven todos los usuarios.
+# · Push a la rama develop → versión de DESARROLLO: se publica como pre-release fija «dev» y solo la reciben
+#   quienes activan el canal de desarrollo en Ajustes → Actualizaciones. Nunca pasa a ser la «última» versión estable.
 # Compila Windows, Linux y macOS, firma los paquetes del actualizador y publica la Release con latest.json.
 on:
   push:
+    branches: [develop]
     tags: ["v*"]
   workflow_dispatch: {}
 
@@ -51,6 +54,16 @@ jobs:
 
       - run: npm ci
 
+      # Versión de desarrollo: patch siguiente + número de ejecución (0.3.2-57). Es mayor que la estable instalada y menor que
+      # la estable siguiente, y es numérica (la exige el instalador MSI de Windows).
+      - name: Versión de desarrollo
+        if: github.ref_type == 'branch'
+        shell: bash
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(p,"utf8"));const [a,b,d]=c.version.split("-")[0].split(".").map(Number);c.version=a+"."+b+"."+(d+1)+"-"+process.env.RUN;fs.writeFileSync(p,JSON.stringify(c,null,2));console.log(c.version)'
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,11 +77,12 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Caesar ${{ github.ref_name }}"
-          releaseBody: "Instala el paquete de tu sistema. Si ya tienes Caesar con actualizaciones automáticas, se actualizará solo."
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+          releaseName: "${{ github.ref_type == 'tag' && format('Caesar {0}', github.ref_name) || 'Caesar (desarrollo)' }}"
+          releaseBody: "${{ github.ref_type == 'tag' && 'Instala el paquete de tu sistema. Si ya tienes Caesar con actualizaciones automáticas, se actualizará solo.' || 'Versión de PRUEBA de la rama develop: puede fallar. Solo la reciben quienes activan el canal de desarrollo en Ajustes → Actualizaciones.' }}"
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ github.ref_type == 'branch' }}
+          commitish: ${{ github.sha }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
@@ -81,4 +95,9 @@ jobs:
       - name: Publicar la Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+          else
+            gh release edit dev --repo "${{ github.repository }}" --draft=false --prerelease --latest=false
+          fi
