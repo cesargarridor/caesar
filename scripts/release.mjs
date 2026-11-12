@@ -5,11 +5,13 @@
 //
 // Uso:  node scripts/release.mjs "mensaje del cambio" [patch|minor|major|X.Y.Z] [--no-push]
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const noPush = process.argv.includes("--no-push");
-const message = args[0];
+// El mensaje son las notas de la versión: una línea por novedad (se admite "\n" literal o " | " como separador).
+const notes = (args[0] ?? "").replace(/\\n/g, "\n").split(/\r?\n| \| /).map((l) => l.trim()).filter(Boolean);
+const message = notes.join(" · ");
 const bump = args[1] ?? "patch";
 if (!message) {
   console.error('Uso: node scripts/release.mjs "mensaje" [patch|minor|major|X.Y.Z] [--no-push]');
@@ -66,6 +68,10 @@ try {
   } catch {
     /* sin Cargo.lock */
   }
+
+  // Notas que verá el usuario en el aviso de actualización (las lee el workflow y las pone en la Release / latest.json).
+  mkdirSync("release-notes", { recursive: true });
+  write(`release-notes/${tag}.md`, notes.map((l) => (l.startsWith("- ") ? l : `- ${l}`)).join("\n") + "\n");
 
   git("add", "-A");
   git("commit", "-m", `${tag}: ${message}`);

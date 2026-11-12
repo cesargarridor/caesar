@@ -107,7 +107,7 @@ export type UpdateState =
   | { phase: "idle" }
   | { phase: "checking" }
   | { phase: "uptodate" }
-  | { phase: "available"; version: string; notes: string | null }
+  | { phase: "available"; version: string; current: string; notes: string | null }
   | { phase: "installing"; version: string; downloaded: number; total: number | null }
   | { phase: "error"; message: string };
 
