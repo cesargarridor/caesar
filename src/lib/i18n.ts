@@ -69,6 +69,8 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Personalización de interfaz": ["Interface customisation", "Oberfläche anpassen", "Personnalisation de l’interface", "Personalizzazione interfaccia"],
+  "Todo lo visual de la aplicación en un solo sitio: tema, fuente, tamaños de letra y cómo se ve la respuesta. Los cambios se aplican al instante.": ["Everything visual in one place: theme, font, font sizes and how the response looks. Changes apply instantly.", "Alles Visuelle an einem Ort: Design, Schriftart, Schriftgrößen und Darstellung der Antwort. Änderungen gelten sofort.", "Tout l’aspect visuel au même endroit : thème, police, tailles et affichage de la réponse. Les changements s’appliquent aussitôt.", "Tutto l’aspetto in un posto solo: tema, carattere, dimensioni e come appare la risposta. Le modifiche sono immediate."],
   // ── Bienvenida ──
   "Volver": ["Back", "Zurück", "Retour", "Indietro"],
   "Crear cuenta": ["Create account", "Konto erstellen", "Créer un compte", "Crea account"],
