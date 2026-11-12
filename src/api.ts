@@ -51,6 +51,8 @@ export const syncGithubFinish = (d: DeviceCode) =>
 export const syncGoogleBegin = () => invoke<DeviceCode>("sync_google_begin");
 export const syncGoogleFinish = (d: DeviceCode) =>
   invoke<void>("sync_google_finish", { deviceCode: d.device_code, interval: d.interval, expiresIn: d.expires_in });
+export const syncLinkConfirm = (password: string) => invoke<void>("sync_link_confirm", { password });
+export const syncLinkCancel = () => invoke<void>("sync_link_cancel");
 export interface Billing { active: boolean; status: string; ends_at: number; portal: string }
 export const syncBilling = () => invoke<Billing>("sync_billing");
 export const syncCheckoutUrl = () => invoke<string>("sync_checkout_url");
