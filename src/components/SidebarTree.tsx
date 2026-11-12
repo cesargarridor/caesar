@@ -181,7 +181,7 @@ export default function SidebarTree(props: Props) {
                   {depth === 0 && (node.team
                     ? <IconBtn title={t("Equipo: código y opciones")} onClick={() => props.onTeamInfo(path)}><Users size={14} /></IconBtn>
                     : <IconBtn title={t("Compartir con un equipo")} onClick={() => props.onShare(path)}><Share2 size={14} /></IconBtn>)}
-                  {depth === 0 && <IconBtn title={t("Exportar colección (Postman v2.1)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
+                  {depth === 0 && <IconBtn title={t("Exportar colección (JSON)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
                 </>
               )}
               {del}
