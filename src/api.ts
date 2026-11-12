@@ -65,6 +65,9 @@ export const syncSignOut = () => invoke<void>("sync_sign_out");
 export const syncNow = () => invoke<void>("sync_now");
 export const vaultCreate = () => invoke<string>("vault_create");
 export const vaultRestore = (recovery: string) => invoke<void>("vault_restore", { recovery });
+export const vaultRecovery = () => invoke<string>("vault_recovery");
+export const vaultRotate = () => invoke<string>("vault_rotate");
+export const vaultReplace = (recovery: string) => invoke<void>("vault_replace", { recovery });
 export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync-remote", (e) => cb(e.payload));
 
 // Actualizaciones: la red la hace Rust (paquetes firmados); aquí solo se invocan los comandos.
