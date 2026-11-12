@@ -86,6 +86,9 @@ const D: Record<string, Row> = {
   "Términos": ["Terms", "Nutzungsbedingungen", "Conditions d'utilisation", "Termini"],
   "Política de privacidad": ["Privacy Policy", "Datenschutzerklärung", "Politique de confidentialité", "Informativa sulla privacy"],
   "Correo": ["Email", "E-Mail", "E-mail", "Email"],
+  "Continuar con Google": ["Continue with Google", "Mit Google fortfahren", "Continuer avec Google", "Continua con Google"],
+  "Escribe este código en": ["Enter this code on", "Gib diesen Code ein auf", "Saisissez ce code sur", "Inserisci questo codice su"],
+  "(se ha abierto la página) y autoriza Caesar:": ["(the page has opened) and authorise Caesar:", "(die Seite wurde geöffnet) und autorisiere Caesar:", "(la page s'est ouverte) et autorisez Caesar :", "(la pagina si è aperta) e autorizza Caesar:"],
   "Continuar con GitHub": ["Continue with GitHub", "Mit GitHub fortfahren", "Continuer avec GitHub", "Continua con GitHub"],
   "Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:": ["Enter this code on GitHub (the page has opened) and authorise Caesar:", "Gib diesen Code auf GitHub ein (die Seite wurde geöffnet) und autorisiere Caesar:", "Saisissez ce code sur GitHub (la page s'est ouverte) et autorisez Caesar :", "Inserisci questo codice su GitHub (la pagina si è aperta) e autorizza Caesar:"],
   // ── Barra lateral ──
