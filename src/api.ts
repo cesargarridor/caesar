@@ -28,6 +28,14 @@ export interface TextFile { name: string; content: string }
 export const pickTextFile = () => invoke<TextFile | null>("pick_text_file");
 export const parsePostmanContent = (content: string) => invoke<ImportedCollection>("parse_postman_content", { content });
 
+// Colecciones de equipo (compartidas por código; Rust cifra y habla con Firebase).
+export interface TeamDoc { json: string; updatedAt: number; owner: boolean }
+export const teamPublish = (json: string) => invoke<string>("team_publish", { json });
+export const teamJoin = (code: string) => invoke<TeamDoc>("team_join", { code });
+export const teamPush = (code: string, json: string) => invoke<number>("team_push", { code, json });
+export const teamPull = (code: string, since: number) => invoke<TeamDoc | null>("team_pull", { code, since });
+export const teamUnshare = (code: string) => invoke<void>("team_unshare", { code });
+
 // Sincronización cifrada (Rust cifra y habla con Firebase; la interfaz nunca ve la clave).
 export interface SyncStatus {
   configured: boolean;

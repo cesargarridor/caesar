@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod sync;
+mod team;
 mod vault;
 
 use std::time::{Duration, Instant};
@@ -1308,7 +1309,12 @@ fn main() {
             sync::sync_now,
             sync::sync_billing,
             sync::sync_delete_account,
-            sync::sync_checkout_url
+            sync::sync_checkout_url,
+            team::team_publish,
+            team::team_join,
+            team::team_push,
+            team::team_pull,
+            team::team_unshare
         ])
         .run(tauri::generate_context!());
 

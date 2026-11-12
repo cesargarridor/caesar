@@ -1,9 +1,14 @@
 name: Release
 
-# Se ejecuta al publicar un tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a master).
-# Compila Windows, Linux y macOS, firma los paquetes del actualizador y publica la Release con latest.json.
+# · Tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a master) → versión ESTABLE: se publica en este repositorio
+#   y la reciben todos los usuarios (actualización automática).
+# · Push a la rama develop → versión BETA: se compila aquí (gratis, repo público) pero se publica en el repositorio
+#   PRIVADO cesargarridor/caesar-beta, que solo ven los colaboradores invitados. Necesita el secreto BETA_TOKEN
+#   (token con permiso de escritura en ese repo); sin él, develop no compila nada.
+# Compila Windows, Linux y macOS, firma los paquetes del actualizador y publica la Release.
 on:
   push:
+    branches: [develop]
     tags: ["v*"]
   workflow_dispatch: {}
 
@@ -11,7 +16,25 @@ permissions:
   contents: write
 
 jobs:
+  gate:
+    runs-on: ubuntu-22.04
+    outputs:
+      go: ${{ steps.g.outputs.go }}
+    env:
+      BETA_TOKEN: ${{ secrets.BETA_TOKEN }}
+    steps:
+      - id: g
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ] || [ -n "$BETA_TOKEN" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Beta desactivada: falta el secreto BETA_TOKEN (ver docs/RAMAS.md)."
+          fi
+
   release:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +74,19 @@ jobs:
 
       - run: npm ci
 
+      # Versión beta: patch siguiente + número de ejecución (0.3.2-57). Es numérica (la exige el instalador MSI de Windows),
+      # mayor que la estable instalada y menor que la estable siguiente.
+      - name: Versión beta
+        if: github.ref_type == 'branch'
+        shell: bash
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(p,"utf8"));const [a,b,d]=c.version.split("-")[0].split(".").map(Number);c.version=a+"."+b+"."+(d+1)+"-"+process.env.RUN;fs.writeFileSync(p,JSON.stringify(c,null,2));console.log(c.version)'
+
+      # ── Estable (tag): igual que siempre ──
       - uses: tauri-apps/tauri-action@v0
+        if: github.ref_type == 'tag'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -72,13 +107,42 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
-  # La Release se crea como borrador y solo se publica cuando las tres plataformas han terminado,
-  # para que latest.json nunca llegue incompleto (sin Windows) a quien busque actualizaciones.
+      # ── Beta (develop): se sube al repositorio privado caesar-beta ──
+      - uses: tauri-apps/tauri-action@v0
+        if: github.ref_type == 'branch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.BETA_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: caesar-beta
+          tagName: beta-${{ github.run_number }}
+          releaseName: "Caesar beta ${{ github.run_number }}"
+          releaseBody: "Versión BETA de prueba (rama develop, ${{ github.sha }}). Puede fallar. No se actualiza sola: instala el paquete de tu sistema."
+          releaseDraft: true
+          prerelease: true
+          includeUpdaterJson: false
+          args: ${{ matrix.args }}
+
+  # La Release se crea como borrador y solo se publica cuando las tres plataformas han terminado.
   publish:
-    needs: release
+    needs: [gate, release]
+    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-22.04
     steps:
       - name: Publicar la Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+          GH_TOKEN: ${{ github.ref_type == 'tag' && secrets.GITHUB_TOKEN || secrets.BETA_TOKEN }}
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+          else
+            gh release edit "beta-${{ github.run_number }}" --repo "${{ github.repository_owner }}/caesar-beta" --draft=false --prerelease
+          fi
