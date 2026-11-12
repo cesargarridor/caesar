@@ -89,7 +89,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const showPretty = view === "pretty" && response?.pretty != null;
   const text = response ? (showPretty ? response.pretty! : response.body) : "";
 
-  // Filtro del body: JSONPath ($[*].campo) o expresión regular, como el filtro de Insomnia.
+  // Filtro del body: JSONPath ($[*].campo) o expresión regular, con JSONPath o regex.
   const [filter, setFilter] = useState("");
   const parsed = useMemo(() => {
     if (!response || !filter.trim().startsWith("$")) return undefined;
