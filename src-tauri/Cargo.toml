@@ -15,7 +15,7 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 open = "5"
-tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs"] }
+tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs", "io-util"] }
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "multipart", "gzip", "deflate"] }
 
