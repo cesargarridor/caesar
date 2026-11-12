@@ -778,6 +778,9 @@ struct Settings {
     follow_redirects: bool,
     timeout_secs: u64,
     verify_ssl: bool,
+    /** "auto" (se negocia: HTTP/2 si el servidor lo ofrece), "1.1" o "2". */
+    #[serde(default)]
+    http_version: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1026,7 +1029,13 @@ async fn execute_request(
     let client = match reused {
         Some(c) => c,
         None => {
-            let c = reqwest::Client::builder()
+            let mut builder = reqwest::Client::builder();
+            builder = match args.settings.http_version.as_str() {
+                "1.1" => builder.http1_only(),
+                "2" => builder.http2_prior_knowledge(),
+                _ => builder,
+            };
+            let c = builder
                 .timeout(Duration::from_secs(timeout))
                 .redirect(policy)
                 .danger_accept_invalid_certs(!args.settings.verify_ssl)

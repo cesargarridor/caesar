@@ -14,7 +14,7 @@ export const emptyAuth = (): AuthData => ({
 
 export const emptyBody = (): BodyData => ({ mode: "none", raw: "", formdata: [], urlencoded: [] });
 
-export const defaultSettings = () => ({ followRedirects: true, timeoutSecs: 30, verifySsl: true });
+export const defaultSettings = () => ({ followRedirects: true, timeoutSecs: 30, verifySsl: true, httpVersion: "auto" as "auto" | "1.1" | "2" });
 
 export const emptyRequest = (): RequestState => ({
   method: "GET",
@@ -155,6 +155,7 @@ export function parseCurl(input: string): RequestState {
   let head = false;
   let getMode = false;
   let insecure = false;
+  let httpVersion: "auto" | "1.1" | "2" = "auto";
   let follow = true;
   let timeout = 30;
 
@@ -254,6 +255,14 @@ export function parseCurl(input: string): RequestState {
       case "--insecure":
         insecure = true;
         break;
+      case "--http1.1":
+      case "--http1.0":
+        httpVersion = "1.1";
+        break;
+      case "--http2":
+      case "--http2-prior-knowledge":
+        httpVersion = "2";
+        break;
       case "-L":
       case "--location":
         follow = true;
@@ -333,6 +342,6 @@ export function parseCurl(input: string): RequestState {
     headers,
     auth,
     body,
-    settings: { followRedirects: follow, timeoutSecs: timeout, verifySsl: !insecure },
+    settings: { followRedirects: follow, timeoutSecs: timeout, verifySsl: !insecure, httpVersion },
   };
 }
