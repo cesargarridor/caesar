@@ -84,6 +84,15 @@ jobs:
         run: |
           node -e 'const fs=require("fs");const p="src-tauri/tauri.conf.json";const c=JSON.parse(fs.readFileSync(p,"utf8"));const [a,b,d]=c.version.split("-")[0].split(".").map(Number);c.version=a+"."+b+"."+(d+1)+"-"+process.env.RUN;fs.writeFileSync(p,JSON.stringify(c,null,2));console.log(c.version)'
 
+      # Notas de la versión (las escribe scripts/release.mjs): salen en la Release y en el aviso de actualización de la app.
+      - name: Notas de la versión
+        id: notes
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          f="release-notes/${{ github.ref_name }}.md"
+          { echo "body<<NOTES_EOF"; if [ -f "$f" ]; then cat "$f"; else echo "- Mejoras y correcciones."; fi; echo "NOTES_EOF"; } >> "$GITHUB_OUTPUT"
+
       # ── Estable (tag): igual que siempre ──
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_type == 'tag'
@@ -101,7 +110,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Caesar ${{ github.ref_name }}"
-          releaseBody: "Instala el paquete de tu sistema. Si ya tienes Caesar con actualizaciones automáticas, se actualizará solo."
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true

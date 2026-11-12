@@ -69,6 +69,11 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Hay una versión nueva": ["There is a new version", "Es gibt eine neue Version", "Une nouvelle version est disponible", "C’è una nuova versione"],
+  "Novedades": ["What’s new", "Neuigkeiten", "Nouveautés", "Novità"],
+  "Mejoras y correcciones.": ["Improvements and fixes.", "Verbesserungen und Fehlerbehebungen.", "Améliorations et corrections.", "Miglioramenti e correzioni."],
+  "Más tarde": ["Later", "Später", "Plus tard", "Più tardi"],
+  "Actualizar ahora": ["Update now", "Jetzt aktualisieren", "Mettre à jour", "Aggiorna ora"],
   // ── Equipos y canal de desarrollo ──
   "Colección de equipo": ["Team collection", "Teamsammlung", "Collection d’équipe", "Raccolta di team"],
   "Equipo: código y opciones": ["Team: code and options", "Team: Code und Optionen", "Équipe : code et options", "Team: codice e opzioni"],
