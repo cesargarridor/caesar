@@ -1,6 +1,6 @@
 name: Release
 
-# Se ejecuta al publicar un tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a main).
+# Se ejecuta al publicar un tag vX.Y.Z (lo crea scripts/release.mjs tras el merge a master).
 # Compila Windows, Linux y macOS, firma los paquetes del actualizador y publica la Release con latest.json.
 on:
   push:

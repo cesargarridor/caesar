@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Publica una versión nueva: rama release/vX.Y.Z -> commit con el cambio de versión -> merge a main -> tag -> push.
+// Publica una versión nueva: rama release/vX.Y.Z -> commit con el cambio de versión -> merge a master -> tag -> push.
 // El tag dispara el workflow "Release" de GitHub Actions, que compila e instala las builds firmadas
 // y las publica en GitHub Releases (de ahí las recogen las apps instaladas con actualización automática).
 //
@@ -34,7 +34,7 @@ const branch = `release/${tag}`;
 
 // ── comprobaciones ──
 const main = git("symbolic-ref", "--short", "HEAD");
-if (main !== "main") throw new Error(`Hay que estar en 'main' (ahora: ${main}).`);
+if (main !== "master") throw new Error(`Hay que estar en 'master' (ahora: ${main}).`);
 if (!git("status", "--porcelain")) throw new Error("No hay cambios que publicar.");
 if (git("tag", "--list", tag)) throw new Error(`El tag ${tag} ya existe.`);
 
@@ -68,7 +68,7 @@ try {
 
   git("add", "-A");
   git("commit", "-m", `${tag}: ${message}`);
-  git("switch", "main");
+  git("switch", "master");
   git("merge", "--no-ff", branch, "-m", `Merge ${branch}`);
   git("tag", "-a", tag, "-m", `Caesar ${tag}`);
   git("branch", "-d", branch);
@@ -78,8 +78,8 @@ try {
 }
 
 if (noPush) {
-  console.log(`\n${tag} creada en local (sin push). Para publicar: git push origin main ${tag}`);
+  console.log(`\n${tag} creada en local (sin push). Para publicar: git push origin master ${tag}`);
 } else {
-  git("push", "origin", "main", tag);
+  git("push", "origin", "master", tag);
   console.log(`\n${tag} publicada. GitHub Actions está compilando: https://github.com/cesargarridor/caesar/actions`);
 }
