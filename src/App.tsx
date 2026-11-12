@@ -34,7 +34,7 @@ import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut } from "./lib/find";
 import { t, useLang } from "./lib/i18n";
 import {
-  applyFonts, loadAutoUpdate, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
+  applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
@@ -139,6 +139,8 @@ export default function App() {
   const [version, setVersion] = useState("");
   const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
   const [updPrompt, setUpdPrompt] = useState(false);
+  const [autosave, setAutosave] = useState(loadAutosave);
+  useEffect(() => saveAutosave(autosave), [autosave]);
   useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
 
   const installNow = async (v: string) => {
@@ -181,6 +183,7 @@ export default function App() {
     return () => un?.();
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<"ui" | "edit">("ui");
   const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
@@ -447,13 +450,13 @@ export default function App() {
     setRenamingPath(null);
   };
 
-  const handleSave = (tab: Tab = active) => {
+  const handleSave = (tab: Tab = active, silent = false) => {
     const req = tab.req;
     const current = tab.path ? getAt(collections, tab.path) : null;
     if (tab.path && current && current.type === "request") {
       setCollections((c) => updateAt(c, tab.path!, (n) => nodeFromRequest(n.name, req)));
       patchTab(tab.id, (t) => ({ ...t, dirty: false }));
-      setFlash("save");
+      if (!silent) setFlash("save");
       return;
     }
     // Borrador: se guarda en la primera colección (o se crea una).
@@ -563,20 +566,66 @@ export default function App() {
   const sendRef = useRef(handleSend);
   saveRef.current = handleSave;
   sendRef.current = handleSend;
+  const kb = useRef<{ newTab: () => void; closeTab: () => void; step: (d: number) => void; goto: (n: number) => void }>({
+    newTab, closeTab: () => {}, step: () => {}, goto: () => {},
+  });
+  kb.current = {
+    newTab,
+    closeTab: () => requestClose(active.id),
+    step: (d) => {
+      const i = tabs.findIndex((t) => t.id === active.id);
+      setActiveId(tabs[(i + d + tabs.length) % tabs.length].id);
+    },
+    goto: (n) => tabs[n] && setActiveId(tabs[n].id),
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.key.toLowerCase() === "s") {
-        e.preventDefault();
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const stop = () => e.preventDefault();
+      if (k === "s") {
+        stop();
         saveRef.current();
       } else if (e.key === "Enter") {
-        e.preventDefault();
+        stop();
         sendRef.current();
+      } else if (k === "t") {
+        stop();
+        kb.current.newTab();
+      } else if (k === "w") {
+        stop();
+        kb.current.closeTab();
+      } else if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
+        stop();
+        kb.current.step(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1);
+      } else if (/^[1-9]$/.test(e.key)) {
+        stop();
+        kb.current.goto(Number(e.key) - 1);
+      } else if (k === "l") {
+        stop();
+        const el = document.getElementById("caesar-url") as HTMLInputElement | null;
+        el?.focus();
+        el?.select();
+      } else if (e.key === ",") {
+        stop();
+        setSettingsSection("ui");
+        setShowSettings(true);
+      } else if (e.key === "/") {
+        stop();
+        setSettingsSection("edit");
+        setShowSettings(true);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
+
+  // Autoguardado (si está activado): guarda la petición abierta de una colección un instante después de dejar de editar.
+  useEffect(() => {
+    if (!autosave || !active.dirty || !active.path) return;
+    const id = setTimeout(() => saveRef.current(active, true), 800);
+    return () => clearTimeout(id);
+  }, [autosave, active]);
 
   // Ctrl+F: buscador propio en la respuesta y en los editores (evita el buscador nativo del webview).
   useEffect(() => installFindShortcut(), []);
@@ -751,6 +800,9 @@ export default function App() {
             onFonts={setFonts}
             hideEmpty={hideEmpty}
             onHideEmpty={setHideEmpty}
+            autosave={autosave}
+            onAutosave={setAutosave}
+            initialSection={settingsSection}
             updates={{
               version,
               auto: autoUpdate,
