@@ -71,6 +71,13 @@ pub struct SyncState {
     pub(crate) client: reqwest::Client,
 }
 
+impl SyncState {
+    /// Fuerza que lo local se vuelva a subir (p. ej. tras cambiar de clave de cifrado).
+    pub(crate) fn mark_dirty(&self) {
+        self.dirty.store(true, Ordering::SeqCst);
+    }
+}
+
 impl Default for SyncState {
     fn default() -> Self {
         let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().unwrap_or_default();
@@ -280,7 +287,7 @@ async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     }
     let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento remoto no tiene datos.")?;
     let key = vault::load_key()?.ok_or("Falta la clave de cifrado en este equipo: vincúlalo o restaura la clave de recuperación.")?;
-    let plain = vault::decrypt(&key, &context(&uid), blob)?;
+    let plain = vault::decrypt_any(&key, &context(&uid), blob)?;
     let text = String::from_utf8(plain).map_err(|_| "Los datos remotos no son texto válido.".to_string())?;
     let file = data_file(app)?;
     let _ = std::fs::copy(&file, file.with_extension("json.bak")); // copia de seguridad de lo local
