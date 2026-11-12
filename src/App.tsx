@@ -21,7 +21,7 @@ import { applyUrlEdit, buildUrl } from "./lib/url";
 import { exportCollection } from "./lib/postmanExport";
 import { detectAndParse, exportExt, exportFileName, exportHar, exportInsomniaYaml, type ExportFormat } from "./lib/interchange";
 import {
-  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
+  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -351,11 +351,15 @@ export default function App() {
 
   /** Arrastrar y soltar en el árbol: mueve una carpeta o petición dentro de otra carpeta (o al nivel raíz). */
   const handleMove = (from: string, to: string, pos?: "before" | "after") => {
-    const r = from.includes("/") ? moveNode(collections, from, to) : moveCollection(collections, from, to, pos ?? "after");
+    const r = !from.includes("/")
+      ? moveCollection(collections, from, to, pos ?? "after")
+      : pos
+        ? moveRelative(collections, from, to, pos)
+        : moveNode(collections, from, to);
     if (!r) return;
     setCollections(r.nodes);
     setTabs((ts) => ts.map((tb) => (tb.path ? { ...tb, path: r.mapPath(tb.path) } : tb)));
-    const dest = to === "root" || !from.includes("/") ? null : getAt(collections, to);
+    const dest = to === "root" || !from.includes("/") || pos ? null : getAt(collections, to);
     if (dest?.type === "folder") openFolder(dest.uid);
     setRenamingPath(null);
   };

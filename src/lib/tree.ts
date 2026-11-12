@@ -129,6 +129,39 @@ export function canMove(from: string, to: string): boolean {
   return to !== parent;
 }
 
+/** ¿Se puede colocar `from` justo antes/después de `target` (ambos dentro de una colección)? */
+export function canMoveRelative(from: string, target: string): boolean {
+  if (!from.includes("/") || !target.includes("/")) return false;
+  return target !== from && !target.startsWith(`${from}/`);
+}
+
+/** Mueve `from` para que quede justo antes o después de `target`, en la carpeta que contiene a `target`. */
+export function moveRelative(nodes: TreeNode[], from: string, target: string, pos: "before" | "after") {
+  if (!canMoveRelative(from, target)) return null;
+  const node = getAt(nodes, from);
+  const adj = pathAfterDelete(target, from);
+  if (!node || adj === null) return null;
+  const segs = adj.split("/");
+  const targetIdx = Number(segs.pop());
+  const parent = segs.join("/");
+  const index = targetIdx + (pos === "after" ? 1 : 0);
+  const cut = (p: string) => p.slice(0, p.lastIndexOf("/"));
+  if (cut(from) === cut(target) && index === Number(from.slice(from.lastIndexOf("/") + 1))) return null; // ya está ahí
+  const removed = removeAt(nodes, from);
+  const dest = getAt(removed, parent);
+  if (!dest || dest.type !== "folder") return null;
+  const out = updateAt(removed, parent, (t) =>
+    t.type === "folder" ? { ...t, children: [...t.children.slice(0, index), node, ...t.children.slice(index)] } : t,
+  );
+  const newPath = `${parent}/${index}`;
+  const mapPath = (p: string): string => {
+    if (p === from || p.startsWith(`${from}/`)) return newPath + p.slice(from.length);
+    const q = pathAfterDelete(p, from);
+    return q === null ? p : pathAfterInsert(q, parent, index);
+  };
+  return { nodes: out, path: newPath, mapPath, parent };
+}
+
 /** Reordena las colecciones: pone `from` antes o después de `to` (ambas son índices del nivel raíz). */
 export function moveCollection(nodes: TreeNode[], from: string, to: string, pos: "before" | "after") {
   const i = Number(from);

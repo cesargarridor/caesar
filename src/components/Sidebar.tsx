@@ -4,7 +4,7 @@ import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
 import CatLogo from "./CatLogo";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
-import { canMove } from "../lib/tree";
+import { canMove, canMoveRelative } from "../lib/tree";
 import type { KV, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
@@ -81,7 +81,22 @@ export default function Sidebar({
           pos = target !== "root" && r && ev.clientY < r.top + r.height / 2 ? "before" : "after";
         }
       } else {
-        over = target && canMove(path, target) ? target : null;
+        over = null;
+        if (target && target !== "root" && hit) {
+          // Línea de inserción entre elementos: arriba/abajo de la fila = antes/después; centro de una carpeta = dentro.
+          const isFolder = hit.dataset.kind === "folder";
+          const row = isFolder ? (hit.firstElementChild as HTMLElement | null) : hit;
+          const r = row?.getBoundingClientRect();
+          const f = r && r.height ? (ev.clientY - r.top) / r.height : 0.5;
+          const isColl = !target.includes("/");
+          if (!isColl && canMoveRelative(path, target)) {
+            if (!isFolder) pos = f < 0.5 ? "before" : "after";
+            else if (f < 0.25) pos = "before";
+            else if (f > 0.75 && hit.dataset.open !== "1") pos = "after";
+          }
+          if (pos) over = target;
+        }
+        if (!over) over = target && canMove(path, target) ? target : null;
       }
       setDrag({ from: path, over, pos, x: ev.clientX, y: ev.clientY, label });
     };
