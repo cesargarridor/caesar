@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
 import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncGoogle, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
@@ -8,7 +8,16 @@ const inputCls = "w-full rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-
 const btnCls = "rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110 disabled:opacity-50 bg-[var(--t-iris)]";
 const ghostCls = "rounded-xl px-4 py-2 text-sm font-medium text-mist ring-1 ring-fg/30 hover:ring-fg/60 disabled:opacity-50";
 
-export default function SyncSettings() {
+interface Props {
+  /** Colecciones compartidas en este equipo (se van al cerrar sesión). */
+  sharedCount: number;
+  onBeforeSignOut: () => Promise<void> | void;
+  onSignedOut: () => void;
+}
+
+export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut }: Props) {
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [st, setSt] = useState<SyncStatus | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,22 +74,72 @@ export default function SyncSettings() {
       <section className="space-y-4">
         <h3 className="text-sm text-mist">{t("Cuenta")}</h3>
         {st.signed_in && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-deep p-3 ring-1 ring-fg/10">
-            <span className="text-sm text-silver">
-              {t("Sesión iniciada")}: <b className="text-mist">{st.email || "—"}</b>
-            </span>
-            <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await syncSignOut(); setMode(null); })}>
-              {t("Cerrar sesión")}
-            </button>
+          <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/10">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--t-iris)] text-base font-semibold uppercase text-white" aria-hidden>
+                {(st.email || "?").replace(/^GitHub:\s*/, "").charAt(0)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-mist">{st.email || "—"}</div>
+                <div className="flex items-center gap-1.5 text-xs text-slate">
+                  <span className={`inline-block h-2 w-2 rounded-full ${st.error ? "bg-red-400" : st.dirty ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  {st.error ? t("Con problemas de sincronización") : st.dirty ? t("Subiendo cambios…") : t("Sesión iniciada")}
+                </div>
+              </div>
+              {!confirmOut && (
+                <button className={ghostCls} disabled={busy} onClick={() => setConfirmOut(true)}>
+                  <LogOut size={14} className="mr-2 inline" />
+                  {t("Cerrar sesión")}
+                </button>
+              )}
+            </div>
+            {confirmOut && (
+              <div className="space-y-3 rounded-xl bg-kelp p-3 ring-1 ring-fg/15" role="alertdialog" aria-label={t("Cerrar sesión")}>
+                <p className="text-xs text-silver">{t("Se cerrará la sesión en este equipo. Antes se sube lo que tengas pendiente.")}</p>
+                <ul className="space-y-1 text-xs text-slate">
+                  <li>
+                    <b className="text-mist">{t("Se quitan de este equipo")}:</b>{" "}
+                    {sharedCount > 0 ? t("{0} colección(es) compartida(s). Siguen en la nube para su equipo.", String(sharedCount)) : t("no tienes colecciones compartidas.")}
+                  </li>
+                  <li>
+                    <b className="text-mist">{t("Se quedan")}:</b> {t("tus colecciones locales, variables y ajustes.")}
+                  </li>
+                </ul>
+                <div className="flex gap-2">
+                  <button
+                    className={btnCls}
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        try { await onBeforeSignOut(); } catch { /* sin red: no bloquea el cierre */ }
+                        await syncSignOut();
+                        setConfirmOut(false);
+                        setMode(null);
+                        setConfirmDel(false);
+                        setBill(null);
+                        setShownKey(null);
+                        setPassword("");
+                        onSignedOut();
+                      })
+                    }
+                  >
+                    {busy ? t("Cerrando sesión…") : t("Sí, cerrar sesión")}
+                  </button>
+                  <button className={ghostCls} disabled={busy} onClick={() => setConfirmOut(false)}>{t("Cancelar")}</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
+        {!st.signed_in && (
+        <>
         <div className="flex gap-1 border-b border-fg/10">
           {(["login", "register"] as const).map((m) => {
-            const open = (st.signed_in ? mode : mode ?? "login") === m;
+            const open = (mode ?? "login") === m;
             return (
               <button
                 key={m}
-                onClick={() => setMode(st.signed_in && open ? null : m)}
+                onClick={() => { setMode(m); setMsg(null); }}
                 className={`-mb-px border-b-2 px-4 py-2 text-sm ${open ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"}`}
               >
                 {m === "login" ? t("Iniciar sesión") : t("Registrarse")}
@@ -88,26 +147,38 @@ export default function SyncSettings() {
             );
           })}
         </div>
-        {(st.signed_in ? mode : mode ?? "login") && (() => {
-          const reg = (st.signed_in ? mode : mode ?? "login") === "register";
+        {(() => {
+          const reg = (mode ?? "login") === "register";
           const done = () => { setPassword(""); setMode(null); };
           return (
             <div className="max-w-sm space-y-4">
-              {st.signed_in && (
-                <p className="text-xs text-slate">
-                  {reg ? t("Crea otra cuenta: este equipo pasará a usarla.") : t("Entra con otra cuenta: este equipo pasará a usarla.")}
-                </p>
-              )}
+              <p className="text-xs text-slate">
+                {reg ? t("Crea una cuenta para sincronizar tus colecciones y compartirlas con tu equipo.") : t("Inicia sesión para sincronizar y volver a ver tus colecciones compartidas. Sin sesión, Caesar sigue funcionando en local.")}
+              </p>
               <form
                 className="space-y-3"
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (!email.trim() || !password) return setMsg(t("Escribe tu correo y tu contraseña."));
                   run(async () => { await syncSignIn(email, password, reg); done(); });
                 }}
               >
                 <input className={inputCls} type="email" autoComplete="username" placeholder={t("Correo")} value={email} onChange={(e) => setEmail(e.target.value)} />
-                <input className={inputCls} type="password" autoComplete={reg ? "new-password" : "current-password"} placeholder={t("Contraseña")} value={password} onChange={(e) => setPassword(e.target.value)} />
-                <button className={btnCls} disabled={busy} type="submit">{reg ? t("Crear cuenta") : t("Iniciar sesión")}</button>
+                <div className="relative">
+                  <input className={`${inputCls} pr-10`} type={showPw ? "text" : "password"} autoComplete={reg ? "new-password" : "current-password"} placeholder={t("Contraseña")} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate hover:text-mist"
+                    title={showPw ? t("Ocultar") : t("Mostrar")}
+                    onClick={() => setShowPw((v) => !v)}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <button className={btnCls} disabled={busy || !email.trim() || !password} type="submit">
+                  {busy ? t("Un momento…") : reg ? t("Crear cuenta") : t("Iniciar sesión")}
+                </button>
               </form>
               {(st.google || st.github) && <p className="text-xs text-slate">{t("o")}</p>}
               {st.google && (
@@ -151,6 +222,8 @@ export default function SyncSettings() {
             </div>
           );
         })()}
+        </>
+        )}
       </section>
 
       {/* 2. Clave de cifrado */}
@@ -297,7 +370,7 @@ export default function SyncSettings() {
           {confirmDel ? (
             <div className="max-w-md space-y-3">
               <p className="text-xs text-slate">
-                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Tus colecciones en este equipo no se tocan. Si tienes suscripción, cancélala antes en «Gestionar suscripción».")}
+                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Las colecciones compartidas saldrán de este equipo; tus colecciones locales no se tocan. Si tienes suscripción, cancélala antes en «Gestionar suscripción».")}
               </p>
               <div className="flex gap-2">
                 <button
