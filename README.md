@@ -1,4 +1,10 @@
-# Caesar
+<p align="center">
+  <img src="src-tauri/icons/icon.png" alt="Caesar" width="160" height="160">
+</p>
+
+<h1 align="center">Caesar</h1>
+
+<p align="center"><b>Cliente API de escritorio, rápido y seguro</b></p>
 
 **Web del producto:** https://cesargarridor.github.io/caesar/ (también en [inglés](https://cesargarridor.github.io/caesar/en/))
 
