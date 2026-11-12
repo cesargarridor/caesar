@@ -20,7 +20,7 @@ use url::Url;
 const MAX_COLLECTION_BYTES: u64 = 50 * 1024 * 1024; // 50 MB
 const MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024; // 10 MB
 
-// ───────────────────────────── Postman Collection v2.1 (entrada) ─────────────────────────────
+// ───────────────────────────── Colección JSON v2.1 (entrada) ─────────────────────────────
 // Parseo tolerante: todo es opcional y los campos con forma inesperada se ignoran.
 
 fn lenient_vec<'de, D, T>(d: D) -> Result<Vec<T>, D::Error>
@@ -54,7 +54,7 @@ struct PmCollection {
     event: Vec<PmEvent>,
 }
 
-/// Evento de Postman (`prerequest` / `test`) con su script.
+/// Evento (`prerequest` / `test`) con su script.
 #[derive(Debug, Deserialize)]
 struct PmEvent {
     listen: Option<String>,
@@ -171,7 +171,7 @@ struct PmKeyValue {
     src: Option<Value>,
     #[serde(rename = "contentType")]
     content_type: Option<String>,
-    /// Entornos/variables de Postman: el valor actual y el inicial pueden venir aparte de `value`.
+    /// Entornos/variables: el valor actual y el inicial pueden venir aparte de `value`.
     #[serde(rename = "currentValue")]
     current_value: Option<Value>,
     #[serde(rename = "initialValue")]
@@ -459,7 +459,7 @@ fn none_auth() -> AuthData {
     }
 }
 
-/// host/path de Postman pueden ser un string o un array de strings.
+/// host/path pueden ser un string o un array de strings.
 fn join_value(v: &Option<Value>, sep: &str) -> String {
     match v {
         Some(Value::String(s)) => s.clone(),
@@ -571,9 +571,9 @@ fn convert_items(items: Vec<PmItem>, parent_auth: &AuthData, parent_tests: &str)
         .collect()
 }
 
-fn parse_postman_collection(content: &str) -> Result<ImportedCollection, String> {
+fn parse_collection_json(content: &str) -> Result<ImportedCollection, String> {
     let col: PmCollection = serde_json::from_str(content)
-        .map_err(|e| format!("El archivo no es una Postman Collection v2.1 válida: {e}"))?;
+        .map_err(|e| format!("El archivo no es una colección JSON v2.1 válida: {e}"))?;
     let root_auth = convert_auth(col.auth).unwrap_or_else(none_auth);
     let variables: Vec<Kv> = convert_kvs(col.variable)
         .into_iter()
@@ -592,13 +592,13 @@ fn parse_postman_collection(content: &str) -> Result<ImportedCollection, String>
 
 /// Abre el selector nativo, lee y parsea el JSON. `Ok(None)` = el usuario canceló.
 #[tauri::command]
-async fn import_postman_collection(
+async fn import_collection_file(
     app: tauri::AppHandle,
 ) -> Result<Option<ImportedCollection>, String> {
     let picked = app
         .dialog()
         .file()
-        .add_filter("Postman Collection (JSON)", &["json"])
+        .add_filter("Colección (JSON)", &["json"])
         .blocking_pick_file();
 
     let Some(file) = picked else {
@@ -618,7 +618,7 @@ async fn import_postman_collection(
 
     let content =
         std::fs::read_to_string(&path).map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
-    parse_postman_collection(&content).map(Some)
+    parse_collection_json(&content).map(Some)
 }
 
 #[derive(Debug, Serialize)]
@@ -627,13 +627,13 @@ struct TextFile {
     content: String,
 }
 
-/// Elige un archivo de colección (Postman, Insomnia o HAR) y devuelve su texto. `Ok(None)` = canceló.
+/// Elige un archivo de colección (JSON, YAML o HAR) y devuelve su texto. `Ok(None)` = canceló.
 #[tauri::command]
 async fn pick_text_file(app: tauri::AppHandle) -> Result<Option<TextFile>, String> {
     let picked = app
         .dialog()
         .file()
-        .add_filter("Postman, Insomnia o HAR", &["json", "yaml", "yml", "har"])
+        .add_filter("Colección (JSON, YAML o HAR)", &["json", "yaml", "yml", "har"])
         .blocking_pick_file();
     let Some(file) = picked else {
         return Ok(None);
@@ -651,13 +651,13 @@ async fn pick_text_file(app: tauri::AppHandle) -> Result<Option<TextFile>, Strin
     Ok(Some(TextFile { name, content }))
 }
 
-/// Convierte el texto de una Postman Collection v2.1 (la interfaz ya detectó el formato).
+/// Convierte el texto de una colección JSON v2.1 (la interfaz ya detectó el formato).
 #[tauri::command]
-fn parse_postman_content(content: String) -> Result<ImportedCollection, String> {
+fn parse_collection_content(content: String) -> Result<ImportedCollection, String> {
     if content.len() as u64 > MAX_COLLECTION_BYTES {
         return Err("El contenido supera el límite de 50 MB".into());
     }
-    parse_postman_collection(&content)
+    parse_collection_json(&content)
 }
 
 // ───────────────────────────── Comando IPC: elegir archivo para form-data ─────────────────────────────
@@ -905,7 +905,7 @@ fn parse_method(m: &str) -> Result<Method, String> {
         "OPTIONS" => Ok(Method::OPTIONS),
         // CONNECT (túnel) y TRACE no tienen sentido en un cliente de APIs.
         "CONNECT" | "TRACE" => Err(format!("Método HTTP no soportado: {}", m.trim().to_uppercase())),
-        // PROPFIND, MKCOL, COPY, LOCK, PURGE, LINK, VIEW… (WebDAV y extensiones, como en Postman)
+        // PROPFIND, MKCOL, COPY, LOCK, PURGE, LINK, VIEW… (WebDAV y extensiones)
         other if !other.is_empty() && other.len() <= 20 && other.bytes().all(|b| b.is_ascii_uppercase() || b == b'-') => {
             Method::from_bytes(other.as_bytes()).map_err(|_| format!("Método HTTP no válido: {other}"))
         }
@@ -1039,7 +1039,7 @@ async fn execute_request(
                 .timeout(Duration::from_secs(timeout))
                 .redirect(policy)
                 .danger_accept_invalid_certs(!args.settings.verify_ssl)
-                .user_agent("PostmanRuntime/7.43.0")
+                .user_agent(concat!("Caesar/", env!("CARGO_PKG_VERSION")))
                 .build()
                 .map_err(|e| format!("No se pudo crear el cliente HTTP: {e}"))?;
             if !args.session.is_empty() {
@@ -1293,9 +1293,9 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            import_postman_collection,
+            import_collection_file,
             pick_text_file,
-            parse_postman_content,
+            parse_collection_content,
             execute_request,
             open_url,
             pick_file,

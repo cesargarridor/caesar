@@ -13,7 +13,7 @@ import VarPicker from "./components/VarPicker";
 import { NewCollectionDialog, ShareDialog, TeamInfoDialog } from "./components/TeamDialogs";
 import { normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import {
-  appVersion, checkUpdate, executeRequest, teamJoin, teamPublish, teamUnshare, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkUpdate, executeRequest, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -23,8 +23,8 @@ import { emptyRequest, parseCurl } from "./lib/curl";
 import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./lib/request";
 import { signRequest, SIGNED_TYPES } from "./lib/authSign";
 import { applyUrlEdit, buildUrl } from "./lib/url";
-import { exportCollection } from "./lib/postmanExport";
-import { detectAndParse, exportExt, exportFileName, exportHar, exportInsomniaYaml, type ExportFormat } from "./lib/interchange";
+import { exportCollection } from "./lib/collectionExport";
+import { detectAndParse, exportExt, exportFileName, exportHar, exportYaml, type ExportFormat } from "./lib/interchange";
 import {
   addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
@@ -332,7 +332,7 @@ export default function App() {
     try {
       const file = await pickTextFile();
       const found = file ? detectAndParse(file.content) : null;
-      const imported = !file || !found ? null : found.kind === "postman" ? await parsePostmanContent(file.content) : found.data;
+      const imported = !file || !found ? null : found.kind === "native" ? await parseCollectionContent(file.content) : found.data;
       if (imported) {
         // Las variables de la colección importada viven en la propia colección (no en las globales).
         const root: TreeNode =
@@ -389,7 +389,7 @@ export default function App() {
   const backupBeforeShare = async (path: string, format: ExportFormat) => {
     const node = getAt(collections, path);
     if (!node) return;
-    const text = format === "yaml" ? exportInsomniaYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
+    const text = format === "yaml" ? exportYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
     const saved = await saveTextFile(exportFileName(node.name, format), text, exportExt(format));
     if (!saved) throw new Error(t("No se guardó la copia de seguridad."));
   };
@@ -479,7 +479,7 @@ export default function App() {
     const node = getAt(collections, path);
     if (!node) return;
     try {
-      const text = format === "yaml" ? exportInsomniaYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
+      const text = format === "yaml" ? exportYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
       const saved = await saveTextFile(exportFileName(node.name, format), text, exportExt(format));
       if (saved) setNotice({ kind: "ok", text: t("Colección exportada: {0}", saved) });
     } catch (e) {

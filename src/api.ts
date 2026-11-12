@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { BodyData, ImportedCollection, KV, ResponseData, Settings } from "./types";
 
-export const importPostmanCollection = () =>
-  invoke<ImportedCollection | null>("import_postman_collection");
+export const importCollectionFile = () =>
+  invoke<ImportedCollection | null>("import_collection_file");
 
 export const executeRequest = (args: {
   method: string;
@@ -26,7 +26,7 @@ export const saveTextFile = (suggestedName: string, content: string, ext?: strin
 
 export interface TextFile { name: string; content: string }
 export const pickTextFile = () => invoke<TextFile | null>("pick_text_file");
-export const parsePostmanContent = (content: string) => invoke<ImportedCollection>("parse_postman_content", { content });
+export const parseCollectionContent = (content: string) => invoke<ImportedCollection>("parse_collection_content", { content });
 
 // Colecciones de equipo (compartidas por código; Rust cifra y habla con Firebase).
 export interface TeamDoc { json: string; updatedAt: number; owner: boolean }

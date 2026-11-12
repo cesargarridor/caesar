@@ -9,7 +9,7 @@ function StepIcon({ state }: { state: StepState["state"] }) {
   return <Circle size={11} className="text-slate" />;
 }
 
-/** Pasos de la petición en vivo, al estilo Insomnia. */
+/** Pasos de la petición en vivo. */
 export default function StepList({ steps }: { steps: StepState[] }) {
   return (
     <ul className="space-y-3">

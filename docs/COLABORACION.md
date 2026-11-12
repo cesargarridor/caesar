@@ -26,7 +26,7 @@ El acceso por invitación mediante códigos es directo en Firestore y encaja con
   derivada del código (HKDF): el servidor no puede leer la colección ni conoce el código.
 - **Crear / unirse:** «Nueva colección» → crear propia, o pegar un código para unirse. Una colección propia se comparte con
   el botón de equipo de su fila: antes sale un aviso (pasa a ser de todos; si el dueño elimina su cuenta se elimina para todos)
-  con botones para guardar una copia en Postman, Insomnia o HAR.
+  con botones para guardar una copia en JSON, YAML o HAR.
 - **Sincronización:** la edición es local e instantánea. Tras 2,5 s sin teclear se suben los cambios y cada 10 s se consultan los
   de los compañeros (Rust hace la red: `src-tauri/src/team.rs`). Conflictos: gana la última escritura (colección entera).
 - **Dueño:** `owner` = quien la creó. Al eliminar la cuenta (`sync_delete_account`) se borran sus colecciones de equipo; si el
