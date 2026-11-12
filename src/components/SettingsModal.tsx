@@ -25,6 +25,9 @@ interface Props {
   onFonts: (f: FontPrefs) => void;
   hideEmpty: boolean;
   onHideEmpty: (on: boolean) => void;
+  autosave: boolean;
+  onAutosave: (on: boolean) => void;
+  initialSection?: "ui" | "edit";
   updates: UpdatesProps;
   onClose: () => void;
 }
@@ -216,6 +219,49 @@ function CatControls() {
   );
 }
 
+const SHORTCUTS: [string, string][] = [
+  ["Ctrl+S", "Guardar la petición en la colección"],
+  ["Ctrl+Enter", "Enviar la petición"],
+  ["Ctrl+T", "Nueva pestaña"],
+  ["Ctrl+W", "Cerrar la pestaña"],
+  ["Ctrl+Tab / Ctrl+Mayús+Tab", "Pestaña siguiente / anterior"],
+  ["Ctrl+1 … 9", "Ir a la pestaña número N"],
+  ["Alt+← / Alt+→", "Volver / avanzar en las pestañas visitadas"],
+  ["Ctrl+L", "Ir a la barra de URL"],
+  ["Ctrl+F", "Buscar en la respuesta o en el editor"],
+  ["Ctrl+Space", "Elegir una variable de entorno"],
+  ["Ctrl+,", "Abrir los ajustes"],
+  ["Ctrl+/", "Ver estos atajos"],
+];
+
+function EditControls({ autosave, onAutosave }: { autosave: boolean; onAutosave: (on: boolean) => void }) {
+  return (
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input type="checkbox" checked={autosave} onChange={(e) => onAutosave(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
+        <span>
+          <span className="block text-sm text-mist">{t("Autoguardado")}</span>
+          <span className="block text-xs text-slate">
+            {t("Guarda solo en la colección las peticiones que ya están en ella, un instante después de dejar de editar. Los borradores nuevos se siguen guardando con Ctrl+S.")}
+          </span>
+        </span>
+      </label>
+      <section>
+        <h3 className="mb-2 text-lg text-mist">{t("Atajos de teclado")}</h3>
+        <div className="divide-y divide-fg/10 rounded-xl bg-deep ring-1 ring-fg/10">
+          {SHORTCUTS.map(([keys, what]) => (
+            <div key={keys} className="flex items-center justify-between gap-4 px-4 py-2 text-sm">
+              <span className="text-silver">{t(what)}</span>
+              <kbd className="shrink-0 rounded-md bg-kelp px-2 py-0.5 font-mono text-xs text-mist ring-1 ring-fg/20">{keys}</kbd>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate">{t("En macOS, Ctrl se sustituye por Cmd.")}</p>
+      </section>
+    </div>
+  );
+}
+
 function UpdateControls({ u }: { u: UpdatesProps }) {
   const s = u.state;
   const busy = s.phase === "checking" || s.phase === "installing";
@@ -282,7 +328,7 @@ function Block({ title, hint, children }: { title: string; hint: string; childre
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, initialSection, updates, onClose }: Props) {
   useLang();
   const UiSection = () => (
     <>
@@ -322,7 +368,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
       </Block>
     </>
   );
-  const [section, setSection] = useState<"ui" | "updates" | "lang" | "cat" | "sync">("ui");
+  const [section, setSection] = useState<"ui" | "edit" | "updates" | "lang" | "cat" | "sync">(initialSection ?? "ui");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -351,7 +397,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
-          {([["ui", "Personalización de interfaz"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["ui", "Personalización de interfaz"], ["edit", "Edición y atajos"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -364,7 +410,9 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           ))}
         </div>
 
-        {section === "sync" ? (<SyncSettings />) : section === "cat" ? (
+        {section === "edit" ? (
+          <EditControls autosave={autosave} onAutosave={onAutosave} />
+        ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">

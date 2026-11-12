@@ -100,6 +100,25 @@ export function saveAutoUpdate(on: boolean) {
   }
 }
 
+const AUTOSAVE_KEY = "caesar.autosave";
+
+/** Autoguardado de las peticiones de una colección: desactivado por defecto. */
+export function loadAutosave(): boolean {
+  try {
+    return localStorage.getItem(AUTOSAVE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveAutosave(on: boolean) {
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, on ? "1" : "0");
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
 export const SIDEBAR_DEFAULT = 288;
 export const SIDEBAR_MIN = 200;
 export const SIDEBAR_MAX = 640;

@@ -3,7 +3,10 @@ import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import { t } from "../lib/i18n";
 
-export const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+export const METHODS = [
+  "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
+  "PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "PURGE", "LINK", "UNLINK", "VIEW",
+];
 
 interface Props {
   method: string;
@@ -40,6 +43,7 @@ export default function RequestBar({ method, url, sending, onMethod, onUrlEdit, 
         ))}
       </select>
       <input
+        id="caesar-url"
         value={url}
         onChange={(e) => (looksLikeCurl(e.target.value) ? onCurl(e.target.value) : onUrlEdit(e.target.value))}
         onPaste={(e) => {
