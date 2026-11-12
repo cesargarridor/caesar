@@ -9,7 +9,7 @@ export interface FontPrefs {
   sidebar: number;
   /** Zona de la petición: pestañas, barra de URL, Params, Headers, Auth… (% sobre el general). */
   request: number;
-  /** Editor del body que envías (JSON/Text), Edit data y Tests (px). */
+  /** Editor del body que envías (JSON/Text), Edit data y Scripts (px). */
   body: number;
   /** Cuerpo de la respuesta que recibes (px). */
   response: number;
@@ -21,7 +21,7 @@ export const FONT_FIELDS: { key: keyof FontPrefs; label: string; hint: string; m
   { key: "general", label: "General", hint: "Toda la aplicación", min: 12, max: 22, step: 1, unit: "px" },
   { key: "sidebar", label: "Barra lateral", hint: "Colecciones, carpetas y variables", min: 70, max: 170, step: 5, unit: "%" },
   { key: "request", label: "Petición", hint: "Pestañas, URL, Params, Headers y Auth", min: 70, max: 170, step: 5, unit: "%" },
-  { key: "body", label: "Body que envías", hint: "Editor JSON/Text, Edit data y Tests", min: 10, max: 26, step: 1, unit: "px" },
+  { key: "body", label: "Body que envías", hint: "Editor JSON/Text, Edit data y Scripts", min: 10, max: 26, step: 1, unit: "px" },
   { key: "response", label: "Respuesta recibida", hint: "Cuerpo de la respuesta (JSON)", min: 10, max: 26, step: 1, unit: "px" },
 ];
 

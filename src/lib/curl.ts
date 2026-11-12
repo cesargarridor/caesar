@@ -9,6 +9,7 @@ export const emptyAuth = (): AuthData => ({
   key: "",
   value: "",
   in: "header",
+  extra: {},
 });
 
 export const emptyBody = (): BodyData => ({ mode: "none", raw: "", formdata: [], urlencoded: [] });

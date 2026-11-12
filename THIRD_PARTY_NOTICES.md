@@ -69,3 +69,10 @@ El tema «Caesar» (colores, gatito y degradados) es original del proyecto y se 
   con su propia licencia permisiva.
 - La tipografía «PP Neue Montreal» **no se distribuye** con Caesar: solo se usa si ya está instalada en el equipo y, si no,
   se usa Inter o la fuente del sistema.
+
+## Fuentes de letra
+
+Las 20 tipografías opcionales de Ajustes → Tipo de letra (Inter, Roboto, Open Sans, Lato, Montserrat, Poppins, Source Sans 3,
+Nunito, Noto Sans, Ubuntu, Fira Sans, IBM Plex Sans, Work Sans, Rubik, DM Sans, Raleway, Mulish, PT Sans, Merriweather y Lora)
+se distribuyen con Caesar a través de los paquetes [Fontsource](https://fontsource.org) (MIT) y son fuentes libres: la mayoría con licencia
+SIL Open Font License 1.1, Roboto con Apache 2.0 y Ubuntu con la Ubuntu Font Licence. Cada una conserva su licencia y a sus autores.

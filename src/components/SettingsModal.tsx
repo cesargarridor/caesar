@@ -7,6 +7,7 @@ import SyncSettings from "./SyncSettings";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
 import { setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
+import { FONT_OPTIONS, applyFontFamily, loadFontId, saveFontId } from "../lib/fonts";
 
 export interface UpdatesProps {
   version: string;
@@ -126,6 +127,39 @@ function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontP
   );
 }
 
+function FamilyControls() {
+  const [id, setId] = useState(loadFontId);
+  const [ready, setReady] = useState(0);
+  // Al abrir la sección se cargan todas las fuentes para poder previsualizarlas.
+  useEffect(() => {
+    FONT_OPTIONS.forEach((f) => f.load().then(() => setReady((n) => n + 1)).catch(() => {}));
+  }, []);
+  const pick = (fid: string) => {
+    setId(fid);
+    saveFontId(fid);
+    applyFontFamily(fid);
+  };
+  return (
+    <div data-ready={ready} className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
+      {FONT_OPTIONS.map((f) => (
+        <button
+          key={f.id}
+          onClick={() => pick(f.id)}
+          className={`rounded-2xl px-4 py-3 text-left ${id === f.id ? "ring-2 ring-aqua" : "ring-1 ring-fg/10 hover:ring-fg/30"}`}
+        >
+          <div className="flex items-center justify-between text-xs text-slate">
+            <span>{f.id === "default" ? t(f.name) : f.name}</span>
+            {id === f.id && <Check size={14} className="text-aqua" />}
+          </div>
+          <p className="mt-1 truncate text-lg text-mist" style={f.family ? { fontFamily: f.family, fontWeight: 400 } : undefined}>
+            Caesar API 0123 {"{ }"}
+          </p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHideEmpty: (on: boolean) => void }) {
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
@@ -240,7 +274,7 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
 
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
   useLang();
-  const [section, setSection] = useState<"theme" | "fonts" | "response" | "updates" | "lang" | "cat" | "sync">("theme");
+  const [section, setSection] = useState<"theme" | "fonts" | "family" | "response" | "updates" | "lang" | "cat" | "sync">("theme");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -262,6 +296,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         <p className="mb-4 shrink-0 text-sm text-slate">
           {section === "theme"
             ? t("Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.")
+            : section === "family"
+              ? t("Elige la fuente de la interfaz. Todas se incluyen en la app y funcionan sin conexión. Los editores de código siguen en monoespaciada.")
             : section === "fonts"
               ? t("Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante.")
               : section === "response"
@@ -273,7 +309,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["family", "Tipo de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -288,6 +324,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
 
         {section === "fonts" ? (
           <FontControls fonts={fonts} onFonts={onFonts} />
+        ) : section === "family" ? (
+          <FamilyControls />
         ) : section === "response" ? (
           <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
         ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (

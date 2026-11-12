@@ -3,7 +3,7 @@ import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
 import BodyEditor from "./BodyEditor";
 import JsonEditor from "./JsonEditor";
-import type { RequestState } from "../types";
+import type { AuthData, RequestState } from "../types";
 import { t } from "../lib/i18n";
 
 type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
@@ -11,6 +11,8 @@ type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
 interface Props {
   req: RequestState;
   patch: (p: Partial<RequestState>) => void;
+  /** Autorización que hereda la petición (si usa "Inherit"). */
+  inherited?: AuthData | null;
 }
 
 const COMMON_HEADERS = [
@@ -35,7 +37,7 @@ let lastTab: Tab = (() => {
   }
 })();
 
-export default function RequestTabs({ req, patch }: Props) {
+export default function RequestTabs({ req, patch, inherited }: Props) {
   const [tab, setTabState] = useState<Tab>(lastTab);
   const setTab = (t: Tab) => {
     lastTab = t;
@@ -53,7 +55,7 @@ export default function RequestTabs({ req, patch }: Props) {
     { id: "params", label: "Params", badge: count(req.params) ? String(count(req.params)) : undefined },
     { id: "auth", label: "Authorization", badge: req.auth.type !== "none" ? "•" : undefined },
     { id: "body", label: "Body", badge: req.body.mode !== "none" ? "•" : undefined },
-    { id: "tests", label: "Tests", badge: req.tests?.trim() ? "•" : undefined },
+    { id: "tests", label: "Scripts", badge: req.tests?.trim() ? "•" : undefined },
     { id: "settings", label: "Settings" },
     { id: "headers", label: "Headers", badge: count(req.headers) ? String(count(req.headers)) : undefined },
   ];
@@ -82,7 +84,7 @@ export default function RequestTabs({ req, patch }: Props) {
             keyPlaceholder="Query param"
           />
         )}
-        {tab === "auth" && <AuthEditor auth={req.auth} onChange={(auth) => patch({ auth })} />}
+        {tab === "auth" && <AuthEditor auth={req.auth} onChange={(auth) => patch({ auth })} inherited={inherited} />}
         {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} />}
         {tab === "tests" && (
           <div className="flex h-full min-h-64 flex-col gap-2">

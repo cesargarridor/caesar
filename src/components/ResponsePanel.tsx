@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Check, Copy, Filter, Maximize2, Minimize2, X } from "lucide-react";
+import { filterResponse } from "../lib/jsonPath";
 import StepList from "./StepList";
 import JsonView from "./JsonView";
 import { openUrl } from "../api";
@@ -12,7 +13,7 @@ interface Props {
   error: string | null;
   sending: boolean;
   steps: StepState[];
-  /** Resultado del script de Tests de la última ejecución (null = la petición no tiene script). */
+  /** Resultado del script (pestaña Scripts) de la última ejecución (null = la petición no tiene script). */
   script?: ScriptResult | null;
   /** Ocultar null, listas vacías y objetos vacíos en la vista Pretty. */
   hideEmpty?: boolean;
@@ -88,9 +89,26 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const showPretty = view === "pretty" && response?.pretty != null;
   const text = response ? (showPretty ? response.pretty! : response.body) : "";
 
+  // Filtro del body: JSONPath ($[*].campo) o expresión regular, como el filtro de Insomnia.
+  const [filter, setFilter] = useState("");
+  const parsed = useMemo(() => {
+    if (!response || !filter.trim().startsWith("$")) return undefined;
+    try {
+      return JSON.parse(response.body) as unknown;
+    } catch {
+      return undefined;
+    }
+  }, [response, filter.trim().startsWith("$")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(
+    () => (response && filter.trim() ? filterResponse(parsed, response.pretty ?? response.body, filter) : null),
+    [response, parsed, filter],
+  );
+  const applied = filtered && !filtered.error ? filtered : null;
+  const shown = applied ? applied.text : text;
+
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(shown);
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     } catch {
@@ -112,11 +130,11 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const passed = script ? script.tests.filter((t) => t.ok).length : 0;
   const testsLabel = script
     ? script.tests.length
-      ? `Tests ${passed}/${script.tests.length}`
+      ? `Scripts ${passed}/${script.tests.length}`
       : script.errors.length
-        ? "Tests ⚠"
-        : "Tests"
-    : "Tests";
+        ? "Scripts ⚠"
+        : "Scripts"
+    : "Scripts";
 
   const total = response ? Math.max(1, response.timeline.reduce((a, s) => a + s.ms, 0)) : 1;
 
@@ -179,6 +197,32 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         </button>
       </div>
 
+      {tab === "body" && response && !sending && !error && (
+        <div className="flex items-center gap-2 border-b border-fg/10 px-3 py-1 text-xs">
+          <Filter size={13} className="shrink-0 text-slate" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setFilter("")}
+            spellCheck={false}
+            placeholder={t("Filtrar: $[*].campo (JSONPath) · o una expresión regular")}
+            className="min-w-0 flex-1 bg-transparent font-mono text-mist outline-none placeholder:font-sans placeholder:text-slate/60"
+          />
+          {filtered?.error ? (
+            <span className="shrink-0 text-rose">{filtered.error}</span>
+          ) : applied ? (
+            <span className="shrink-0 tabular-nums text-lav">
+              {applied.count === 1 ? t("1 resultado") : t("{0} resultados", applied.count)}
+            </span>
+          ) : null}
+          {filter && (
+            <button onClick={() => setFilter("")} className="shrink-0 text-slate hover:text-mist" title={t("Quitar filtro (Esc)")}>
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
+
       {linkError && <p className="bg-rose/10 px-4 py-1 text-xs text-rose">{linkError}</p>}
 
       <div className="relative flex-1 overflow-auto">
@@ -196,7 +240,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
             <p className="text-sm text-slate">{t("Pulsa Send para ver la respuesta.")}</p>
           </div>
         ) : tab === "body" ? (
-          <JsonView text={text} json={showPretty} onOpen={open} hideEmpty={showPretty && hideEmpty} />
+          <JsonView text={shown} json={applied ? applied.json : showPretty} onOpen={open} hideEmpty={!applied && showPretty && hideEmpty} />
         ) : tab === "tests" && script ? (
           <div className="mx-auto max-w-3xl space-y-5 p-5 text-xs">
             {script.tests.length > 0 && (

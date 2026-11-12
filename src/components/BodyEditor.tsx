@@ -5,6 +5,7 @@ import FormDataEditor from "./FormDataEditor";
 import JsonEditor from "./JsonEditor";
 import type { BodyData, BodyMode } from "../types";
 import { t } from "../lib/i18n";
+import { checkJson, issueText } from "../lib/jsonCheck";
 
 interface Props {
   body: BodyData;
@@ -23,11 +24,17 @@ export default function BodyEditor({ body, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const reformat = (indent: number | undefined) => {
+    const issue = checkJson(body.raw);
+    if (issue) {
+      setError(issueText(issue));
+      return;
+    }
     try {
+      // Con variables {{x}} sin comillas no es JSON estricto: no se puede reformatear sin romperlas.
       onChange({ ...body, raw: JSON.stringify(JSON.parse(body.raw), null, indent) });
       setError(null);
-    } catch (e) {
-      setError(t("JSON inválido: {0}", e instanceof Error ? e.message : t("error de sintaxis")));
+    } catch {
+      setError(t("No se puede formatear: el body usa variables {{x}} fuera de comillas."));
     }
   };
 
