@@ -1,6 +1,6 @@
 import type { AuthData, BodyData, KV, RequestNode, TreeNode } from "../types";
 
-/** Exporta un árbol de Caesar a Postman Collection v2.1 (JSON). */
+/** Exporta un árbol de Caesar a una colección JSON v2.1. */
 
 interface PmKv { key: string; value: string; type?: string; src?: string; disabled?: boolean; contentType?: string }
 
@@ -151,4 +151,4 @@ export function exportCollection(root: TreeNode, globals: KV[]): string {
 }
 
 export const safeFileName = (name: string) =>
-  (name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim() || "coleccion") + ".postman_collection.json";
+  (name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim() || "coleccion") + ".json";
