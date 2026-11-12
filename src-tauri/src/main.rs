@@ -1012,8 +1012,11 @@ async fn execute_request(
     };
     tr.done("dns", L_DNS, t, dns_detail);
 
-    // 0 = sin límite de tiempo (útil al depurar el servidor: la petición espera todo lo que haga falta).
-    let timeout = args.settings.timeout_secs;
+    // Límite máximo de 1 hora: 0 (o más de 3600) = 1 hora, para poder depurar el servidor sin que salte el error de espera.
+    let timeout = match args.settings.timeout_secs {
+        0 => 3600,
+        n => n.min(3600),
+    };
     let policy = if args.settings.follow_redirects {
         redirect::Policy::limited(10)
     } else {
@@ -1036,9 +1039,7 @@ async fn execute_request(
                 "2" => builder.http2_prior_knowledge(),
                 _ => builder,
             };
-            if timeout > 0 {
-                builder = builder.timeout(Duration::from_secs(timeout));
-            }
+            builder = builder.timeout(Duration::from_secs(timeout));
             let c = builder
                 .redirect(policy)
                 .danger_accept_invalid_certs(!args.settings.verify_ssl)
