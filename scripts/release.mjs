@@ -35,7 +35,8 @@ const branch = `release/${tag}`;
 // ── comprobaciones ──
 const main = git("symbolic-ref", "--short", "HEAD");
 if (main !== "master") throw new Error(`Hay que estar en 'master' (ahora: ${main}).`);
-if (!git("status", "--porcelain")) throw new Error("No hay cambios que publicar.");
+// Con el árbol limpio (p. ej. tras fusionar develop en master) también se publica: el cambio de versión ya es un commit.
+if (!git("status", "--porcelain") && git("rev-list", "--count", "origin/master..master") === "0") throw new Error("No hay nada que publicar.");
 if (git("tag", "--list", tag)) throw new Error(`El tag ${tag} ya existe.`);
 
 // ── rama + cambio de versión ──
