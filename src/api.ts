@@ -40,6 +40,7 @@ export const teamUnshare = (code: string) => invoke<void>("team_unshare", { code
 export interface SyncStatus {
   configured: boolean;
   github: boolean;
+  google: boolean;
   billing: boolean;
   blocked: boolean;
   signed_in: boolean;
@@ -54,6 +55,7 @@ export const localSave = (json: string) => invoke<void>("local_save", { json });
 export const syncSignIn = (email: string, password: string, create: boolean) =>
   invoke<void>("sync_sign_in", { email, password, create });
 export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
+export const syncGoogle = () => invoke<void>("sync_google");
 export const syncGithubBegin = () => invoke<DeviceCode>("sync_github_begin");
 export const syncGithubFinish = (d: DeviceCode) =>
   invoke<void>("sync_github_finish", { deviceCode: d.device_code, interval: d.interval, expiresIn: d.expires_in });
