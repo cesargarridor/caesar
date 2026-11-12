@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type Billing, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
 const inputCls = "w-full rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua";
-const btnCls = "rounded-xl bg-aqua px-4 py-2 text-sm font-medium text-ink disabled:opacity-50";
-const ghostCls = "rounded-xl px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist disabled:opacity-50";
+const btnCls = "rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110 disabled:opacity-50 bg-[var(--t-iris)]";
+const ghostCls = "rounded-xl px-4 py-2 text-sm font-medium text-mist ring-1 ring-fg/30 hover:ring-fg/60 disabled:opacity-50";
 
 export default function SyncSettings() {
   const [st, setSt] = useState<SyncStatus | null>(null);
@@ -14,6 +14,9 @@ export default function SyncSettings() {
   const [password, setPassword] = useState("");
   const [recovery, setRecovery] = useState("");
   const [shownKey, setShownKey] = useState<string | null>(null);
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [otherKey, setOtherKey] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [bill, setBill] = useState<Billing | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
   const [device, setDevice] = useState<DeviceCode | null>(null);
@@ -124,7 +127,48 @@ export default function SyncSettings() {
       <section className="space-y-3">
         <h3 className="text-sm text-mist">{t("Cifrado de extremo a extremo")}</h3>
         {st.has_key ? (
-          <p className="text-xs text-slate">{t("Este equipo tiene la clave. Tus datos se cifran aquí antes de salir; la nube solo guarda texto ilegible.")}</p>
+          <div className="max-w-md space-y-3">
+            <p className="text-xs text-slate">{t("Este equipo tiene la clave. Tus datos se cifran aquí antes de salir; la nube solo guarda texto ilegible.")}</p>
+            <div className="flex flex-wrap gap-2">
+              <button className={ghostCls} disabled={busy} onClick={() => run(async () => { setShownKey(await vaultRecovery()); setCopied(false); })}>
+                {t("Mostrar mi clave de recuperación")}
+              </button>
+              <button className={ghostCls} disabled={busy} onClick={() => { setConfirmNew((v) => !v); setOtherKey(false); }}>
+                {t("Crear clave nueva")}
+              </button>
+              <button className={ghostCls} disabled={busy} onClick={() => { setOtherKey((v) => !v); setConfirmNew(false); }}>
+                {t("Usar otra clave de recuperación")}
+              </button>
+            </div>
+            {confirmNew && (
+              <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+                <p className="text-xs text-silver">
+                  {t("Se crea una clave nueva y se vuelven a subir tus datos cifrados con ella. Los demás equipos que usen la clave anterior dejarán de sincronizar hasta que les pongas la nueva (Usar otra clave de recuperación). Tu clave anterior se conserva en este equipo para leer datos antiguos.")}
+                </p>
+                <div className="flex gap-2">
+                  <button className={btnCls} disabled={busy} onClick={() => run(async () => { setShownKey(await vaultRotate()); setCopied(false); setConfirmNew(false); await syncNow().catch(() => {}); })}>
+                    {t("Sí, crear clave nueva")}
+                  </button>
+                  <button className={ghostCls} onClick={() => setConfirmNew(false)}>{t("Cancelar")}</button>
+                </div>
+              </div>
+            )}
+            {otherKey && (
+              <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+                <p className="text-xs text-silver">
+                  {t("Pega la clave de recuperación del otro equipo. Este equipo pasará a usarla y volverá a sincronizar con ella.")}
+                </p>
+                <input className={inputCls} placeholder="CSR-XXXXX-XXXXX-…" value={recovery} onChange={(e) => setRecovery(e.target.value)} />
+                <button
+                  className={btnCls}
+                  disabled={busy || !recovery.trim()}
+                  onClick={() => run(async () => { await vaultReplace(recovery); setRecovery(""); setOtherKey(false); await syncNow().catch(() => {}); })}
+                >
+                  {t("Usar esta clave")}
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="max-w-sm space-y-3">
             <p className="text-xs text-slate">
@@ -133,7 +177,7 @@ export default function SyncSettings() {
             <button
               className={btnCls}
               disabled={busy}
-              onClick={() => run(async () => { setShownKey(await vaultCreate()); })}
+              onClick={() => run(async () => { setShownKey(await vaultCreate()); setCopied(false); })}
             >
               {t("Crear clave")}
             </button>
@@ -149,9 +193,17 @@ export default function SyncSettings() {
         )}
         {shownKey && (
           <div className="max-w-md rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-            <p className="mb-2 text-xs text-slate">{t("Guárdala ahora en un gestor de contraseñas. No se volverá a mostrar.")}</p>
+            <p className="mb-2 text-xs text-silver">{t("Guárdala en un gestor de contraseñas: sin ella no podrás recuperar tus datos en otro equipo. Puedes volver a verla con «Mostrar mi clave de recuperación».")}</p>
             <code className="block select-all break-all text-sm text-mist">{shownKey}</code>
-            <button className={`${ghostCls} mt-3`} onClick={() => setShownKey(null)}>{t("Ya la he guardado")}</button>
+            <div className="mt-3 flex gap-2">
+              <button
+                className={ghostCls}
+                onClick={() => { navigator.clipboard.writeText(shownKey).then(() => setCopied(true)).catch(() => {}); }}
+              >
+                {copied ? t("Copiada") : t("Copiar")}
+              </button>
+              <button className={ghostCls} onClick={() => setShownKey(null)}>{t("Ocultar")}</button>
+            </div>
           </div>
         )}
       </section>
