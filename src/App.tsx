@@ -16,6 +16,7 @@ import {
   appVersion, checkUpdate, executeRequest, teamJoin, teamPublish, teamUnshare, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
+import UpdatePrompt from "./components/UpdatePrompt";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, parseCurl } from "./lib/curl";
@@ -137,6 +138,7 @@ export default function App() {
   const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
   const [version, setVersion] = useState("");
   const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
+  const [updPrompt, setUpdPrompt] = useState(false);
   useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
 
   const installNow = async (v: string) => {
@@ -153,8 +155,10 @@ export default function App() {
     try {
       const info = await checkUpdate();
       if (!info) setUpd({ phase: "uptodate" });
-      else if (auto) await installNow(info.version);
-      else setUpd({ phase: "available", version: info.version, notes: info.notes });
+      else {
+        setUpd({ phase: "available", version: info.version, current: info.current, notes: info.notes });
+        setUpdPrompt(true); // enseña las novedades y deja elegir; ya no se instala a escondidas
+      }
     } catch (e) {
       setUpd(auto ? { phase: "idle" } : { phase: "error", message: errMsg(e) }); // sin red: no molestar
     }
@@ -779,6 +783,18 @@ export default function App() {
             <TeamInfoDialog name={n.name} code={n.team.code} owner={n.team.owner} onClose={() => setTeamDialog(null)} onLeave={() => handleLeaveTeam(teamDialog.path)} />
           ) : null;
         })()}
+        {upd.phase === "available" && updPrompt && (
+          <UpdatePrompt
+            current={upd.current}
+            version={upd.version}
+            notes={upd.notes}
+            onInstall={() => {
+              setUpdPrompt(false);
+              void installNow(upd.version);
+            }}
+            onLater={() => setUpdPrompt(false)}
+          />
+        )}
         {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
     </div>
