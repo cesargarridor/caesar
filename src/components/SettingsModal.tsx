@@ -437,7 +437,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                     ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
-        <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
+        <div className="mb-5 flex shrink-0 flex-wrap gap-x-1 border-b border-fg/10">
           {([["ui", "Personalización de interfaz"], ["edit", "Edición y atajos"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
