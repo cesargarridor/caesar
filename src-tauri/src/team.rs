@@ -173,6 +173,19 @@ pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64
     let (uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
     let (id, key) = derive(&norm);
+    // 1) Solo la fecha: si no hay nada más nuevo no se descarga (ni se descifra) la colección.
+    let (hs, hv) = send(&st, st.client.get(format!("{}/{id}?mask.fieldPaths=updatedAt", base(&c.project_id))).bearer_auth(&tok)).await?;
+    match hs {
+        200 => {
+            let ms: i64 = hv["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+            if ms <= since {
+                return Ok(None);
+            }
+        }
+        404 => return Err("NOT_FOUND".into()),
+        s => return Err(http_err(s, "leer la colección de equipo")),
+    }
+    // 2) Hay algo más nuevo: ahora sí el documento completo.
     let (status, v) = send(&st, st.client.get(format!("{}/{id}", base(&c.project_id))).bearer_auth(tok)).await?;
     match status {
         200 => {
