@@ -41,6 +41,12 @@ struct Cfg {
     /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
     #[serde(rename = "githubClientId", default)]
     github_client_id: String,
+    /// Cliente OAuth de Google ("TV y dispositivos de entrada limitada") y su secreto (no confidencial en apps de escritorio).
+    /// Vacíos = el botón de Google no aparece.
+    #[serde(rename = "googleClientId", default)]
+    google_client_id: String,
+    #[serde(rename = "googleClientSecret", default)]
+    google_client_secret: String,
     /// Enlace de compra de Lemon Squeezy (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
     #[serde(rename = "checkoutUrl", default)]
     checkout_url: String,
@@ -404,6 +410,7 @@ async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<Strin
 pub struct SyncStatus {
     configured: bool,
     github: bool,
+    google: bool,
     /// Hay cobro configurado (si no, la sincronización es gratuita).
     billing: bool,
     /// La nube rechazó la última subida por falta de suscripción.
@@ -426,6 +433,7 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
     SyncStatus {
         configured: cfg().is_some(),
         github: cfg().map(|c| !c.github_client_id.is_empty()).unwrap_or(false),
+        google: cfg().map(|c| !c.google_client_id.is_empty() && !c.google_client_secret.is_empty()).unwrap_or(false),
         billing: cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false),
         blocked: st.blocked.load(Ordering::SeqCst),
         signed_in,
@@ -555,6 +563,80 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
     .await?;
     let fallback = v["screenName"].as_str().map(|n| format!("GitHub: {n}")).unwrap_or_else(|| "GitHub".to_string());
     let s = session_from(&v, &fallback)?;
+    save_refresh(&s.refresh_token);
+    *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
+    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
+    st.dirty.store(false, Ordering::SeqCst);
+    let r = pull(&app, &st).await;
+    set_error(&st, r.err());
+    Ok(())
+}
+
+fn google_cfg() -> Result<Cfg, String> {
+    cfg().filter(|c| !c.google_client_id.is_empty() && !c.google_client_secret.is_empty()).ok_or("El inicio de sesión con Google no está configurado.".to_string())
+}
+
+/// Google paso 1: pide un código para que el usuario lo escriba en google.com/device.
+#[tauri::command]
+pub async fn sync_google_begin(st: tauri::State<'_, SyncState>) -> Result<DeviceCode, String> {
+    let c = google_cfg()?;
+    let v = gh_post(&st, "https://oauth2.googleapis.com/device/code", format!("client_id={}&scope=openid%20email%20profile", c.google_client_id)).await?;
+    if let Some(e) = v["error"].as_str() {
+        return Err(format!("Google: {e}"));
+    }
+    Ok(DeviceCode {
+        user_code: v["user_code"].as_str().ok_or("Respuesta de Google incompleta.")?.to_string(),
+        verification_uri: v["verification_url"].as_str().unwrap_or("https://www.google.com/device").to_string(),
+        device_code: v["device_code"].as_str().ok_or("Respuesta de Google incompleta.")?.to_string(),
+        interval: v["interval"].as_u64().unwrap_or(5),
+        expires_in: v["expires_in"].as_u64().unwrap_or(900),
+    })
+}
+
+/// Google paso 2: espera la autorización y entra en Firebase con el id_token de Google.
+#[tauri::command]
+pub async fn sync_google_finish(app: AppHandle, st: tauri::State<'_, SyncState>, device_code: String, interval: u64, expires_in: u64) -> Result<(), String> {
+    let c = google_cfg()?;
+    let deadline = Instant::now() + Duration::from_secs(expires_in.min(900));
+    let mut wait = interval.max(5);
+    let id_token = loop {
+        tokio::time::sleep(Duration::from_secs(wait)).await;
+        if Instant::now() > deadline {
+            return Err("El código de Google caducó. Inténtalo de nuevo.".into());
+        }
+        let v = gh_post(
+            &st,
+            "https://oauth2.googleapis.com/token",
+            format!(
+                "client_id={}&client_secret={}&device_code={device_code}&grant_type=urn:ietf:params:oauth:grant-type:device_code",
+                c.google_client_id, c.google_client_secret
+            ),
+        )
+        .await?;
+        if let Some(t) = v["id_token"].as_str() {
+            break t.to_string();
+        }
+        match v["error"].as_str().unwrap_or("") {
+            "authorization_pending" => {}
+            "slow_down" => wait += 5,
+            "access_denied" => return Err("Has cancelado la autorización en Google.".into()),
+            "expired_token" => return Err("El código de Google caducó. Inténtalo de nuevo.".into()),
+            e => return Err(format!("Google: {e}")),
+        }
+    };
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
+    let v = post_json(
+        &st,
+        &url,
+        json!({
+            "postBody": format!("id_token={id_token}&providerId=google.com"),
+            "requestUri": "http://localhost",
+            "returnSecureToken": true,
+            "returnIdpCredential": true
+        }),
+    )
+    .await?;
+    let s = session_from(&v, "Google")?;
     save_refresh(&s.refresh_token);
     *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;

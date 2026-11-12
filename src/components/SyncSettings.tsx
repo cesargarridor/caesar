@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type Billing, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRestore, type Billing, type SyncStatus } from "../api";
+import SocialButtons from "./SocialButtons";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -16,7 +17,6 @@ export default function SyncSettings() {
   const [shownKey, setShownKey] = useState<string | null>(null);
   const [bill, setBill] = useState<Billing | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
-  const [device, setDevice] = useState<DeviceCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -89,33 +89,9 @@ export default function SyncSettings() {
             </div>
           </form>
         )}
-        {!st.signed_in && st.github && (
-          <div className="max-w-sm space-y-3">
-            <button
-              className={ghostCls}
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const d = await syncGithubBegin();
-                  setDevice(d);
-                  openUrl(d.verification_uri).catch(() => {});
-                  try {
-                    await syncGithubFinish(d);
-                  } finally {
-                    setDevice(null);
-                  }
-                })
-              }
-            >
-              {t("Continuar con GitHub")}
-            </button>
-            {device && (
-              <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-                <p className="mb-2 text-xs text-slate">{t("Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:")}</p>
-                <code className="block select-all text-xl tracking-widest text-mist">{device.user_code}</code>
-                <p className="mt-2 break-all text-xs text-slate">{device.verification_uri}</p>
-              </div>
-            )}
+        {!st.signed_in && (
+          <div className="max-w-sm">
+            <SocialButtons st={st} busy={busy} run={run} />
           </div>
         )}
       </section>
