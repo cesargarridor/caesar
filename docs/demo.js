@@ -127,3 +127,31 @@
   draw();
   setTimeout(function () { if (!state.hello.res) send(); }, 900);
 })();
+
+/* Gato: al tocarlo cierra los ojos de felicidad, ronronea y salen corazones (igual que en la app). */
+(function () {
+  var wrap = document.getElementById("cat"); if (!wrap) return;
+  var svg = wrap.querySelector("svg"); if (!svg) return;
+  var P = { o: "#f28c2e", d: "#c9621a", w: "#fff0d4", k: "#2b1a12", p: "#ff9aa8" };
+  var ROWS = ["oo............oo", "ooo..........ooo", "oopo........opoo", "oopooooddoooopoo", "oooooooddooooooo", "oookkoooooookkoo", "oookkoooooookkoo", "oowwwwoppowwwwoo", "oowwwwowwowwwwoo", "ooowwwwwwwwwwooo", ".oooowwwwwoooo.", "..oooooooooooo.."];
+  ROWS[10] = ".oooowwwwwoooo.."; // misma rejilla de 16 columnas
+  var HAPPY = { 5: "oookkooooookkooo", 6: "ookookooookookoo" };
+  function paint(happy) {
+    var h = "";
+    ROWS.forEach(function (r, y) {
+      r = happy && HAPPY[y] ? HAPPY[y] : r;
+      for (var x = 0; x < r.length; x++) if (P[r[x]]) h += '<rect x="' + x + '" y="' + y + '" width="1.02" height="1.02" fill="' + P[r[x]] + '"/>';
+    });
+    svg.innerHTML = h;
+  }
+  var timer, hearts = [];
+  wrap.addEventListener("click", function () {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    clearTimeout(timer); hearts.forEach(function (e) { e.remove(); }); hearts = [];
+    wrap.classList.remove("happy"); void wrap.offsetWidth; wrap.classList.add("happy"); paint(true);
+    [["10%", 0], ["45%", .35], ["78%", .7]].forEach(function (p) {
+      var s = document.createElement("span"); s.className = "cat-heart"; s.textContent = "♥"; s.style.left = p[0]; s.style.animationDelay = p[1] + "s"; wrap.appendChild(s); hearts.push(s);
+    });
+    timer = setTimeout(function () { wrap.classList.remove("happy"); paint(false); hearts.forEach(function (e) { e.remove(); }); hearts = []; }, 2400);
+  });
+})();
