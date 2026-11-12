@@ -193,6 +193,64 @@ pub(crate) fn load_key() -> Result<Option<Key>, String> {
     }
 }
 
+const PREV_ACCOUNT: &str = "data-key-prev";
+/// Cuántas claves anteriores se conservan para poder leer datos cifrados con ellas.
+const MAX_PREV: usize = 8;
+
+fn prev_entry() -> Result<keyring::Entry, String> {
+    keyring::Entry::new(SERVICE, PREV_ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
+}
+
+/// Claves anteriores (la más reciente primero).
+fn load_prev() -> Vec<Key> {
+    match prev_entry().and_then(|e| e.get_secret().map_err(|e| e.to_string())) {
+        Ok(v) => v
+            .chunks_exact(32)
+            .map(|c| {
+                let mut a = [0u8; 32];
+                a.copy_from_slice(c);
+                Zeroizing::new(a)
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+fn save_prev(keys: &[Key]) -> Result<(), String> {
+    let mut bytes: Vec<u8> = Vec::with_capacity(keys.len() * 32);
+    for k in keys.iter().take(MAX_PREV) {
+        bytes.extend_from_slice(k.as_slice());
+    }
+    prev_entry()?.set_secret(&bytes).map_err(|e| format!("No se pudo guardar en el llavero: {e}"))
+}
+
+/// Pone `new` como clave actual y guarda la anterior en el historial (así no se pierden datos cifrados con ella).
+fn switch_key(new: Key) -> Result<(), String> {
+    if let Some(old) = load_key()? {
+        if old.as_slice() == new.as_slice() {
+            return Ok(());
+        }
+        let mut prev = load_prev();
+        prev.retain(|k| k.as_slice() != old.as_slice() && k.as_slice() != new.as_slice());
+        prev.insert(0, old);
+        save_prev(&prev)?;
+    }
+    store_key(&new)
+}
+
+/// Descifra con la clave actual y, si no sirve, con las anteriores.
+pub(crate) fn decrypt_any(key: &Key, context: &str, envelope: &str) -> Result<Vec<u8>, String> {
+    if let Ok(v) = decrypt(key, context, envelope) {
+        return Ok(v);
+    }
+    for k in load_prev() {
+        if let Ok(v) = decrypt(&k, context, envelope) {
+            return Ok(v);
+        }
+    }
+    Err("Los datos de la nube están cifrados con otra clave. En Ajustes → Sincronización pulsa «Usar otra clave de recuperación» y pega la clave más reciente.".into())
+}
+
 fn store_key(key: &Key) -> Result<(), String> {
     entry()?.set_secret(key.as_slice()).map_err(|e| format!("No se pudo guardar en el llavero: {e}"))
 }
@@ -231,6 +289,33 @@ pub fn vault_restore(recovery: String) -> Result<(), String> {
         return Err("Este equipo ya tiene una clave.".into());
     }
     store_key(&recovery_decode(&recovery)?)
+}
+
+/// Muestra otra vez la clave de recuperación actual (para guardarla o copiarla en otro equipo).
+#[tauri::command]
+pub fn vault_recovery() -> Result<String, String> {
+    Ok(recovery_encode(&require_key()?))
+}
+
+/// Crea una clave NUEVA y la pone como actual. La anterior se conserva en este equipo solo para leer datos antiguos.
+/// Los demás equipos dejan de sincronizar hasta que usen la clave nueva; lo local se vuelve a subir cifrado con ella.
+#[tauri::command]
+pub fn vault_rotate(sync: tauri::State<crate::sync::SyncState>) -> Result<String, String> {
+    if load_key()?.is_none() {
+        return Err("Primero crea la clave.".into());
+    }
+    let key = new_key();
+    switch_key(Zeroizing::new(*key))?;
+    sync.mark_dirty();
+    Ok(recovery_encode(&key))
+}
+
+/// Cambia la clave actual por otra (la de recuperación de otro equipo). Lo local se vuelve a subir con ella.
+#[tauri::command]
+pub fn vault_replace(recovery: String, sync: tauri::State<crate::sync::SyncState>) -> Result<(), String> {
+    switch_key(recovery_decode(&recovery)?)?;
+    sync.mark_dirty();
+    Ok(())
 }
 
 /// Borra la clave de este equipo. Sin copia en otro equipo ni clave de recuperación, los datos cifrados no se pueden recuperar.
