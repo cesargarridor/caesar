@@ -42,3 +42,8 @@ Configuración única (ya hecha si ves releases en `caesar-beta`):
 Sin `BETA_TOKEN`, los pushes a `develop` no compilan nada (el flujo avisa y termina).
 
 Versión de una beta: `X.Y.(Z+1)-N` (N = número de ejecución): mayor que la estable instalada y menor que la estable siguiente.
+
+## Notas de versión
+
+El mensaje de `npm run release` / `node scripts/release.mjs` son las **notas**: una novedad por línea (separa con `
+` o ` | `). Se guardan en `release-notes/vX.Y.Z.md`, salen en la Release y la app las muestra en el aviso de actualización (con botones *Actualizar ahora* / *Más tarde*).
