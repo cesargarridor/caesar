@@ -5,7 +5,7 @@ import { THEMES, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
 import SyncSettings from "./SyncSettings";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
-import { setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
+import { BASE_METHODS, EXTRA_METHODS, setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
 import { FONT_OPTIONS, applyFontFamily, loadFontId, saveFontId } from "../lib/fonts";
 
@@ -27,6 +27,8 @@ interface Props {
   onHideEmpty: (on: boolean) => void;
   autosave: boolean;
   onAutosave: (on: boolean) => void;
+  extraMethods: string[];
+  onExtraMethods: (m: string[]) => void;
   initialSection?: "ui" | "edit";
   updates: UpdatesProps;
   onClose: () => void;
@@ -234,9 +236,48 @@ const SHORTCUTS: [string, string][] = [
   ["Ctrl+/", "Ver estos atajos"],
 ];
 
-function EditControls({ autosave, onAutosave }: { autosave: boolean; onAutosave: (on: boolean) => void }) {
+function MethodControls({ extra, onExtra }: { extra: string[]; onExtra: (m: string[]) => void }) {
+  const [custom, setCustom] = useState("");
+  const all = [...EXTRA_METHODS, ...extra.filter((m) => !EXTRA_METHODS.includes(m))];
+  const toggle = (m: string) => onExtra(extra.includes(m) ? extra.filter((x) => x !== m) : [...extra, m]);
+  const add = () => {
+    const m = custom.trim().toUpperCase();
+    if (/^[A-Z-]{1,20}$/.test(m) && !BASE_METHODS.includes(m) && !extra.includes(m)) onExtra([...extra, m]);
+    setCustom("");
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate">{t("Siempre disponibles")}: {BASE_METHODS.join(", ")}</p>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        {all.map((m) => (
+          <label key={m} className="flex cursor-pointer items-center gap-2 rounded-lg bg-deep px-3 py-2 text-sm text-silver ring-1 ring-fg/10">
+            <input type="checkbox" checked={extra.includes(m)} onChange={() => toggle(m)} className="accent-[var(--t-accent)]" />
+            {m}
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder={t("Otro método (p. ej. REPORT)")}
+          className="w-56 rounded-lg bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+        />
+        <button onClick={add} className="rounded-lg px-4 py-2 text-sm text-mist ring-1 ring-fg/30 hover:ring-fg/60">{t("Añadir")}</button>
+      </div>
+    </div>
+  );
+}
+
+function EditControls({ autosave, onAutosave, extraMethods, onExtraMethods }: { autosave: boolean; onAutosave: (on: boolean) => void; extraMethods: string[]; onExtraMethods: (m: string[]) => void }) {
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
+      <section>
+        <h3 className="mb-1 text-lg text-mist">{t("Métodos HTTP")}</h3>
+        <p className="mb-3 text-xs text-slate">{t("Elige qué métodos aparecen en el desplegable de la petición. También puedes abrir esta pantalla con «+ Más métodos…» al final de ese desplegable.")}</p>
+        <MethodControls extra={extraMethods} onExtra={onExtraMethods} />
+      </section>
       <label className="flex cursor-pointer items-start gap-3">
         <input type="checkbox" checked={autosave} onChange={(e) => onAutosave(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
         <span>
@@ -328,7 +369,7 @@ function Block({ title, hint, children }: { title: string; hint: string; childre
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, initialSection, updates, onClose }: Props) {
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, extraMethods, onExtraMethods, initialSection, updates, onClose }: Props) {
   useLang();
   const UiSection = () => (
     <>
@@ -411,7 +452,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         </div>
 
         {section === "edit" ? (
-          <EditControls autosave={autosave} onAutosave={onAutosave} />
+          <EditControls autosave={autosave} onAutosave={onAutosave} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
         ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
