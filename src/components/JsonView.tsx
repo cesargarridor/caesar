@@ -351,6 +351,11 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
     const { indent, toks: lt } = toks[i];
     const foldable = end !== undefined;
     const closing = isFolded ? lines[end!].trim() : "";
+    // Elementos de un array (o claves de un objeto) que quedan ocultos: las líneas del siguiente nivel que no son un cierre.
+    let count = 0;
+    if (isFolded) {
+      for (let j = i + 1; j < end!; j++) if (toks[j].indent === indent + 1 && !/^[}\]]/.test(lines[j].trim())) count++;
+    }
 
     rows.push(
       <div key={i} className="group relative flex hover:bg-fg/5">
@@ -393,8 +398,12 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
           })()}
           {isFolded && (
             <>
-              <button onClick={() => toggle(i)} className="mx-1 rounded bg-fg/10 px-1.5 text-[0.85em] text-silver hover:bg-fg/20">
-                …
+              <button
+                onClick={() => toggle(i)}
+                title={t("{0} elementos", String(count))}
+                className="mx-1 rounded bg-fg/10 px-1.5 text-[0.85em] font-semibold tabular-nums text-silver hover:bg-fg/20"
+              >
+                {count}
               </button>
               <span style={{ color: COLOR.punc }}>{closing}</span>
             </>
