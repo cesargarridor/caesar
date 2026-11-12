@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncGithubBegin, syncGithubFinish, syncGoogle, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -91,6 +91,18 @@ export default function SyncSettings() {
               </button>
             </div>
           </form>
+        )}
+        {!st.signed_in && st.google && (
+          <div className="max-w-sm space-y-2">
+            <button
+              className={ghostCls}
+              disabled={busy}
+              onClick={() => run(async () => { await syncGoogle(); })}
+            >
+              {busy ? t("Esperando al navegador…") : t("Continuar con Google")}
+            </button>
+            {busy && <p className="text-xs text-slate">{t("Se ha abierto tu navegador: elige tu cuenta de Google y vuelve aquí.")}</p>}
+          </div>
         )}
         {!st.signed_in && st.github && (
           <div className="max-w-sm space-y-3">
