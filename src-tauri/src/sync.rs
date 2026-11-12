@@ -274,9 +274,25 @@ async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
 /// Baja el documento remoto; si es más nuevo y no hay cambios locales pendientes, lo aplica y avisa a la interfaz.
 async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     let (uid, tok) = valid_token(st).await?;
+    let url = doc_url(&uid).ok_or("Sincronización no configurada.")?;
+    // 1) Solo la fecha (unos bytes). El documento entero se descarga únicamente si hay algo más nuevo.
+    let head = st
+        .client
+        .get(format!("{url}?mask.fieldPaths=updatedAt"))
+        .bearer_auth(&tok)
+        .send()
+        .await
+        .map_err(|_| "Sin conexión con Firebase.".to_string())?;
+    if head.status().is_success() {
+        let hv: Value = serde_json::from_slice(&head.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).unwrap_or(Value::Null);
+        let ms: i64 = hv["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+        if ms <= *st.last_remote.lock().map_err(|_| "Estado bloqueado")? || st.dirty.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+    }
     let res = st
         .client
-        .get(doc_url(&uid).ok_or("Sincronización no configurada.")?)
+        .get(url)
         .bearer_auth(tok)
         .send()
         .await

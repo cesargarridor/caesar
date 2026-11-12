@@ -11,7 +11,10 @@ import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import VarPicker from "./components/VarPicker";
 import { NewCollectionDialog, ShareDialog, TeamInfoDialog } from "./components/TeamDialogs";
-import { normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
+import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
+import {
+  DEFAULT_WS, loadWsActive, loadWsList, newWsId, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+} from "./lib/workspaces";
 import {
   appVersion, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
@@ -79,8 +82,8 @@ const newId = () => `t${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 const blankTab = (): Tab => ({ id: newId(), req: emptyRequest(), path: null, name: t("Nueva petición"), dirty: false });
 
 /** Tabs guardadas: se valida la forma por si el formato cambió. */
-function loadTabs(): { tabs: Tab[]; activeId: string } {
-  const saved = load<{ tabs?: Tab[]; activeId?: string }>("caesar.tabs", {});
+function loadTabs(wsId: string): { tabs: Tab[]; activeId: string } {
+  const saved = load<{ tabs?: Tab[]; activeId?: string }>(wsKey("tabs", wsId), {});
   const tabs = (saved.tabs ?? []).filter(
     (t) => t && typeof t.id === "string" && t.req && typeof t.req.method === "string" && Array.isArray(t.req.params),
   );
@@ -93,7 +96,10 @@ function loadTabs(): { tabs: Tab[]; activeId: string } {
 
 export default function App() {
   useLang(); // re-renderiza toda la interfaz al cambiar de idioma
-  const [collections, setCollections] = useState<TreeNode[]>(() => ensureIds(load("caesar.collections", [])));
+  // Espacios de trabajo: cada uno guarda sus propias colecciones, variables y pestañas (ver lib/workspaces.ts).
+  const [wsList, setWsList] = useState<WsMeta[]>(loadWsList);
+  const [wsId, setWsId] = useState<string>(() => loadWsActive(wsList));
+  const [collections, setCollections] = useState<TreeNode[]>(() => ensureIds(load(wsKey("collections", wsId), [])));
   /** Carpetas desplegadas (por id estable, no por posición). Las colecciones empiezan abiertas. */
   const [openIds, setOpenIds] = useState<Set<string>>(
     () => new Set(collections.flatMap((c) => (c.type === "folder" && c.uid ? [c.uid] : []))),
@@ -106,8 +112,8 @@ export default function App() {
       if (!n.delete(uid)) n.add(uid);
       return n;
     });
-  const [vars, setVars] = useState<KV[]>(() => load("caesar.vars", []));
-  const initial = useMemo(loadTabs, []);
+  const [vars, setVars] = useState<KV[]>(() => load(wsKey("vars", wsId), []));
+  const initial = useMemo(() => loadTabs(wsId), []);
   const [tabs, setTabs] = useState<Tab[]>(initial.tabs);
   const [activeId, setActiveId] = useState(initial.activeId);
 
@@ -203,25 +209,97 @@ export default function App() {
   const fullUrl = useMemo(() => buildUrl(req.url, req.params), [req.url, req.params]);
 
   // ───── persistencia automática (borradores incluidos, aunque no se pulse Guardar) ─────
-  useEffect(() => save("caesar.tabs", { tabs, activeId: active.id }), [tabs, active.id]);
-  useEffect(() => save("caesar.collections", collections), [collections]);
-  useEffect(() => save("caesar.vars", vars), [vars]);
+  useEffect(() => save(wsKey("tabs", wsId), { tabs, activeId: active.id }), [tabs, active.id, wsId]);
+  useEffect(() => save(wsKey("collections", wsId), collections), [collections, wsId]);
+  useEffect(() => save(wsKey("vars", wsId), vars), [vars, wsId]);
   // Barrera 1: 2 s sin cambios antes de pasar los datos a Rust (que los guarda en disco y avisa al trabajador de sincronización).
   useEffect(() => {
     const id = setTimeout(() => {
-      localSave(JSON.stringify({ v: 1, collections, vars })).catch(() => {});
+      localSave(JSON.stringify(snapshotAll(wsList, wsId, collections, vars))).catch(() => {});
     }, 2000);
     return () => clearTimeout(id);
-  }, [collections, vars]);
+  }, [collections, vars, wsList, wsId]);
+  // ───── espacios de trabajo ─────
+  /** Carga otro espacio: lee su bloque del disco y lo pone en pantalla al instante (sin red). */
+  const enterWs = (id: string) => {
+    save(wsKey("collections", wsId), collections);
+    save(wsKey("vars", wsId), vars);
+    save(wsKey("tabs", wsId), { tabs, activeId: active.id });
+    const cols = ensureIds(load<TreeNode[]>(wsKey("collections", id), []));
+    const tb = loadTabs(id);
+    saveWsActive(id);
+    setWsId(id);
+    setCollections(cols);
+    setVars(load<KV[]>(wsKey("vars", id), []));
+    setTabs(tb.tabs);
+    setActiveId(tb.activeId);
+    setResults({});
+    setPendingClose(null);
+    setRenamingPath(null);
+    setOpenIds(new Set(cols.flatMap((c) => (c.type === "folder" && c.uid ? [c.uid] : []))));
+  };
+  const addWs = (name: string) => {
+    const id = newWsId();
+    const list = [...wsList, { id, name }];
+    setWsList(list);
+    saveWsList(list);
+    save(wsKey("collections", id), []);
+    save(wsKey("vars", id), []);
+    enterWs(id);
+  };
+  const renameWs = (id: string, name: string) => {
+    const list = wsList.map((w) => (w.id === id ? { ...w, name } : w));
+    setWsList(list);
+    saveWsList(list);
+  };
+  const deleteWs = (id: string) => {
+    if (wsList.length <= 1) return;
+    const list = wsList.filter((w) => w.id !== id);
+    setWsList(list);
+    saveWsList(list);
+    if (id === wsId) enterWs(list[0].id);
+    removeWsData(id);
+  };
+  /** Datos que llegan de otro equipo: todos los espacios (o, de versiones antiguas, solo el principal). */
+  const applyRemoteRef = useRef((_d: unknown) => {});
+  applyRemoteRef.current = (d: any) => {
+    const ws: any[] = Array.isArray(d?.workspaces) ? d.workspaces.filter((w: any) => w && typeof w.id === "string") : [];
+    if (ws.length === 0) {
+      // Formato anterior: solo un conjunto de colecciones (el espacio principal).
+      if (wsId === DEFAULT_WS) {
+        if (Array.isArray(d?.collections)) setCollections(ensureIds(d.collections));
+        if (Array.isArray(d?.vars)) setVars(d.vars);
+      } else {
+        if (Array.isArray(d?.collections)) save(wsKey("collections", DEFAULT_WS), ensureIds(d.collections));
+        if (Array.isArray(d?.vars)) save(wsKey("vars", DEFAULT_WS), d.vars);
+      }
+      return;
+    }
+    const list: WsMeta[] = ws.map((w) => ({ id: w.id, name: typeof w.name === "string" && w.name ? w.name : t("Personal") }));
+    for (const w of ws) {
+      const cols = Array.isArray(w.collections) ? ensureIds(w.collections) : [];
+      const vs = Array.isArray(w.vars) ? w.vars : [];
+      if (w.id === wsId) {
+        setCollections(cols);
+        setVars(vs);
+      } else {
+        save(wsKey("collections", w.id), cols);
+        save(wsKey("vars", w.id), vs);
+      }
+    }
+    for (const old of wsList) if (!list.some((w) => w.id === old.id) && old.id !== wsId) removeWsData(old.id);
+    setWsList(list);
+    saveWsList(list);
+    if (!list.some((w) => w.id === wsId)) enterWs(list[0].id);
+  };
+
   // Cambios que llegan de otro equipo.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let disposed = false;
     onSyncRemote((json) => {
       try {
-        const d = JSON.parse(json);
-        if (Array.isArray(d.collections)) setCollections(ensureIds(d.collections));
-        if (Array.isArray(d.vars)) setVars(d.vars);
+        applyRemoteRef.current(JSON.parse(json));
       } catch {
         /* datos remotos ilegibles: se ignoran */
       }
@@ -358,7 +436,7 @@ export default function App() {
     const doc = await teamJoin(code);
     const root = JSON.parse(doc.json) as TreeNode;
     if (root.type !== "folder") throw new Error(t("La colección del equipo no es válida."));
-    const [withId] = ensureIds([{ ...root, team: { code: norm, owner: doc.owner, seen: doc.updatedAt } }]);
+    const [withId] = ensureIds([{ ...root, team: { code: norm, owner: doc.owner, seen: doc.updatedAt, h: hashJson(JSON.stringify(root)) } }]);
     team.markSynced(norm, JSON.stringify(root));
     setCollections((c) => [...c, withId]);
     setTeamDialog(null);
@@ -372,7 +450,7 @@ export default function App() {
     const code = await teamPublish(json);
     const norm = normCode(code);
     team.markSynced(norm, json);
-    setCollections((c) => updateAt(c, path, (n) => (n.type === "folder" ? { ...n, team: { code: norm, owner: true, seen: Date.now() } } : n)));
+    setCollections((c) => updateAt(c, path, (n) => (n.type === "folder" ? { ...n, team: { code: norm, owner: true, seen: Date.now(), h: hashJson(json) } } : n)));
     return code;
   };
 
@@ -757,6 +835,14 @@ export default function App() {
         onNewCollection={() => setTeamDialog({ kind: "new" })}
         onShare={(path) => setTeamDialog({ kind: "share", path })}
         onTeamInfo={(path) => setTeamDialog({ kind: "info", path })}
+        onTeamRefresh={(code) => void team.refresh(code)}
+        refreshingTeams={team.refreshing}
+        workspaces={wsList}
+        activeWs={wsId}
+        onSwitchWs={enterWs}
+        onAddWs={addWs}
+        onRenameWs={renameWs}
+        onDeleteWs={deleteWs}
         onSettings={() => setShowSettings(true)}
         width={sidebarW}
         onWidth={setSidebarW}
