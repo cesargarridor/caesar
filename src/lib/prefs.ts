@@ -100,6 +100,30 @@ export function saveAutoUpdate(on: boolean) {
   }
 }
 
+/** Métodos que siempre se ofrecen. */
+export const BASE_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+/** Métodos extra que se pueden activar en Ajustes (como en Postman). */
+export const EXTRA_METHODS = ["PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "PURGE", "LINK", "UNLINK", "VIEW"];
+const METHODS_KEY = "caesar.extraMethods";
+
+/** Métodos extra activados por el usuario (ninguno por defecto). */
+export function loadExtraMethods(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(METHODS_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((m): m is string => typeof m === "string" && /^[A-Z-]{1,20}$/.test(m)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveExtraMethods(list: string[]) {
+  try {
+    localStorage.setItem(METHODS_KEY, JSON.stringify(list));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
 const AUTOSAVE_KEY = "caesar.autosave";
 
 /** Autoguardado de las peticiones de una colección: desactivado por defecto. */
