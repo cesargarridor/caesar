@@ -76,3 +76,36 @@ Pages (carpeta `/docs` de `main`) y esas URLs son las que pide Lemon Squeezy.
 2. En Cloudflare, el Worker debe mostrar peticiones con respuesta 200. En Firestore aparece `users/<uid>/billing/status`.
 3. En Caesar pulsa **Ya he pagado, comprobar**: debe poner «Activa» y la sincronización sube datos.
 4. Cancela desde **Gestionar suscripción** y comprueba que pone «Cancelada: activa hasta …».
+
+## 7. Limpieza horaria de cuentas de prueba (Cron Trigger)
+
+El Worker tiene un handler `scheduled` que se ejecuta cada hora (`[triggers] crons = ["0 * * * *"]` en
+`wrangler.toml`; si pegas el código a mano en el panel, añade el Cron Trigger en **Settings → Triggers**).
+
+Qué hace:
+
+1. Lista todos los usuarios de Firebase Auth (`accounts:batchGet`, paginando de 1000 en 1000).
+2. Para las cuentas creadas hace **más de 7 días** lee `users/<uid>` y `users/<uid>/billing/status` **en lote** (Firestore `documents:batchGet`, 100 usuarios por llamada).
+3. Es **exenta** si `users/<uid>.isWhitelistMember == true` (la whitelist vive solo en Firestore, no hay emails en el código)
+   o si `billing/status` tiene `active == true` (o `status == "active"`).
+4. El resto se borra de Firebase Auth **en lote** (`accounts:batchDelete`, 500 por llamada), tras volver a leer billing y whitelist en lote justo antes (anti-carrera con un pago tardío).
+5. Si una lectura falla con algo distinto de 404 (5xx, 403...), esa cuenta **no se borra** y se registra el error.
+
+Límites: el plan gratis permite 50 subrequests por invocación (1000 en el de pago). El Worker lleva un contador interno y
+usa como máximo `MAX_SUBREQUESTS` (por defecto 45; súbelo en el plan de pago). Con lotes caben unos 2000 usuarios por
+ejecución; si se agota el presupuesto, para limpiamente y loguea `restantes` (se continúa en la siguiente ejecución horaria,
+y ejecutar más veces es inocuo: solo se borra lo que ya pasó de 7 días). Máximo `MAX_DELETES` borrados por ejecución
+(por defecto 2000). Log resumen `{revisados, exentos, borrados, errores[, restantes]}` visible en Workers → Logs.
+
+El endpoint del webhook solo acepta GET/POST (otros métodos: 405), rechaza cuerpos > 100 KB (413) y no llama a Firebase
+antes de validar la firma.
+
+**Modo prueba (`DRY_RUN`)**: añade la variable de texto `DRY_RUN = 1` y el Worker solo loguea lo que borraría, sin borrar nada.
+Haz una primera ejecución así y revisa el log antes de quitarla. Para lanzar el cron a mano: `wrangler dev --test-scheduled` y
+`curl "http://localhost:8787/__scheduled"`.
+
+Permisos IAM de la cuenta de servicio `caesar-billing` (además de **Cloud Datastore User**):
+**Firebase Authentication Admin** (`roles/firebaseauth.admin`) para listar y borrar usuarios. El Worker pide el scope
+`cloud-platform`.
+
+Tests: `cd cloudflare && node --test` (fetch simulado; no toca Google).

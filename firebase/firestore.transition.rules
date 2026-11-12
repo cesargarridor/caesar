@@ -1,0 +1,73 @@
+// TRANSICIÓN: misma lógica Pro (billing activo o users/{uid}.isWhitelistMember) y mismo contrato sync schema 3 que firestore.paid.rules.
+// Sin emails hardcodeados. Al desplegar, quien no sea Pro queda en «limbo» (lee/borra, no escribe en sync/ ni teams/).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pro = suscripción activa (users/{uid}/billing/status.active, lo escribe solo el Worker) o miembro de la lista blanca
+    // (users/{uid}.isWhitelistMember == true, editado a mano desde la consola/Admin; los clientes NO pueden escribirlo).
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function isPro(uid) {
+      return (exists(/databases/$(database)/documents/users/$(uid)/billing/status)
+          && get(/databases/$(database)/documents/users/$(uid)/billing/status).data.active == true)
+        || (exists(/databases/$(database)/documents/users/$(uid))
+          && get(/databases/$(database)/documents/users/$(uid)).data.get('isWhitelistMember', false) == true);
+    }
+
+    // Documento de usuario (isWhitelistMember): el dueño solo lo lee; nadie desde el cliente lo escribe (sin auto-whitelist).
+    match /users/{uid} {
+      allow read: if owner(uid);
+      allow write: if false;
+    }
+
+    // Estado de la suscripción: lo escribe solo el Worker de Cloudflare (cuenta de servicio, que se salta estas reglas).
+    match /users/{uid}/billing/{doc} {
+      allow read, delete: if owner(uid); // borrar solo se usa al eliminar la cuenta
+      allow create, update: if false;
+    }
+
+    // Datos cifrados: leer y borrar siempre se puede (nadie se queda sin sus datos); subir exige Pro.
+    // Configuración de claves entre equipos (Master + comprobación de clave). keyCheck es un texto corto cifrado, no la clave.
+    match /users/{uid}/sync/meta {
+      allow read, delete: if owner(uid);
+      allow create, update: if owner(uid) && isPro(uid)
+        && request.resource.data.keys().hasOnly(['masterDeviceId', 'keyCheck', 'updatedAt'])
+        && request.resource.data.masterDeviceId is string
+        && request.resource.data.keyCheck is string
+        && request.resource.data.keyCheck.size() < 512
+        && request.resource.data.updatedAt is int;
+    }
+    // Bloque principal: schema == 3 obligatorio (los clientes antiguos sin schema quedan rechazados: fuerza la actualización).
+    match /users/{uid}/sync/{doc} {
+      allow read, delete: if owner(uid);
+      allow create, update: if owner(uid) && isPro(uid)
+        && request.resource.data.keys().hasOnly(['blob', 'updatedAt', 'schema'])
+        && request.resource.data.schema == 3
+        && request.resource.data.blob is string
+        && request.resource.data.blob.size() < 900000
+        && request.resource.data.updatedAt is int;
+    }
+
+    // Colecciones de equipo. El id del documento es un hash del código de invitación y el contenido va
+    // cifrado con una clave derivada de ese código: el servidor no puede leerlo. Quien tenga el código puede leer y
+    // escribir; solo quien la creó (owner) puede borrarla o listar las suyas (se usa al eliminar la cuenta).
+    match /teams/{id} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null && isPro(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['blob', 'updatedAt', 'owner'])
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.blob is string
+        && request.resource.data.blob.size() < 900000
+        && request.resource.data.updatedAt is int;
+      allow update: if request.auth != null && isPro(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['blob', 'updatedAt', 'owner'])
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.blob is string
+        && request.resource.data.blob.size() < 900000
+        && request.resource.data.updatedAt is int;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

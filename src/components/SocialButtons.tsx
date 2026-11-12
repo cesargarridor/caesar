@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { openUrl, syncGithubBegin, syncGithubFinish, syncGoogle, syncLinkCancel, syncLinkConfirm, type DeviceCode, type SyncStatus } from "../api";
+import { useEffect, useState } from "react";
+import { openUrl, syncGithubBegin, syncGithubFinish, syncGoogle, syncLinkCancel, syncLinkConfirm, syncLinkIdp, onLinkGithubCode, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 export const GoogleIcon = ({ size = 18 }: { size?: number }) => (
@@ -37,6 +37,15 @@ export default function SocialButtons({
   const [device, setDevice] = useState<DeviceCode | null>(null);
   const [link, setLink] = useState<{ email: string; providers: string[] } | null>(null);
   const [pw, setPw] = useState("");
+  const [idpNote, setIdpNote] = useState<string | null>(null);
+  // Vinculación vía GitHub (LINK_VIA_IDP): Rust emite el código mientras espera la autorización.
+  useEffect(() => {
+    const un = onLinkGithubCode((d) => {
+      setDevice(d);
+      openUrl(d.verification_uri).catch(() => {});
+    });
+    return () => { void un.then((f) => f()).catch(() => {}); };
+  }, []);
   if (!st || (!st.github && !st.google)) return null;
 
   const guard = async (fn: () => Promise<void>) => {
@@ -45,6 +54,20 @@ export default function SocialButtons({
       onSuccess?.();
     } catch (e) {
       const m = typeof e === "string" ? e : "";
+      if (m.startsWith("LINK_VIA_IDP|")) {
+        // Esa cuenta existe con otro proveedor: se lanza su flujo y se vinculan solas (Rust avisa con `account-linked`).
+        const [, email, prov] = m.split("|");
+        const provider = (prov ?? "").startsWith("github") ? "github.com" : "google.com";
+        setIdpNote(t("Esa cuenta ({0}) ya existe con {1}. Inicia sesión con ese proveedor para vincularlas.", email, provider.replace(".com", "")));
+        try {
+          await syncLinkIdp(provider);
+          onSuccess?.();
+          return;
+        } finally {
+          setIdpNote(null);
+          setDevice(null);
+        }
+      }
       if (m.startsWith("LINK_REQUIRED|")) {
         const [, email, prov] = m.split("|");
         setLink({ email, providers: prov ? prov.split(",") : [] });
@@ -92,6 +115,7 @@ export default function SocialButtons({
 
   return (
     <div className="space-y-3">
+      {idpNote && <p className="rounded-xl bg-deep p-3 text-xs text-silver ring-1 ring-fg/15">{idpNote}</p>}
       {st.google && (
         <>
           <button type="button" disabled={busy} className={btnCls} onClick={() => void run(() => guard(() => syncGoogle()))}>

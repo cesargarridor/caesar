@@ -1,0 +1,9 @@
+name = "caesar-billing"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+FIREBASE_PROJECT = "caesar-sync-app"
+
+[triggers]
+crons = ["0 * * * *"]

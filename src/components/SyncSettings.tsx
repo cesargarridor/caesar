@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, vaultCreate, vaultRecovery, vaultReplace, vaultRestore, vaultRotate, type Billing, type SyncStatus } from "../api";
+import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import { t } from "../lib/i18n";
+import { openCheckout, planError, useAccount } from "../lib/account";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+/** Mensajes claros para los errores de plan y de clave que devuelve Rust. */
+const keyError = (e: unknown) => {
+  const m = typeof e === "string" ? e : "";
+  if (m.startsWith("KEY_INVALID")) return t("La clave no es válida. Revísala y vuelve a pegarla completa.");
+  return planError(e) ?? errText(e);
+};
 const inputCls = "w-full rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua";
 const btnCls = "rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110 disabled:opacity-50 bg-[var(--t-iris)]";
 const ghostCls = "rounded-xl px-4 py-2 text-sm font-medium text-mist ring-1 ring-fg/30 hover:ring-fg/60 disabled:opacity-50";
@@ -25,7 +32,9 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const [recovery, setRecovery] = useState("");
   const [shownKey, setShownKey] = useState<string | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
-  const [otherKey, setOtherKey] = useState(false);
+  const [confirmMaster, setConfirmMaster] = useState(false);
+  const [role, setRole] = useState<SyncRole | null>(null);
+  const { account, refresh: refreshAccount } = useAccount();
   const [copied, setCopied] = useState(false);
   const [bill, setBill] = useState<Billing | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -34,7 +43,11 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const [mode, setMode] = useState<"login" | "register" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const refresh = useCallback(() => syncStatus().then(setSt).catch(() => {}), []);
+  const refresh = useCallback(() => {
+    void refreshAccount();
+    syncRole().then(setRole).catch(() => {});
+    return syncStatus().then(setSt).catch(() => {});
+  }, [refreshAccount]);
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, 5000);
@@ -47,7 +60,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     try {
       await fn();
     } catch (e) {
-      setMsg(errText(e));
+      setMsg(keyError(e));
     } finally {
       setBusy(false);
       refresh();
@@ -189,78 +202,91 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
         )}
       </section>
 
-      {/* 2. Clave de cifrado */}
-      {st.signed_in && (
+      {/* Aviso de plan */}
+      {account.mode === "guest" && (
+        <div className="max-w-md space-y-2 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+          <p className="text-sm text-mist">{t("Sincronización desactivada (modo Invitado)")}</p>
+          <p className="text-xs text-slate">{t("La sincronización cifrada entre equipos es parte del plan Pro. Crea una cuenta abajo para empezar; tus datos locales se conservan.")}</p>
+        </div>
+      )}
+      {st.signed_in && account.mode === "limbo" && (
+        <div className="max-w-md space-y-2 rounded-xl bg-deep p-4 ring-1 ring-amber-400/40">
+          <p className="text-sm text-mist">{t("Cuenta pendiente de activar Pro")}</p>
+          <p className="text-xs text-slate">
+            {t("Funciona solo en local. Te quedan {0} día(s); después la cuenta se elimina y vuelves al modo Invitado.", String(account.days_left))}
+          </p>
+          <button className={btnCls} disabled={busy} onClick={() => run(openCheckout)}>{t("Activar Pro")}</button>
+        </div>
+      )}
+
+      {/* 2. Clave de cifrado (según el rol de este equipo) */}
+      {st.signed_in && account.mode === "pro" && role && (
       <section className="space-y-3">
-        <h3 className="text-sm text-mist">{t("Cifrado de extremo a extremo")}</h3>
-        {st.has_key ? (
+        <h3 className="text-sm text-mist">{t("Clave de cifrado")}</h3>
+        {role.role === "none" && (
           <div className="max-w-md space-y-3">
-            <p className="text-xs text-slate">{t("Este equipo tiene la clave. Tus datos se cifran aquí antes de salir; la nube solo guarda texto ilegible.")}</p>
+            <p className="text-xs text-slate">{t("Todavía no hay sincronización en esta cuenta. Al activarla, este equipo será el Principal y generará la clave de cifrado.")}</p>
+            <button className={btnCls} disabled={busy} onClick={() => run(async () => { setRole(await syncActivate()); })}>{t("Activar sincronización")}</button>
+          </div>
+        )}
+        {role.role === "master" && (
+          <div className="max-w-md space-y-3">
+            <p className="text-xs text-slate">{t("Este equipo es el Principal: tiene la clave. Tus datos se cifran aquí antes de salir; la nube solo guarda texto ilegible.")}</p>
             <div className="flex flex-wrap gap-2">
-              <button className={ghostCls} disabled={busy} onClick={() => run(async () => { setShownKey(await vaultRecovery()); setCopied(false); })}>
-                {t("Mostrar mi clave de recuperación")}
+              <button className={ghostCls} disabled={busy} onClick={() => run(async () => { setShownKey(await syncShowKey()); setCopied(false); })}>
+                {t("Mostrar clave de sincronización")}
               </button>
-              <button className={ghostCls} disabled={busy} onClick={() => { setConfirmNew((v) => !v); setOtherKey(false); }}>
-                {t("Crear clave nueva")}
-              </button>
-              <button className={ghostCls} disabled={busy} onClick={() => { setOtherKey((v) => !v); setConfirmNew(false); }}>
-                {t("Usar otra clave de recuperación")}
-              </button>
+              <button className={ghostCls} disabled={busy} onClick={() => setConfirmNew((v) => !v)}>{t("Regenerar clave")}</button>
             </div>
             {confirmNew && (
               <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
                 <p className="text-xs text-silver">
-                  {t("Se crea una clave nueva y se vuelven a subir tus datos cifrados con ella. Los demás equipos que usen la clave anterior dejarán de sincronizar hasta que les pongas la nueva (Usar otra clave de recuperación). Tu clave anterior se conserva en este equipo para leer datos antiguos.")}
+                  {t("Se crea una clave nueva y se vuelve a cifrar todo con ella. Los demás equipos dejarán de sincronizar y te pedirán la clave nueva.")}
                 </p>
                 <div className="flex gap-2">
-                  <button className={btnCls} disabled={busy} onClick={() => run(async () => { setShownKey(await vaultRotate()); setCopied(false); setConfirmNew(false); await syncNow().catch(() => {}); })}>
-                    {t("Sí, crear clave nueva")}
+                  <button className={btnCls} disabled={busy} onClick={() => run(async () => { setShownKey(await syncRegenerateKey()); setCopied(false); setConfirmNew(false); })}>
+                    {t("Sí, regenerar clave")}
                   </button>
                   <button className={ghostCls} onClick={() => setConfirmNew(false)}>{t("Cancelar")}</button>
                 </div>
               </div>
             )}
-            {otherKey && (
-              <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-                <p className="text-xs text-silver">
-                  {t("Pega la clave de recuperación del otro equipo. Este equipo pasará a usarla y volverá a sincronizar con ella.")}
-                </p>
-                <input className={inputCls} placeholder="CSR-XXXXX-XXXXX-…" value={recovery} onChange={(e) => setRecovery(e.target.value)} />
-                <button
-                  className={btnCls}
-                  disabled={busy || !recovery.trim()}
-                  onClick={() => run(async () => { await vaultReplace(recovery); setRecovery(""); setOtherKey(false); await syncNow().catch(() => {}); })}
-                >
-                  {t("Usar esta clave")}
-                </button>
-              </div>
-            )}
           </div>
-        ) : (
-          <div className="max-w-sm space-y-3">
+        )}
+        {(role.role === "needs_key" || role.role === "member" || role.role === "revoked") && (
+          <div className="max-w-md space-y-3">
             <p className="text-xs text-slate">
-              {t("Primer equipo: crea la clave y guarda la clave de recuperación. Otro equipo: pega aquí la clave de recuperación del primero.")}
+              {role.role === "revoked"
+                ? t("La clave de esta cuenta ha cambiado. Pega la clave nueva (cópiala desde el equipo Principal) para volver a sincronizar.")
+                : t("Pega la clave de sincronización del equipo Principal para sincronizar este equipo.")}
             </p>
+            <input className={inputCls} placeholder={t("Clave de sincronización")} value={recovery} onChange={(e) => setRecovery(e.target.value)} />
             <button
               className={btnCls}
-              disabled={busy}
-              onClick={() => run(async () => { setShownKey(await vaultCreate()); setCopied(false); })}
-            >
-              {t("Crear clave")}
-            </button>
-            <input className={inputCls} placeholder="CSR-XXXXX-XXXXX-…" value={recovery} onChange={(e) => setRecovery(e.target.value)} />
-            <button
-              className={ghostCls}
               disabled={busy || !recovery.trim()}
-              onClick={() => run(async () => { await vaultRestore(recovery); setRecovery(""); })}
+              onClick={() => run(async () => { setRole(await syncEnterKey(recovery.trim())); setRecovery(""); await syncNow().catch(() => {}); })}
             >
-              {t("Restaurar con clave de recuperación")}
+              {t("Pegar clave")}
             </button>
+            <div>
+              <button className="text-xs text-slate underline hover:text-mist" disabled={busy} onClick={() => setConfirmMaster((v) => !v)}>
+                {t("Convertir este equipo en Principal")}
+              </button>
+            </div>
+            {confirmMaster && (
+              <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+                <p className="text-xs text-silver">{t("Este equipo pasará a ser el Principal y los datos de la nube se cifrarán con su clave. El Principal anterior y los demás equipos tendrán que volver a pegar la clave.")}</p>
+                <div className="flex gap-2">
+                  <button className={btnCls} disabled={busy} onClick={() => run(async () => { setRole(await syncMakeMaster()); setConfirmMaster(false); })}>{t("Sí, convertir")}</button>
+                  <button className={ghostCls} onClick={() => setConfirmMaster(false)}>{t("Cancelar")}</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {shownKey && (
           <div className="max-w-md rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-            <p className="mb-2 text-xs text-silver">{t("Guárdala en un gestor de contraseñas: sin ella no podrás recuperar tus datos en otro equipo. Puedes volver a verla con «Mostrar mi clave de recuperación».")}</p>
+            <p className="mb-2 text-xs text-silver">{t("Guárdala en un gestor de contraseñas y pégala en tus otros equipos. Puedes volver a verla con «Mostrar clave de sincronización».")}</p>
             <code className="block select-all break-all text-sm text-mist">{shownKey}</code>
             <div className="mt-3 flex gap-2">
               <button
@@ -317,7 +343,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       {st.signed_in && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <button className={ghostCls} disabled={busy || !st.has_key} onClick={() => run(syncNow)}>
+            <button className={ghostCls} disabled={busy || !st.has_key || account.mode !== "pro"} onClick={() => run(syncNow)}>
               <RefreshCw size={14} className="mr-2 inline" />
               {t("Sincronizar ahora")}
             </button>

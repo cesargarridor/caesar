@@ -1,6 +1,6 @@
 [package]
 name = "caesar"
-version = "0.11.3"
+version = "0.12.0"
 description = "Caesar - cliente API rápido y seguro"
 edition = "2021"
 rust-version = "1.77"

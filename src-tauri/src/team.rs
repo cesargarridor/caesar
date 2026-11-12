@@ -102,6 +102,7 @@ fn http_err(code: u16, what: &str) -> String {
 /// Crea la colección compartida y devuelve el código para invitar al resto.
 #[tauri::command]
 pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Result<String, String> {
+    crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let code = new_code();
@@ -128,6 +129,7 @@ pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Resu
 /// Descarga una colección de equipo con su código.
 #[tauri::command]
 pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<TeamDoc, String> {
+    crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
@@ -143,6 +145,7 @@ pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<
 /// Sube los cambios locales de una colección de equipo. Devuelve la marca de tiempo escrita.
 #[tauri::command]
 pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: String) -> Result<i64, String> {
+    crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
@@ -169,6 +172,7 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
 /// Consulta si hay cambios más nuevos que `since`. `None` = nada nuevo. Error "NOT_FOUND" = el dueño la eliminó.
 #[tauri::command]
 pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64) -> Result<Option<TeamDoc>, String> {
+    crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;

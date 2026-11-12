@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
+import { useAccount } from "../lib/account";
 
 // Colores de método FIJOS: no cambian con el tema.
 export const METHOD_COLORS: Record<string, string> = {
@@ -98,7 +99,7 @@ function RenameInput({ initial, onDone, onCancel }: { initial: string; onDone: (
   );
 }
 
-function IconBtn({ title, onClick, children, danger }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
+function IconBtn({ title, onClick, children, danger, disabled }: { title: string; onClick: () => void; children: React.ReactNode; danger?: boolean; disabled?: boolean }) {
   return (
     <button
       title={title}
@@ -106,7 +107,8 @@ function IconBtn({ title, onClick, children, danger }: { title: string; onClick:
         e.stopPropagation();
         onClick();
       }}
-      className={`p-0.5 ${danger ? "text-rose" : "text-slate hover:text-mist"}`}
+      aria-disabled={disabled}
+      className={`p-0.5 ${disabled ? "cursor-not-allowed text-slate opacity-40" : danger ? "text-rose" : "text-slate hover:text-mist"}`}
     >
       {children}
     </button>
@@ -116,6 +118,7 @@ function IconBtn({ title, onClick, children, danger }: { title: string; onClick:
 /** Componente recursivo: Colección -> Carpetas -> Requests, con colapso y acciones al pasar el ratón. */
 export default function SidebarTree(props: Props) {
   const { node, path, depth, selectedPath, renaming } = props;
+  const guest = useAccount().account.mode === "guest";
   const [confirm, setConfirm] = useState(false);
   const indent = 8 + depth * 14;
   const isCollection = depth === 0;
@@ -189,7 +192,7 @@ export default function SidebarTree(props: Props) {
                   <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
                   {depth === 0 && (node.team
                     ? <IconBtn title={t("Equipo: código y opciones")} onClick={() => props.onTeamInfo(path)}><Users size={14} /></IconBtn>
-                    : <IconBtn title={t("Compartir con un equipo")} onClick={() => props.onShare(path)}><Share2 size={14} /></IconBtn>)}
+                    : <IconBtn disabled={guest} title={guest ? t("Compartir con un equipo (requiere el plan Pro)") : t("Compartir con un equipo")} onClick={() => !guest && props.onShare(path)}><Share2 size={14} /></IconBtn>)}
                   {depth === 0 && <IconBtn title={t("Exportar colección (JSON)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
                 </>
               )}

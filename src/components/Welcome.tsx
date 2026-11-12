@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, Cloud, HardDrive } from "lucide-react";
 import CatLogo from "./CatLogo";
 import SocialButtons from "./SocialButtons";
 import { openUrl, syncSignIn, syncStatus, type SyncStatus } from "../api";
+import { openCheckout, useAccount } from "../lib/account";
 import { t, useLang } from "../lib/i18n";
 import { PRIVACY_URL, TERMS_URL, markOnboarded } from "../lib/legal";
 
@@ -20,6 +21,9 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Cuenta creada pero sin pagar (limbo): aviso antes de entrar. */
+  const [limbo, setLimbo] = useState(false);
+  const { refresh } = useAccount();
 
   const finish = () => {
     markOnboarded();
@@ -37,12 +41,19 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const run = async (fn: () => Promise<void>) => {
+  const run = async (fn: () => Promise<string | void>) => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await fn();
+      const r = await fn();
+      const a = await refresh(); // modo real tras el login (también para Google/GitHub)
+      const m = typeof r === "string" ? r : a.mode;
+      if (m === "limbo" && !a.whitelisted && !a.is_pro) {
+        setLimbo(true); // sin pagar: funciona solo en local 7 días
+        openCheckout().catch(() => {});
+        return;
+      }
       finish(); // la sync arranca sola con la sesión (trabajador existente)
     } catch (e) {
       setError(errText(e));
@@ -92,25 +103,42 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
               {up ? t("Ya tengo cuenta") : t("Crear una cuenta")}
             </button>
           </form>
-        ) : (
-          <div className="space-y-3">
-            {accountsOn && (
-              <>
-                <button onClick={() => setMode("signin")} className="btn-aurora w-full px-4 py-2.5 font-semibold">
-                  {t("Iniciar sesión")}
-                </button>
-                <button onClick={() => setMode("signup")} className="w-full rounded-[10px] bg-kelp px-4 py-2.5 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">
-                  {t("Registrarse")}
-                </button>
-                <SocialButtons st={st} busy={busy} run={run} />
-              </>
-            )}
-            <button onClick={finish} className={accountsOn ? "w-full rounded-[10px] px-4 py-2.5 text-sm text-silver hover:text-mist" : "btn-aurora w-full px-4 py-2.5 font-semibold"}>
-              {t("Continuar como invitado")}
-            </button>
-            <p className="px-2 text-xs text-slate">
-              {t("Como invitado, tus datos se guardan solo en este dispositivo. Si lo borras o cambias de equipo, los perderás.")}
+        ) : limbo ? (
+          <div className="space-y-4 text-left">
+            <h3 className="text-lg text-mist">{t("Cuenta creada")}</h3>
+            <p className="text-sm text-silver">
+              {t("Se ha abierto tu navegador para activar el plan Pro. Mientras no lo actives, Caesar funciona solo en local durante 7 días; pasado ese plazo la cuenta se elimina y vuelves al modo Invitado.")}
             </p>
+            <button onClick={() => void openCheckout().catch(() => {})} className="w-full rounded-[10px] bg-kelp px-4 py-2.5 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">
+              {t("Abrir página de pago otra vez")}
+            </button>
+            <button onClick={finish} className="btn-aurora w-full px-4 py-2.5 font-semibold">{t("Entrar en modo local")}</button>
+          </div>
+        ) : (
+          <div className="space-y-3 text-left">
+            <button onClick={finish} className="w-full rounded-[14px] bg-kelp p-4 text-left ring-1 ring-fg/10 hover:ring-fg/30">
+              <span className="flex items-center gap-2 text-sm font-semibold text-mist"><HardDrive size={16} /> {t("Continuar como Invitado (Local)")}</span>
+              <span className="mt-1 block text-xs text-slate">
+                {t("Sin cuenta. Tus datos se guardan solo en este dispositivo (si lo borras o cambias de equipo, los perderás). Un espacio de trabajo, sin compartir con equipos ni sincronizar.")}
+              </span>
+            </button>
+            {accountsOn && (
+              <div className="rounded-[14px] bg-kelp p-4 ring-1 ring-aqua/40">
+                <span className="flex items-center gap-2 text-sm font-semibold text-mist"><Cloud size={16} /> {t("Cuenta Pro / Iniciar sesión")}</span>
+                <ul className="mt-2 space-y-1 text-xs text-slate">
+                  {[t("Sincronización cifrada entre tus equipos"), t("Espacios de trabajo ilimitados"), t("Compartir colecciones y espacios con tu equipo")].map((x) => (
+                    <li key={x} className="flex items-center gap-1.5"><Check size={12} className="text-aqua" /> {x}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-slate">{t("Al crear la cuenta tienes 7 días para activar Pro; mientras tanto funciona en local.")}</p>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => setMode("signin")} className="btn-aurora flex-1 px-4 py-2 text-sm font-semibold">{t("Iniciar sesión")}</button>
+                  <button onClick={() => setMode("signup")} className="flex-1 rounded-[10px] bg-deep px-4 py-2 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">{t("Crear cuenta")}</button>
+                </div>
+                <div className="mt-3"><SocialButtons st={st} busy={busy} run={run} /></div>
+                {error && <p className="mt-2 text-xs text-rose">{error}</p>}
+              </div>
+            )}
           </div>
         )}
 

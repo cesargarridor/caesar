@@ -26,17 +26,18 @@ async function validSignature(raw, signature, secret) {
   return diff === 0;
 }
 
-let cached = { token: "", exp: 0 };
+const cached = {}; // por scope: { token, exp }
 
 /** Token de acceso de Google a partir de la cuenta de servicio (JWT firmado con RS256). */
-async function googleToken(sa) {
+async function googleToken(sa, scope = "https://www.googleapis.com/auth/datastore") {
   const now = Math.floor(Date.now() / 1000);
-  if (cached.token && cached.exp - 60 > now) return cached.token;
+  const c = cached[scope];
+  if (c && c.token && c.exp - 60 > now) return c.token;
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claim = b64url(
     JSON.stringify({
       iss: sa.client_email,
-      scope: "https://www.googleapis.com/auth/datastore",
+      scope,
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,
@@ -53,8 +54,8 @@ async function googleToken(sa) {
   });
   if (!res.ok) throw new Error(`Google token ${res.status}`);
   const j = await res.json();
-  cached = { token: j.access_token, exp: now + (j.expires_in || 3600) };
-  return cached.token;
+  cached[scope] = { token: j.access_token, exp: now + (j.expires_in || 3600) };
+  return cached[scope].token;
 }
 
 /** ¿Debe tener acceso de pago ahora mismo según este estado de Lemon Squeezy? */
@@ -66,11 +67,224 @@ function isActive(attrs) {
   return false; // expired, unpaid, paused
 }
 
-export default {
-  async fetch(request, env) {
-    if (request.method !== "POST") return new Response("Caesar billing webhook", { status: 200 });
+// ---------------------------------------------------------------------------------------------------------------------
+// Limpieza horaria de cuentas de prueba caducadas (Cron Trigger).
+// Borra de Firebase Auth las cuentas con más de 7 días que NO sean whitelist (users/{uid}.isWhitelistMember) ni tengan
+// suscripción activa (users/{uid}/billing/status.active). La whitelist vive solo en Firestore.
+// Variables extra: DRY_RUN="1" (solo loguea, no borra), MAX_DELETES (por defecto 2000),
+// MAX_SUBREQUESTS (por defecto 45; plan gratis = 50 por invocación). Todo en lote: batchGet Auth, documents:batchGet, batchDelete.
+// ---------------------------------------------------------------------------------------------------------------------
 
-    const raw = await request.text();
+export const TRIAL_DAYS = 7;
+export const DEFAULT_MAX_DELETES = 2000;
+export const DEFAULT_MAX_SUBREQUESTS = 45;
+const USERS_PER_READ = 100; // 200 docs (user + billing) por documents:batchGet
+const WAVE = 500; // candidatas por ronda (lectura → relectura → borrado)
+const DELETE_CHUNK = 500; // localIds por accounts:batchDelete (máx 1000)
+const CLOUD_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+
+/** ¿La cuenta se creó hace más de 7 días? */
+export function isExpired(createdAtMs, now = Date.now()) {
+  const c = Number(createdAtMs);
+  if (!Number.isFinite(c) || c <= 0) return false; // sin fecha fiable: nunca caducada
+  return c < now - TRIAL_DAYS * 86400000;
+}
+
+/** Decisión pura: ¿borrar? (caducada y ni whitelist ni de pago). */
+export function shouldDelete({ createdAtMs, isWhitelistMember, billingActive }, now = Date.now()) {
+  return isExpired(createdAtMs, now) && isWhitelistMember !== true && billingActive !== true;
+}
+
+/** Estado de un doc leído en lote. */
+const billingIsActive = (f) => f.active?.booleanValue === true || f.status?.stringValue === "active";
+
+/** Lista todos los usuarios de Firebase Auth paginando (1 subrequest por página de 1000). Para si se agota el presupuesto. */
+async function listAllUsers(env, token, budget) {
+  const users = [];
+  let page = "";
+  do {
+    if (!budget.spend()) {
+      console.warn("Presupuesto de subrequests agotado durante el listado; se continuará en la siguiente ejecución");
+      break;
+    }
+    const url =
+      `https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT}/accounts:batchGet?maxResults=1000` +
+      (page ? `&nextPageToken=${encodeURIComponent(page)}` : "");
+    const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Auth batchGet ${res.status}`);
+    const j = await res.json();
+    users.push(...(j.users || []));
+    page = j.nextPageToken || "";
+  } while (page);
+  return users;
+}
+
+/**
+ * Lee users/{uid} y users/{uid}/billing/status de varios uids con Firestore documents:batchGet (1 subrequest por trozo).
+ * Devuelve Map uid → {isWhitelistMember, billingActive} o {error}. Sin respuesta fiable → error (duda → no borrar).
+ * Si el presupuesto no alcanza, los uids sin leer NO aparecen en el mapa.
+ */
+async function readExemptions(env, token, uids, budget) {
+  const out = new Map();
+  const base = `projects/${env.FIREBASE_PROJECT}/databases/(default)/documents`;
+  for (let i = 0; i < uids.length; i += USERS_PER_READ) {
+    const chunk = uids.slice(i, i + USERS_PER_READ);
+    if (!budget.spend()) break;
+    try {
+      const res = await fetch(`https://firestore.googleapis.com/v1/${base}:batchGet`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ documents: chunk.flatMap((u) => [`${base}/users/${u}`, `${base}/users/${u}/billing/status`]) }),
+      });
+      if (!res.ok) throw new Error(`Firestore batchGet ${res.status}`);
+      const arr = await res.json();
+      const docs = new Map(); // ruta relativa → fields ({} si no existe)
+      for (const r of Array.isArray(arr) ? arr : []) {
+        if (r.found?.name) docs.set(r.found.name.slice(base.length + 1), r.found.fields || {});
+        else if (r.missing) docs.set(String(r.missing).slice(base.length + 1), {});
+      }
+      for (const u of chunk) {
+        const user = docs.get(`users/${u}`);
+        const bill = docs.get(`users/${u}/billing/status`);
+        if (user === undefined || bill === undefined) out.set(u, { error: "respuesta incompleta" });
+        else out.set(u, { isWhitelistMember: user.isWhitelistMember?.booleanValue === true, billingActive: billingIsActive(bill) });
+      }
+    } catch (e) {
+      for (const u of chunk) out.set(u, { error: e.message });
+    }
+  }
+  return out;
+}
+
+/** Ejecuta la limpieza. Devuelve el resumen {revisados, exentos, borrados, errores[, restantes]}. */
+export async function cleanupExpiredAccounts(env, now = Date.now()) {
+  const dryRun = String(env.DRY_RUN || "") === "1";
+  const max = Number(env.MAX_DELETES) > 0 ? Number(env.MAX_DELETES) : DEFAULT_MAX_DELETES;
+  const limit = Number(env.MAX_SUBREQUESTS) > 0 ? Math.floor(Number(env.MAX_SUBREQUESTS)) : DEFAULT_MAX_SUBREQUESTS;
+  const budget = { left: limit, spend() { if (this.left <= 0) return false; this.left--; return true; } };
+  const summary = { revisados: 0, exentos: 0, borrados: 0, errores: 0 };
+  const sa = JSON.parse(env.FIREBASE_SA);
+  budget.spend(); // token OAuth
+  const token = await googleToken(sa, CLOUD_SCOPE);
+  const users = await listAllUsers(env, token, budget);
+  summary.revisados = users.length;
+
+  const candidates = users.filter((u) => u.localId && isExpired(u.createdAt, now));
+  const resolved = new Set();
+  const byId = new Map(candidates.map((u) => [u.localId, u]));
+  const isDeletable = (u, ex) => !ex.error && shouldDelete({ createdAtMs: u.createdAt, ...ex }, now);
+
+  let idx = 0;
+  while (idx < candidates.length && summary.borrados < max && budget.left > 0) {
+    const wave = candidates.slice(idx, idx + Math.min(WAVE, max - summary.borrados));
+    idx += wave.length;
+    const ids = wave.map((u) => u.localId);
+
+    // 1ª lectura en lote
+    const first = await readExemptions(env, token, ids, budget);
+    const pending = [];
+    for (const id of ids) {
+      const ex = first.get(id);
+      if (!ex) continue; // sin presupuesto: queda para la siguiente ejecución
+      if (ex.error) { summary.errores++; resolved.add(id); console.error(`No se borra ${id}: ${ex.error}`); }
+      else if (!isDeletable(byId.get(id), ex)) { summary.exentos++; resolved.add(id); }
+      else pending.push(id);
+    }
+    if (!pending.length) continue;
+
+    // Anti-carrera: relectura en lote justo antes de borrar (webhook de pago tardío)
+    const second = await readExemptions(env, token, pending, budget);
+    const toDelete = [];
+    for (const id of pending) {
+      const ex = second.get(id);
+      if (!ex) continue;
+      if (ex.error) { summary.errores++; resolved.add(id); console.error(`No se borra ${id}: ${ex.error}`); }
+      else if (!isDeletable(byId.get(id), ex)) { summary.exentos++; resolved.add(id); }
+      else toDelete.push(id);
+    }
+
+    // Borrado en lote
+    for (let i = 0; i < toDelete.length; i += DELETE_CHUNK) {
+      const chunk = toDelete.slice(i, i + DELETE_CHUNK);
+      if (dryRun) {
+        for (const id of chunk) console.log(`[DRY_RUN] borraría ${id} (${byId.get(id).email || "sin email"})`);
+        summary.borrados += chunk.length;
+        chunk.forEach((id) => resolved.add(id));
+        continue;
+      }
+      if (!budget.spend()) break;
+      try {
+        const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT}/accounts:batchDelete`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ localIds: chunk, force: true }),
+        });
+        if (!res.ok) throw new Error(`Auth batchDelete ${res.status}`);
+        const j = await res.json().catch(() => ({}));
+        const failed = new Set();
+        for (const e of j.errors || []) {
+          const id = e.localId || chunk[Number(e.index)];
+          if (id) failed.add(id);
+          console.error(`No se borra ${id}: ${e.message || "error"}`);
+        }
+        for (const id of chunk) {
+          resolved.add(id);
+          if (failed.has(id)) summary.errores++;
+          else { summary.borrados++; console.log(`Borrada ${id} (${byId.get(id).email || "sin email"})`); }
+        }
+      } catch (e) {
+        for (const id of chunk) { resolved.add(id); summary.errores++; }
+        console.error(`batchDelete fallido: ${e.message}`);
+      }
+    }
+  }
+
+  const restantes = candidates.filter((u) => !resolved.has(u.localId)).length;
+  if (restantes > 0) {
+    summary.restantes = restantes;
+    console.warn(`Quedan ${restantes} candidatas sin procesar (límite de ${max} borrados o de ${limit} subrequests); se continuará en la siguiente ejecución`);
+  }
+  console.log(`Limpieza${dryRun ? " (DRY_RUN)" : ""}: ${JSON.stringify(summary)}`);
+  return summary;
+}
+
+const MAX_BODY = 100 * 1024;
+
+/** Lee el cuerpo con tope de bytes; devuelve null si lo supera. */
+async function readLimited(request, limit) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) { reader.cancel().catch(() => {}); return null; }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let o = 0;
+  for (const c of chunks) { all.set(c, o); o += c.byteLength; }
+  return new TextDecoder().decode(all);
+}
+
+export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      cleanupExpiredAccounts(env).catch((e) => console.error(`Limpieza fallida: ${e.message}`)),
+    );
+  },
+
+  async fetch(request, env) {
+    if (request.method === "GET") return new Response("Caesar billing webhook", { status: 200 });
+    if (request.method !== "POST") return new Response("Método no permitido", { status: 405, headers: { allow: "GET, POST" } });
+    const len = Number(request.headers.get("content-length"));
+    if (Number.isFinite(len) && len > MAX_BODY) return new Response("Cuerpo demasiado grande", { status: 413 });
+
+    const raw = await readLimited(request, MAX_BODY);
+    if (raw === null) return new Response("Cuerpo demasiado grande", { status: 413 });
+    // Sin llamadas a Firebase/Google antes de validar la firma.
     if (!(await validSignature(raw, request.headers.get("X-Signature") || "", env.LS_WEBHOOK_SECRET))) {
       return new Response("Firma no válida", { status: 401 });
     }

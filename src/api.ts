@@ -52,8 +52,9 @@ export interface SyncStatus {
 }
 export const syncStatus = () => invoke<SyncStatus>("sync_status");
 export const localSave = (json: string) => invoke<void>("local_save", { json });
+/** Devuelve el modo resultante: "pro" o "limbo" (cuenta sin pagar, prueba de 7 días). */
 export const syncSignIn = (email: string, password: string, create: boolean) =>
-  invoke<void>("sync_sign_in", { email, password, create });
+  invoke<string>("sync_sign_in", { email, password, create });
 export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
 export const syncGoogle = () => invoke<void>("sync_google");
 export const syncLinkConfirm = (password: string) => invoke<void>("sync_link_confirm", { password });
@@ -72,6 +73,22 @@ export const vaultRestore = (recovery: string) => invoke<void>("vault_restore", 
 export const vaultRecovery = () => invoke<string>("vault_recovery");
 export const vaultRotate = () => invoke<string>("vault_rotate");
 export const vaultReplace = (recovery: string) => invoke<void>("vault_replace", { recovery });
+
+// Cuenta / plan (la red la hace Rust).
+export type AccountMode = "guest" | "limbo" | "pro";
+export interface AccountState { mode: AccountMode; is_pro: boolean; whitelisted: boolean; days_left: number; deleted: boolean; email: string }
+export const checkTrialAndWhitelist = () => invoke<AccountState>("check_trial_and_whitelist");
+export const accountState = () => invoke<AccountState>("account_state");
+export const syncLinkIdp = (provider: "google.com" | "github.com") => invoke<string>("sync_link_idp", { provider });
+export interface SyncRole { role: "none" | "master" | "member" | "needs_key" | "revoked"; device_id: string; master_device_id: string | null; has_key: boolean }
+export const syncRole = () => invoke<SyncRole>("sync_role");
+export const syncActivate = () => invoke<SyncRole>("sync_activate");
+export const syncEnterKey = (key: string) => invoke<SyncRole>("sync_enter_key", { key });
+export const syncMakeMaster = () => invoke<SyncRole>("sync_make_master");
+export const syncShowKey = () => invoke<string>("sync_show_key");
+export const syncRegenerateKey = () => invoke<string>("sync_regenerate_key");
+export const onAccountLinked = (cb: (email: string) => void) => listen<string>("account-linked", (e) => cb(e.payload));
+export const onLinkGithubCode = (cb: (d: DeviceCode) => void) => listen<DeviceCode>("link-github-code", (e) => cb(e.payload));
 export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync-remote", (e) => cb(e.payload));
 
 // Actualizaciones: la red la hace Rust (paquetes firmados); aquí solo se invocan los comandos.
