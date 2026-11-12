@@ -1,6 +1,6 @@
 # Avisos de terceros y licencias de los temas
 
-Caesar es software libre bajo la [licencia MIT](LICENSE). Este archivo recoge el origen y la licencia de los esquemas
+Caesar se publica bajo la [Functional Source License (FSL-1.1-MIT)](LICENSE): código disponible, no es de código abierto y está prohibido venderlo. Este archivo recoge el origen y la licencia de los esquemas
 de color que incluye el selector de temas (Ajustes → Tema). Solo se usan **paletas de colores** (valores hexadecimales);
 no se copia código, iconos ni imágenes de esos proyectos.
 
@@ -59,7 +59,7 @@ Si eres el autor y prefieres que se retire o se cambie el nombre, abre una incid
 
 ## Tema Caesar
 
-El tema «Caesar» (colores, gatito y degradados) es original del proyecto y se publica bajo la licencia MIT del repositorio.
+El tema «Caesar» (colores, gatito y degradados) es original del proyecto y se publica bajo la licencia FSL-1.1-MIT del repositorio.
 
 ## Otros componentes
 
