@@ -147,14 +147,14 @@ export default function RequestTabs({ req, patch, inherited }: Props) {
               </select>
             </label>
             <label className="flex items-center gap-2">
-              {t("Timeout (segundos, 0 = sin límite)")}
+              {t("Timeout (segundos, 0 = 1 hora, máx. 3600)")}
               <input
                 type="number"
                 min={0}
                 className={box}
                 value={req.settings.timeoutSecs}
                 onChange={(e) =>
-                  patch({ settings: { ...req.settings, timeoutSecs: Math.max(0, Math.floor(Number(e.target.value)) || 0) } })
+                  patch({ settings: { ...req.settings, timeoutSecs: Math.min(3600, Math.max(0, Math.floor(Number(e.target.value)) || 0)) } })
                 }
               />
             </label>
