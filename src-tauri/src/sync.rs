@@ -376,8 +376,10 @@ async fn restore_identity(st: &SyncState) -> Result<(), String> {
     let ok = res.status().is_success();
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).unwrap_or(Value::Null);
     if !ok {
-        // Sin red no se cierra la sesión; solo si el servidor la rechaza.
-        if v["error"]["message"].is_string() {
+        // La sesión no caduca sola: solo se cierra si el servidor dice que el token ya no vale (contraseña cambiada,
+        // cuenta borrada o desactivada). Sin red o ante un error pasajero del servidor se conserva.
+        let code = v["error"]["message"].as_str().unwrap_or("");
+        if matches!(code, "TOKEN_EXPIRED" | "USER_DISABLED" | "USER_NOT_FOUND" | "INVALID_REFRESH_TOKEN" | "MISSING_REFRESH_TOKEN") {
             clear_refresh();
             *st.session.lock().map_err(|_| "bloqueado")? = None;
         }
