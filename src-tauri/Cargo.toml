@@ -17,7 +17,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 open = "5"
 tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs"] }
 url = "2"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart", "gzip", "deflate"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "multipart", "gzip", "deflate"] }
 
 # Cifrado de extremo a extremo y vinculación de dispositivos (ver src/vault.rs)
 aes-gcm = "0.10"

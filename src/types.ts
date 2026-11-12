@@ -39,6 +39,8 @@ export interface Settings {
   followRedirects: boolean;
   timeoutSecs: number;
   verifySsl: boolean;
+  /** Versión de HTTP: automática (por defecto), 1.1 o 2. Opcional: lo guardado antes no la tiene. */
+  httpVersion?: "auto" | "1.1" | "2";
 }
 
 /** Estado editable de una petición. `url` es la base SIN query; los params viven en `params`. */

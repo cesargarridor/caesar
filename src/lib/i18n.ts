@@ -69,6 +69,8 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Versión de HTTP": ["HTTP version", "HTTP-Version", "Version HTTP", "Versione HTTP"],
+  "Automática": ["Auto", "Automatisch", "Automatique", "Automatica"],
   "Edición y atajos": ["Editing & shortcuts", "Bearbeiten & Tastenkürzel", "Édition et raccourcis", "Modifica e scorciatoie"],
   "Autoguardado": ["Autosave", "Automatisch speichern", "Enregistrement auto", "Salvataggio automatico"],
   "Guarda solo en la colección las peticiones que ya están en ella, un instante después de dejar de editar. Los borradores nuevos se siguen guardando con Ctrl+S.": ["Saves requests that already belong to a collection a moment after you stop editing. New drafts are still saved with Ctrl+S.", "Speichert Anfragen, die schon in einer Sammlung sind, kurz nach dem Bearbeiten. Neue Entwürfe werden weiterhin mit Strg+S gespeichert.", "Enregistre les requêtes déjà dans une collection peu après la fin de la modification. Les nouveaux brouillons s’enregistrent toujours avec Ctrl+S.", "Salva le richieste già in una raccolta poco dopo aver smesso di modificare. Le nuove bozze si salvano ancora con Ctrl+S."],
