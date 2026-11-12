@@ -31,6 +31,11 @@ interface Props extends TreeActions {
   onAddWs: (name: string) => void;
   onRenameWs: (id: string, name: string) => void;
   onDeleteWs: (id: string) => void;
+  onShareWs: () => void;
+  onInfoWs: () => void;
+  onJoinWs: (code: string) => Promise<void>;
+  onRefreshWs: () => void;
+  refreshingWs: boolean;
   onImport: () => void;
   onNewCollection: () => void;
   onSettings: () => void;
@@ -40,7 +45,7 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
   const [showColl, setShowColl] = useState(false);
@@ -173,7 +178,7 @@ export default function Sidebar({
           <CatLogo size={30} />
           <span className="cosmic-text">Caesar</span>
         </div>
-        <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} />
+        <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} onShare={onShareWs} onInfo={onInfoWs} onJoin={onJoinWs} onRefresh={onRefreshWs} refreshing={refreshingWs} />
         <div className="relative flex shrink-0 gap-2">
           <button
             onClick={onImport}

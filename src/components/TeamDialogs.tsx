@@ -161,6 +161,65 @@ export function ShareDialog({
   );
 }
 
+/** Aviso previo a compartir un espacio entero: pasa a ser de todo el equipo. Las variables solo se comparten si se elige. */
+export function ShareWorkspaceDialog({
+  name, onClose, onConfirm,
+}: { name: string; onClose: () => void; onConfirm: (includeVars: boolean) => Promise<string> }) {
+  const [ack, setAck] = useState(false);
+  const [vars, setVars] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (code) {
+    return (
+      <Shell title={t("Espacio compartido")} onClose={onClose}>
+        <p className="mb-4 text-sm text-silver">{t("Pasa este código a tu equipo. Cada persona lo pega en el selector de espacios → «Unirme a un espacio con un código».")}</p>
+        <CodeBox code={code} />
+        <div className="mt-6 flex justify-end"><button onClick={onClose} className="btn-aurora px-6 py-2.5 font-semibold">{t("Listo")}</button></div>
+      </Shell>
+    );
+  }
+  return (
+    <Shell title={t("Compartir «{0}» con el equipo", name)} onClose={onClose}>
+      <div className="space-y-3 text-sm text-silver">
+        <p>{t("Todo el espacio (sus colecciones) pasará a ser de quienes tengan el código: cualquiera podrá editarlo y los cambios se sincronizan al guardar y al pulsar Actualizar.")}</p>
+        <p className="text-lav">{t("Si quien lo comparte elimina su cuenta, el espacio se elimina de la nube para todos y no se puede recuperar.")}</p>
+      </div>
+      <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-silver">
+        <input type="checkbox" checked={vars} onChange={(e) => setVars(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
+        <span>
+          {t("Compartir también las variables del espacio")}
+          <span className="block text-xs text-slate">{t("Pueden contener claves o tokens. Si no lo marcas, cada persona conserva las suyas.")}</span>
+        </span>
+      </label>
+      <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-silver">
+        <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-1 accent-[var(--t-accent)]" />
+        {t("Entiendo que el espacio pasa a ser de todo el equipo.")}
+      </label>
+      {err && <p className="mt-3 text-xs text-rose">{err}</p>}
+      <div className="mt-6 flex justify-end gap-3">
+        <button onClick={onClose} className={ghost}>{t("Cancelar")}</button>
+        <button
+          disabled={!ack || busy}
+          onClick={async () => {
+            setBusy(true);
+            setErr(null);
+            try {
+              setCode(await onConfirm(vars));
+            } catch (e) {
+              setErr(errText(e));
+              setBusy(false);
+            }
+          }}
+          className="btn-aurora flex items-center gap-2 px-6 py-2.5 font-semibold disabled:opacity-40"
+        >
+          <Users size={16} /> {busy ? t("Compartiendo…") : t("Compartir")}
+        </button>
+      </div>
+    </Shell>
+  );
+}
+
 /** Código de una colección de equipo y, según el rol, dejar de compartir o salir. */
 export function TeamInfoDialog({
   name, code, owner, onClose, onLeave,
