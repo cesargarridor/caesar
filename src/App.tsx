@@ -10,8 +10,10 @@ import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import VarPicker from "./components/VarPicker";
+import { NewCollectionDialog, ShareDialog, TeamInfoDialog } from "./components/TeamDialogs";
+import { normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import {
-  appVersion, checkUpdate, executeRequest, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkUpdate, executeRequest, teamJoin, teamPublish, teamUnshare, installUpdate, parsePostmanContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
@@ -337,6 +339,52 @@ export default function App() {
     }
   };
 
+  // ───── colecciones de equipo ─────
+  const [teamDialog, setTeamDialog] = useState<null | { kind: "new" } | { kind: "share" | "info"; path: string }>(null);
+  const team = useTeamSync(collections, setCollections, (kind, text) => setNotice({ kind, text }));
+
+  const handleJoin = async (code: string) => {
+    const norm = normCode(code);
+    if (collections.some((c) => c.type === "folder" && c.team && normCode(c.team.code) === norm)) throw new Error(t("Ya tienes esa colección de equipo."));
+    const doc = await teamJoin(code);
+    const root = JSON.parse(doc.json) as TreeNode;
+    if (root.type !== "folder") throw new Error(t("La colección del equipo no es válida."));
+    const [withId] = ensureIds([{ ...root, team: { code: norm, owner: doc.owner, seen: doc.updatedAt } }]);
+    team.markSynced(norm, JSON.stringify(root));
+    setCollections((c) => [...c, withId]);
+    setTeamDialog(null);
+    openFolder(withId.type === "folder" ? withId.uid : undefined);
+  };
+
+  const handleShare = async (path: string): Promise<string> => {
+    const node = getAt(collections, path);
+    if (!node || node.type !== "folder") throw new Error(t("Colección no encontrada."));
+    const json = teamJson(node);
+    const code = await teamPublish(json);
+    const norm = normCode(code);
+    team.markSynced(norm, json);
+    setCollections((c) => updateAt(c, path, (n) => (n.type === "folder" ? { ...n, team: { code: norm, owner: true, seen: Date.now() } } : n)));
+    return code;
+  };
+
+  const handleLeaveTeam = async (path: string) => {
+    const node = getAt(collections, path);
+    if (!node || node.type !== "folder" || !node.team) return;
+    if (node.team.owner) await teamUnshare(node.team.code);
+    team.forget(node.team.code);
+    setCollections((c) => updateAt(c, path, (n) => { if (n.type !== "folder") return n; const { team: _t, ...rest } = n; void _t; return rest as TreeNode; }));
+    setTeamDialog(null);
+  };
+
+  /** Copia de seguridad previa a compartir: lanza error si no se guardó. */
+  const backupBeforeShare = async (path: string, format: ExportFormat) => {
+    const node = getAt(collections, path);
+    if (!node) return;
+    const text = format === "yaml" ? exportInsomniaYaml(node, vars) : format === "har" ? exportHar(node, vars) : exportCollection(node, vars);
+    const saved = await saveTextFile(exportFileName(node.name, format), text, exportExt(format));
+    if (!saved) throw new Error(t("No se guardó la copia de seguridad."));
+  };
+
   const handleNewCollection = () => {
     const node = newFolderNode(t("Nueva colección"));
     setRenamingPath(String(collections.length));
@@ -601,7 +649,9 @@ export default function App() {
           setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a } : n)))
         }
         onImport={handleImport}
-        onNewCollection={handleNewCollection}
+        onNewCollection={() => setTeamDialog({ kind: "new" })}
+        onShare={(path) => setTeamDialog({ kind: "share", path })}
+        onTeamInfo={(path) => setTeamDialog({ kind: "info", path })}
         onSettings={() => setShowSettings(true)}
         width={sidebarW}
         onWidth={setSidebarW}
@@ -710,6 +760,25 @@ export default function App() {
         )}
         {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
         <VarPicker vars={effVars} />
+        {teamDialog?.kind === "new" && (
+          <NewCollectionDialog
+            onClose={() => setTeamDialog(null)}
+            onOwn={() => { setTeamDialog(null); handleNewCollection(); }}
+            onJoin={handleJoin}
+          />
+        )}
+        {teamDialog?.kind === "share" && (() => {
+          const n = getAt(collections, teamDialog.path);
+          return n ? (
+            <ShareDialog name={n.name} onClose={() => setTeamDialog(null)} onExport={(f) => backupBeforeShare(teamDialog.path, f)} onConfirm={() => handleShare(teamDialog.path)} />
+          ) : null;
+        })()}
+        {teamDialog?.kind === "info" && (() => {
+          const n = getAt(collections, teamDialog.path);
+          return n && n.type === "folder" && n.team ? (
+            <TeamInfoDialog name={n.name} code={n.team.code} owner={n.team.owner} onClose={() => setTeamDialog(null)} onLeave={() => handleLeaveTeam(teamDialog.path)} />
+          ) : null;
+        })()}
         {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
     </div>

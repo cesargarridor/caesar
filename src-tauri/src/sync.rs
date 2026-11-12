@@ -33,9 +33,9 @@ const PULL_EVERY: u32 = 10;
 const MAX_BLOB: usize = 880_000;
 
 #[derive(Deserialize)]
-struct Cfg {
+pub(crate) struct Cfg {
     #[serde(rename = "projectId")]
-    project_id: String,
+    pub(crate) project_id: String,
     #[serde(rename = "apiKey")]
     api_key: String,
     /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
@@ -46,7 +46,7 @@ struct Cfg {
     checkout_url: String,
 }
 
-fn cfg() -> Option<Cfg> {
+pub(crate) fn cfg() -> Option<Cfg> {
     let c: Cfg = serde_json::from_str(CONFIG).ok()?;
     (!c.project_id.is_empty() && !c.api_key.is_empty()).then_some(c)
 }
@@ -68,7 +68,7 @@ pub struct SyncState {
     last_remote: Mutex<i64>,
     last_sync: Mutex<i64>,
     last_error: Mutex<Option<String>>,
-    client: reqwest::Client,
+    pub(crate) client: reqwest::Client,
 }
 
 impl Default for SyncState {
@@ -166,7 +166,7 @@ fn session_from(v: &Value, fallback_email: &str) -> Result<Session, String> {
 }
 
 /// Devuelve (uid, idToken) válidos, renovando el token si hace falta.
-async fn valid_token(st: &SyncState) -> Result<(String, String), String> {
+pub(crate) async fn valid_token(st: &SyncState) -> Result<(String, String), String> {
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok, refresh, fresh) = {
         let g = st.session.lock().map_err(|_| "Estado bloqueado")?;
@@ -617,6 +617,8 @@ pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> 
 pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), String> {
     let c = cfg().ok_or("Sincronización no configurada.")?;
     let (uid, tok) = valid_token(&st).await?;
+    // Las colecciones de equipo creadas por esta cuenta se eliminan con ella.
+    crate::team::delete_owned(&st, &uid, &tok).await?;
     for doc in ["sync/main", "billing/status"] {
         let url = format!(
             "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/{doc}",
