@@ -73,3 +73,4 @@ section{scroll-margin-top:70px}
 .hero p{margin:.4em 0}
 .hero .lead{max-width:36rem}
 .card span{display:block}
+pre{background:var(--code);color:var(--yellow);padding:12px 14px;border-radius:10px;overflow-x:auto;font-size:.88em;line-height:1.5}
