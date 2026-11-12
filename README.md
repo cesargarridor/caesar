@@ -9,7 +9,10 @@ Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y
 > responsable de ningún daño, pérdida de datos o problema derivado de su uso. Puedes usarlo, copiarlo y modificarlo
 > libremente según la [licencia MIT](LICENSE).
 
-## Descargar
+## Descargas
+
+Página de descargas con requisitos, instalación y verificación: https://cesargarridor.github.io/caesar/download.html
+(también en [inglés](https://cesargarridor.github.io/caesar/en/download.html)).
 
 1. Entra en la página de versiones: **https://github.com/cesargarridor/caesar/releases/latest**
 2. Baja el archivo de tu sistema (están en la sección **Assets**, al final de la página):
@@ -21,15 +24,29 @@ Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y
 | **Linux (Debian/Ubuntu)** | `Caesar_x.y.z_amd64.deb` | `sudo apt install ./Caesar_x.y.z_amd64.deb` |
 | **Linux (cualquier distro)** | `Caesar_x.y.z_amd64.AppImage` | `chmod +x Caesar_*.AppImage && ./Caesar_*.AppImage` |
 
-Los archivos `.sig` y `latest.json` son del actualizador: no hace falta descargarlos.
+Los archivos `.sig` y `latest.json` son del actualizador: no hace falta descargarlos. GitHub muestra el SHA-256 de cada
+archivo en la Release; compáralo con `sha256sum` / `shasum -a 256` / `Get-FileHash`.
 
 ### Primer arranque: avisos del sistema
 
-Los instaladores todavía no llevan certificado de Windows ni de Apple, así que el sistema avisa la primera vez:
+- **Windows (SmartScreen):** el instalador no lleva firma de código todavía. Pulsa **Más información** y luego
+  **Ejecutar de todos modos**.
+- **macOS (Gatekeeper):** la app se firma y notariza con Apple, así que normalmente no avisa. Si aparece un aviso,
+  clic derecho sobre Caesar → **Abrir** → **Abrir**; si no, en *Ajustes del Sistema → Privacidad y seguridad* pulsa
+  **Abrir de todos modos**.
 
-- **Windows (SmartScreen):** pulsa **Más información** y luego **Ejecutar de todos modos**.
-- **macOS (Gatekeeper):** clic derecho sobre Caesar → **Abrir** → **Abrir**. Si no aparece, en *Ajustes del Sistema →
-  Privacidad y seguridad* pulsa **Abrir de todos modos**.
+## Política de firma de código
+
+Estado a 12 de noviembre de 2026:
+
+- **macOS:** firmado y notarizado con Apple (ver `.github/workflows/release.yml`).
+- **Windows y Linux:** sin firma de código por ahora (Windows puede mostrar SmartScreen o "editor desconocido").
+- **Actualizaciones:** firmadas con minisign; la app verifica la firma antes de instalar.
+- **Futuro:** se prevé solicitar firma gratuita para código abierto en Windows, sin garantías ni fecha.
+- **Equipo:** una sola persona, Cesar Garrido, autor, revisor y aprobador de las versiones. Se activará MFA en las
+  cuentas implicadas en la publicación (intención, no verificada públicamente).
+- **Privacidad:** [política de privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html). Detalle:
+  [política de firma en la web](https://cesargarridor.github.io/caesar/download.html#politica-de-firma-de-codigo).
 
 ## Actualizaciones automáticas
 
