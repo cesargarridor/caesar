@@ -26,7 +26,7 @@ const TAB_KEY = "caesar.reqTab";
 const VALID: Tab[] = ["params", "auth", "body", "tests", "headers", "settings"];
 
 const TESTS_EXAMPLE = `var jsonData = JSON.parse(responseBody);
-postman.setGlobalVariable("token_id", jsonData.access_token);`;
+pm.globals.set("token_id", jsonData.access_token);`;
 // La subpestaña elegida se mantiene al cambiar de solicitud (el componente se remonta por pestaña).
 let lastTab: Tab = (() => {
   try {
@@ -89,9 +89,9 @@ export default function RequestTabs({ req, patch, inherited }: Props) {
         {tab === "tests" && (
           <div className="flex h-full min-h-64 flex-col gap-2">
             <p className="text-xs text-slate">
-              {t("Se ejecuta tras recibir la respuesta, como en Postman:")} <code className="text-silver">pm.environment.set</code>,{" "}
+              {t("Se ejecuta tras recibir la respuesta:")} <code className="text-silver">pm.environment.set</code>,{" "}
               <code className="text-silver">pm.collectionVariables.set</code>, <code className="text-silver">pm.globals.set</code>,{" "}
-              <code className="text-silver">postman.setGlobalVariable</code>, <code className="text-silver">pm.response.json()</code>,{" "}
+              <code className="text-silver">pm.response.json()</code>,{" "}
               <code className="text-silver">pm.test / pm.expect</code>. {t("Las variables se guardan en el panel Variables y se usan como")}{" "}
               <code className="text-silver">{t("{{nombre}}")}</code>.
             </p>

@@ -1,7 +1,7 @@
 /**
- * Intérprete SEGURO de un subconjunto de JavaScript para los scripts "Tests" (compatibles con Postman).
+ * Intérprete SEGURO de un subconjunto de JavaScript para los scripts "Tests" .
  * No usa eval ni new Function (la CSP los prohíbe): parsea y evalúa el AST aquí mismo.
- * Sin red, sin DOM, sin acceso a globals del navegador: solo la API pm./postman. que se le inyecta.
+ * Sin red, sin DOM, sin acceso a globals del navegador: solo la API pm. que se le inyecta.
  */
 
 // ───────────────────────────── Tipos públicos ─────────────────────────────

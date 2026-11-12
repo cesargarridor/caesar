@@ -102,7 +102,7 @@ export function saveAutoUpdate(on: boolean) {
 
 /** Métodos que siempre se ofrecen. */
 export const BASE_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-/** Métodos extra que se pueden activar en Ajustes (como en Postman). */
+/** Métodos extra que se pueden activar en Ajustes . */
 export const EXTRA_METHODS = ["PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "PURGE", "LINK", "UNLINK", "VIEW"];
 const METHODS_KEY = "caesar.extraMethods";
 

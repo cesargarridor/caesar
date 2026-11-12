@@ -11,7 +11,7 @@ interface Props {
   onCancel: () => void;
 }
 
-/** Editor grande para el valor de un campo de texto de form-data (como "Edit data" de Insomnia). */
+/** Editor grande para el valor de un campo de texto de form-data . */
 export default function TextEditorModal({ title = "Edit data", initial, onDone, onCancel }: Props) {
   // Al abrir, si el contenido es JSON válido se muestra ya formateado (beautify).
   const [value, setValue] = useState(() => {

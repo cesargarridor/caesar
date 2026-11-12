@@ -176,7 +176,7 @@ export default function Sidebar({
           <button
             onClick={() => setShowExport((s) => !s)}
             disabled={exportable.length === 0}
-            title={exportable.length ? t("Exportar una colección (Postman, Insomnia o HAR)") : t("No hay colecciones que exportar")}
+            title={exportable.length ? t("Exportar una colección (JSON, YAML o HAR)") : t("No hay colecciones que exportar")}
             className="flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-40"
           >
             <Download size={15} /> {t("Exportar")}
@@ -191,7 +191,7 @@ export default function Sidebar({
                     <button
                       key={id}
                       onClick={() => setFmt(id)}
-                      title={id === "json" ? "Postman v2.1" : id === "yaml" ? "Insomnia v5" : "HTTP Archive 1.2"}
+                      title={id === "json" ? "JSON" : id === "yaml" ? "YAML" : "HTTP Archive 1.2"}
                       className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua text-ink" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
                     >
                       {label}
@@ -231,7 +231,7 @@ export default function Sidebar({
       >
         {collections.length === 0 ? (
           <p className="p-4 text-center text-xs font-light text-slate">
-            {t("Crea una colección, importa una de Postman (v2.1) o pega un cURL en la barra de URL.")}
+            {t("Crea una colección, importa una (JSON, YAML o HAR) o pega un cURL en la barra de URL.")}
           </p>
         ) : (
           collections.map((c, i) => (
