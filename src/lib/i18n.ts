@@ -69,6 +69,22 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Edición y atajos": ["Editing & shortcuts", "Bearbeiten & Tastenkürzel", "Édition et raccourcis", "Modifica e scorciatoie"],
+  "Autoguardado": ["Autosave", "Automatisch speichern", "Enregistrement auto", "Salvataggio automatico"],
+  "Guarda solo en la colección las peticiones que ya están en ella, un instante después de dejar de editar. Los borradores nuevos se siguen guardando con Ctrl+S.": ["Saves requests that already belong to a collection a moment after you stop editing. New drafts are still saved with Ctrl+S.", "Speichert Anfragen, die schon in einer Sammlung sind, kurz nach dem Bearbeiten. Neue Entwürfe werden weiterhin mit Strg+S gespeichert.", "Enregistre les requêtes déjà dans une collection peu après la fin de la modification. Les nouveaux brouillons s’enregistrent toujours avec Ctrl+S.", "Salva le richieste già in una raccolta poco dopo aver smesso di modificare. Le nuove bozze si salvano ancora con Ctrl+S."],
+  "Atajos de teclado": ["Keyboard shortcuts", "Tastenkürzel", "Raccourcis clavier", "Scorciatoie da tastiera"],
+  "Guardar la petición en la colección": ["Save the request to the collection", "Anfrage in der Sammlung speichern", "Enregistrer la requête dans la collection", "Salva la richiesta nella raccolta"],
+  "Enviar la petición": ["Send the request", "Anfrage senden", "Envoyer la requête", "Invia la richiesta"],
+  "Cerrar la pestaña": ["Close the tab", "Tab schließen", "Fermer l’onglet", "Chiudi la scheda"],
+  "Pestaña siguiente / anterior": ["Next / previous tab", "Nächster / vorheriger Tab", "Onglet suivant / précédent", "Scheda successiva / precedente"],
+  "Ir a la pestaña número N": ["Go to tab number N", "Zu Tab Nummer N", "Aller à l’onglet numéro N", "Vai alla scheda numero N"],
+  "Volver / avanzar en las pestañas visitadas": ["Back / forward through visited tabs", "Zurück / vor durch besuchte Tabs", "Reculer / avancer dans les onglets visités", "Indietro / avanti tra le schede visitate"],
+  "Ir a la barra de URL": ["Go to the URL bar", "Zur URL-Leiste", "Aller à la barre d’URL", "Vai alla barra URL"],
+  "Buscar en la respuesta o en el editor": ["Search in the response or editor", "In Antwort oder Editor suchen", "Rechercher dans la réponse ou l’éditeur", "Cerca nella risposta o nell’editor"],
+  "Elegir una variable de entorno": ["Pick an environment variable", "Umgebungsvariable wählen", "Choisir une variable d’environnement", "Scegli una variabile d’ambiente"],
+  "Abrir los ajustes": ["Open settings", "Einstellungen öffnen", "Ouvrir les réglages", "Apri le impostazioni"],
+  "Ver estos atajos": ["Show these shortcuts", "Diese Kürzel anzeigen", "Voir ces raccourcis", "Mostra queste scorciatoie"],
+  "En macOS, Ctrl se sustituye por Cmd.": ["On macOS, Ctrl is replaced by Cmd.", "Auf macOS wird Strg durch Cmd ersetzt.", "Sur macOS, Ctrl est remplacé par Cmd.", "Su macOS, Ctrl è sostituito da Cmd."],
   "Mostrar mi clave de recuperación": ["Show my recovery key", "Meinen Wiederherstellungsschlüssel anzeigen", "Afficher ma clé de récupération", "Mostra la mia chiave di recupero"],
   "Crear clave nueva": ["Create new key", "Neuen Schlüssel erstellen", "Créer une nouvelle clé", "Crea nuova chiave"],
   "Usar otra clave de recuperación": ["Use another recovery key", "Anderen Wiederherstellungsschlüssel verwenden", "Utiliser une autre clé de récupération", "Usa un’altra chiave di recupero"],
