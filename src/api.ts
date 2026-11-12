@@ -12,6 +12,8 @@ export const executeRequest = (args: {
   headers: KV[];
   body: BodyData;
   settings: Settings;
+  /** Misma sesión = misma conexión HTTP (NTLM). */
+  session?: string;
 }) => invoke<ResponseData>("execute_request", { args });
 
 export const openUrl = (url: string) => invoke<void>("open_url", { url });
