@@ -82,9 +82,12 @@ pre{background:var(--code);color:var(--yellow);padding:12px 14px;border-radius:1
 .glow:after{width:460px;height:460px;background:var(--pink);right:-160px;top:40px;opacity:.22}
 .hero2{position:relative;text-align:center;padding:30px 0 10px}
 .hero2>*{position:relative;z-index:1}
-.hero2 .cat{width:132px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 10px 24px rgba(242,140,46,.45));animation:float 4s ease-in-out infinite}
+.hero2 .cat{width:132px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 10px 24px rgba(242,140,46,.45))}
+.hero2 .cat-wrap.js .cat{animation:float 4s ease-in-out infinite}
+.hero2 img.cat{image-rendering:auto;border-radius:26px}
+.ap>img{display:block;width:100%;height:auto}
 @keyframes float{50%{transform:translateY(-8px)}}
-@media (prefers-reduced-motion:reduce){.hero2 .cat{animation:none}}
+@media (prefers-reduced-motion:reduce){.hero2 .cat-wrap.js .cat{animation:none}}
 .hero2 h1{font-size:clamp(2.2rem,7vw,3.6rem);margin:.3em 0 .2em;letter-spacing:-.02em}
 .hero2 h1 em{font-style:normal;background:linear-gradient(90deg,#f28c2e,var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero2 .lead{max-width:38rem;margin:0 auto 1.2em;font-size:1.15rem}
@@ -175,7 +178,7 @@ pre{background:var(--code);color:var(--yellow);padding:12px 14px;border-radius:1
 @media (max-width:640px){.ap-body{grid-template-columns:1fr;height:auto}.ap-side{display:none}.ap-res{min-height:14rem}}
 
 /* ---- Gato interactivo ---- */
-.cat-wrap{position:relative;display:inline-block;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.cat-wrap{position:relative;display:inline-block;-webkit-tap-highlight-color:transparent;user-select:none}
 .cat-wrap .cat{display:block;margin:0 auto}
 .cat-wrap.happy .cat{animation:cat-purr .18s ease-in-out infinite,cat-hop .6s ease-out 1}
 @keyframes cat-purr{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-2px) rotate(-2deg)}75%{transform:translateX(2px) rotate(2deg)}}
@@ -187,3 +190,4 @@ pre{background:var(--code);color:var(--yellow);padding:12px 14px;border-radius:1
 body{transition:opacity .35s ease}
 html.pending body{opacity:0}
 .ap:empty{display:none}
+.cat-wrap.js{cursor:pointer}

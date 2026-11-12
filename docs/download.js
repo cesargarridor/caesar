@@ -37,7 +37,10 @@
         a.href = as.browser_download_url; a.setAttribute("download", as.name);
         var l = a.getAttribute("data-label") || "Download for"; if (os) a.textContent = l + " " + NAMES[os];
       });
-      qa("[data-version]").forEach(function (e) { e.textContent = "v" + ver; });
+      qa("[data-version]").forEach(function (e) {
+        var f = e.getAttribute("data-version") || "", v = "v" + ver;
+        e.textContent = f.indexOf("|") > -1 ? f.replace("|", v) : f + v;
+      });
     }).catch(function () {});
 
   // Vídeo de demostración: solo se muestra si existe media/demo.mp4

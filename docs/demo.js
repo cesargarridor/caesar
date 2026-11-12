@@ -1,6 +1,7 @@
 /* Demo interactiva de Caesar: todo ocurre en tu navegador (no hay red ni servidor). */
 (function () {
   var root = document.getElementById("demo"); if (!root) return;
+  var fallbackHTML = root.innerHTML; // PNG de respaldo (sin JS o si algo falla)
   var en = (document.documentElement.lang || "es").slice(0, 2) === "en";
   var T = en ? {
     col: "Caesar demo", f1: "Basics", f2: "Users", hello: "Say hello", login: "Log in", echo: "Echo", list: "List users", one: "Get user 1", del: "Delete user 2", missing: "Not found",
@@ -124,14 +125,18 @@
     if (e.target.id === "ap-m") { state[active].m = e.target.value; draw(); }
   });
   root.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target.id === "ap-u") { e.preventDefault(); send(); } });
-  draw();
-  setTimeout(function () { if (!state.hello.res) send(); }, 900);
+  try { draw(); } catch (e) { root.innerHTML = fallbackHTML; return; }
+  setTimeout(function () { try { if (!state.hello.res) send(); } catch (e) { root.innerHTML = fallbackHTML; } }, 900);
 })();
 
 /* Gato: al tocarlo cierra los ojos de felicidad, ronronea y salen corazones (igual que en la app). */
 (function () {
   var wrap = document.getElementById("cat"); if (!wrap) return;
-  var svg = wrap.querySelector("svg"); if (!svg) return;
+  var img = wrap.querySelector("img"); if (!img) return;
+  var NS = "http://www.w3.org/2000/svg", svg;
+  try {
+    svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "cat"); svg.setAttribute("viewBox", "0 0 16 12"); svg.setAttribute("shape-rendering", "crispEdges"); svg.setAttribute("aria-hidden", "true");
+  } catch (e) { return; }
   var P = { o: "#f28c2e", d: "#c9621a", w: "#fff0d4", k: "#2b1a12", p: "#ff9aa8" };
   var ROWS = ["oo............oo", "ooo..........ooo", "oopo........opoo", "oopooooddoooopoo", "oooooooddooooooo", "oookkoooooookkoo", "oookkoooooookkoo", "oowwwwoppowwwwoo", "oowwwwowwowwwwoo", "ooowwwwwwwwwwooo", ".oooowwwwwoooo.", "..oooooooooooo.."];
   ROWS[10] = ".oooowwwwwoooo.."; // misma rejilla de 16 columnas
@@ -144,6 +149,8 @@
     });
     svg.innerHTML = h;
   }
+  try { paint(false); if (!svg.querySelector("rect")) return; img.replaceWith(svg); wrap.classList.add("js"); wrap.setAttribute("role", "img"); wrap.setAttribute("aria-label", "Caesar"); wrap.title = "♥"; }
+  catch (e) { return; }
   var timer, hearts = [];
   wrap.addEventListener("click", function () {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
