@@ -82,7 +82,7 @@ export function resolveInherit(auth: AuthData, nodes: TreeNode[], path: string |
   return { ...emptyAuth(), type: "none" };
 }
 
-/** Request del árbol de Postman -> estado editable. */
+/** Request del árbol -> estado editable. */
 export function requestFromNode(n: RequestNode): RequestState {
   const raw = n.url;
   const q = raw.indexOf("?");

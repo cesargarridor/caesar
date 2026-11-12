@@ -12,7 +12,7 @@ interface Props {
   inherited?: AuthData | null;
 }
 
-/** Mismo orden y nombres que Bruno. */
+/** Orden y nombres de los tipos de autorización. */
 export const AUTH_OPTIONS: { id: AuthType; label: string }[] = [
   { id: "awsv4", label: "AWS Sig v4" },
   { id: "basic", label: "Basic Auth" },

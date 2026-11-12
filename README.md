@@ -8,8 +8,8 @@
 
 **Web del producto:** https://cesargarridor.github.io/caesar/ (también en [inglés](https://cesargarridor.github.io/caesar/en/))
 
-Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y exporta colecciones de Postman, pega un
-`cURL` en la barra de URL, scripts de Tests al estilo Postman, varios temas y mucho más.
+Cliente API de escritorio, rápido y seguro (Tauri v2 + Rust + React). Importa y exporta colecciones (JSON, YAML y HAR), pega un
+`cURL` en la barra de URL, scripts de Tests, varios temas y mucho más.
 
 > **Proyecto de código abierto, de uso libre.** Caesar se ofrece tal cual, sin ninguna garantía, y el autor no se hace
 > responsable de ningún daño, pérdida de datos o problema derivado de su uso. Puedes usarlo, copiarlo y modificarlo
