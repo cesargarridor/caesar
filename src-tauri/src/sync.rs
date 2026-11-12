@@ -53,7 +53,14 @@ pub(crate) struct Cfg {
 }
 
 pub(crate) fn cfg() -> Option<Cfg> {
-    let c: Cfg = serde_json::from_str(CONFIG).ok()?;
+    let mut c: Cfg = serde_json::from_str(CONFIG).ok()?;
+    // El secreto del cliente de Google no se guarda en el repositorio: lo inyecta la compilación (secreto de GitHub).
+    if c.google_client_secret.is_empty() {
+        c.google_client_secret = option_env!("CAESAR_GOOGLE_CLIENT_SECRET").unwrap_or("").to_string();
+    }
+    if c.google_client_secret.is_empty() {
+        c.google_client_id.clear(); // sin secreto no se ofrece el botón
+    }
     (!c.project_id.is_empty() && !c.api_key.is_empty()).then_some(c)
 }
 
