@@ -30,6 +30,12 @@ interface Props {
   extraMethods: string[];
   onExtraMethods: (m: string[]) => void;
   initialSection?: "ui" | "edit";
+  /** Colecciones compartidas en este equipo (se van al cerrar sesión). */
+  sharedCount: number;
+  /** Se llama antes de cerrar sesión para subir lo pendiente de las colecciones compartidas. */
+  onBeforeSignOut: () => Promise<void> | void;
+  /** Se llama tras cerrar sesión: la app quita las colecciones compartidas. */
+  onSignedOut: () => void;
   updates: UpdatesProps;
   onClose: () => void;
 }
@@ -369,7 +375,7 @@ function Block({ title, hint, children }: { title: string; hint: string; childre
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, extraMethods, onExtraMethods, initialSection, updates, onClose }: Props) {
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, extraMethods, onExtraMethods, initialSection, sharedCount, onBeforeSignOut, onSignedOut, updates, onClose }: Props) {
   useLang();
   const UiSection = () => (
     <>
@@ -453,7 +459,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
 
         {section === "edit" ? (
           <EditControls autosave={autosave} onAutosave={onAutosave} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
-        ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (
+        ) : section === "sync" ? (<SyncSettings sharedCount={sharedCount} onBeforeSignOut={onBeforeSignOut} onSignedOut={onSignedOut} />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">

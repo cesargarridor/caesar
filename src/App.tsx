@@ -13,7 +13,7 @@ import VarPicker from "./components/VarPicker";
 import { NewCollectionDialog, ShareDialog, TeamInfoDialog } from "./components/TeamDialogs";
 import { normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import {
-  appVersion, checkUpdate, executeRequest, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -440,6 +440,56 @@ export default function App() {
     setRenamingPath(null);
   };
 
+  /** Cuántas colecciones compartidas (de equipo) hay en este equipo. */
+  const sharedCount = collections.filter((c) => c.type === "folder" && c.team).length;
+
+  /**
+   * Al cerrar sesión las colecciones compartidas salen de este equipo (siguen en la nube para quien las tenga);
+   * las locales se quedan. Las pestañas abiertas sobre ellas pasan a ser borradores y las demás se reindexan.
+   */
+  const colRef = useRef(collections);
+  colRef.current = collections;
+  const purgeShared = () => {
+    const cur = colRef.current;
+    const idxs = cur.map((c, i) => (c.type === "folder" && c.team ? i : -1)).filter((i) => i >= 0);
+    if (!idxs.length) return 0;
+    colRef.current = cur.filter((c) => !(c.type === "folder" && c.team)); // una segunda llamada antes del repintado no repite el reindexado
+    setCollections((cs) => cs.filter((c) => !(c.type === "folder" && c.team)));
+    setTabs((ts) =>
+      ts.map((tb) => {
+        let p = tb.path;
+        for (const i of [...idxs].reverse()) {
+          if (p === null) break;
+          p = pathAfterDelete(p, String(i));
+        }
+        return p === tb.path ? tb : { ...tb, path: p, dirty: p === null ? true : tb.dirty };
+      }),
+    );
+    team.reset();
+    setRenamingPath(null);
+    return idxs.length;
+  };
+  const purgeRef = useRef(purgeShared);
+  purgeRef.current = purgeShared;
+
+  // Red de seguridad: si la sesión desaparece por cualquier vía (cuenta borrada, token revocado…), pasa lo mismo.
+  useEffect(() => {
+    let was: boolean | null = null;
+    const check = () =>
+      syncStatus()
+        .then((s) => {
+          if (was === true && !s.signed_in) {
+            const n = purgeRef.current();
+            if (n) setNotice({ kind: "ok", text: t("Sesión cerrada: las colecciones compartidas han salido de este equipo.") });
+          }
+          was = s.signed_in;
+        })
+        .catch(() => {});
+    void check();
+    const id = setInterval(check, 4000);
+    return () => clearInterval(id);
+  }, []);
+
   const handleDelete = (path: string) => {
     setCollections((c) => removeAt(c, path));
     // Las pestañas abiertas sobre lo borrado pasan a ser borradores; las demás se reindexan.
@@ -809,6 +859,12 @@ export default function App() {
             extraMethods={extraMethods}
             onExtraMethods={setExtraMethods}
             initialSection={settingsSection}
+            sharedCount={sharedCount}
+            onBeforeSignOut={() => team.flush()}
+            onSignedOut={() => {
+              const n = purgeShared();
+              setNotice({ kind: "ok", text: n ? t("Sesión cerrada. Las colecciones compartidas han salido de este equipo; las locales se quedan.") : t("Sesión cerrada.") });
+            }}
             updates={{
               version,
               auto: autoUpdate,
