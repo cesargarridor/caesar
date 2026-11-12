@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import CatLogo from "./CatLogo";
-import { openUrl, syncGithubBegin, syncGithubFinish, syncSignIn, syncStatus, type DeviceCode, type SyncStatus } from "../api";
+import SocialButtons from "./SocialButtons";
+import { openUrl, syncSignIn, syncStatus, type SyncStatus } from "../api";
 import { t, useLang } from "../lib/i18n";
 import { PRIVACY_URL, TERMS_URL, markOnboarded } from "../lib/legal";
 
@@ -17,7 +18,6 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
   const [st, setSt] = useState<SyncStatus | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [device, setDevice] = useState<DeviceCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,35 +87,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
             <button type="submit" disabled={busy || !email.trim() || !password} className="btn-aurora w-full px-4 py-2.5 font-semibold disabled:opacity-50">
               {busy ? t("Un momento…") : up ? t("Crear cuenta") : t("Iniciar sesión")}
             </button>
-            {st?.github && !up && (
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className="w-full rounded-[10px] bg-kelp px-4 py-2.5 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30 disabled:opacity-50"
-                  onClick={() =>
-                    void run(async () => {
-                      const d = await syncGithubBegin();
-                      setDevice(d);
-                      openUrl(d.verification_uri).catch(() => {});
-                      try {
-                        await syncGithubFinish(d);
-                      } finally {
-                        setDevice(null);
-                      }
-                    })
-                  }
-                >
-                  {t("Continuar con GitHub")}
-                </button>
-                {device && (
-                  <div className="rounded-xl bg-deep p-4 ring-1 ring-fg/15">
-                    <p className="mb-2 text-xs text-slate">{t("Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:")}</p>
-                    <code className="block select-all text-xl tracking-widest text-mist">{device.user_code}</code>
-                  </div>
-                )}
-              </>
-            )}
+            {!up && <SocialButtons st={st} busy={busy} run={run} />}
             <button type="button" onClick={() => setMode(up ? "signin" : "signup")} className="text-xs text-slate hover:text-mist">
               {up ? t("Ya tengo cuenta") : t("Crear una cuenta")}
             </button>
@@ -130,6 +102,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
                 <button onClick={() => setMode("signup")} className="w-full rounded-[10px] bg-kelp px-4 py-2.5 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">
                   {t("Registrarse")}
                 </button>
+                <SocialButtons st={st} busy={busy} run={run} />
               </>
             )}
             <button onClick={finish} className={accountsOn ? "w-full rounded-[10px] px-4 py-2.5 text-sm text-silver hover:text-mist" : "btn-aurora w-full px-4 py-2.5 font-semibold"}>
