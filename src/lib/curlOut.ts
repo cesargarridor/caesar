@@ -2,7 +2,7 @@ import type { BodyData, KV } from "../types";
 
 const sq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`; // comillas simples seguras para bash
 
-/** Genera un cURL con el mismo formato que exporta Postman (--location, --header, --form …). */
+/** Genera un cURL (--location, --header, --form …). */
 export function generateCurl(a: { method: string; url: string; headers: KV[]; body: BodyData }): string {
   const lines: string[] = [];
   const method = a.method.toUpperCase();

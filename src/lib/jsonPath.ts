@@ -1,5 +1,5 @@
 // JSONPath propio (sin eval): $.a.b, $[*].x, $..x, $['a b'], $[0], $[-1], $[0:3], $[0,2], $.*, $[?(@.n > 5 && @.t == 'x')], @.length…
-// Sirve para filtrar la respuesta como el filtro de Insomnia.
+// Sirve para filtrar la respuesta.
 
 type Json = unknown;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -333,7 +333,7 @@ export interface FilterResult {
 
 /**
  * Filtra el cuerpo de una respuesta:
- *  · empieza por $ → JSONPath sobre el JSON (devuelve una lista, como Insomnia);
+ *  · empieza por $ → JSONPath sobre el JSON (devuelve una lista);
  *  · si no → expresión regular (sin distinguir mayúsculas; /x/flags también vale) sobre las líneas del texto.
  */
 export function filterResponse(parsed: Json | undefined, pretty: string, query: string): FilterResult {

@@ -14,7 +14,7 @@ interface Props {
 
 export const tabTitle = (t: Tab) => (t.path ? t.name : t.req.url ? suggestName(t.req).replace(/^\S+\s/, "") : tr("Nueva petición"));
 
-/** Pestañas de peticiones abiertas, como en Postman. El punto indica cambios sin guardar. */
+/** Pestañas de peticiones abiertas. El punto indica cambios sin guardar. */
 export default function TabBar({ tabs, activeId, onSelect, onClose, onNew }: Props) {
   return (
     <div className="flex items-end gap-1 overflow-x-auto px-3 pt-2">
