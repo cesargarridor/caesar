@@ -9,6 +9,8 @@ import type { KV, TreeNode } from "../types";
 export interface WsMeta {
   id: string;
   name: string;
+  /** Espacio compartido con un equipo: código, si lo creó esta cuenta, marca de la última versión de la nube, huella del contenido y si también se comparten las variables. */
+  team?: { code: string; owner: boolean; seen: number; h?: string; vars: boolean };
 }
 
 export const DEFAULT_WS = "default";
@@ -76,15 +78,15 @@ export interface WsData {
 }
 
 /**
- * Lo que se sincroniza con la cuenta: todos los espacios. Además se deja `collections`/`vars` del espacio principal en la
+ * Lo que se sincroniza con la cuenta: todos los espacios PERSONALES (los compartidos con un equipo viajan por su propio código). Además se deja `collections`/`vars` del espacio principal en la
  * raíz para que versiones anteriores de Caesar (que no conocen los espacios) sigan leyendo sus datos.
  */
 export function snapshotAll(list: WsMeta[], activeId: string, collections: TreeNode[], vars: KV[]) {
-  const workspaces: WsData[] = list.map((w) =>
+  const workspaces: WsData[] = list.filter((w) => !w.team).map((w) =>
     w.id === activeId
       ? { id: w.id, name: w.name, collections, vars }
       : { id: w.id, name: w.name, collections: read<TreeNode[]>(wsKey("collections", w.id), []), vars: read<KV[]>(wsKey("vars", w.id), []) },
   );
   const main = workspaces.find((w) => w.id === DEFAULT_WS) ?? workspaces[0];
-  return { v: 2, workspaces, collections: main.collections, vars: main.vars };
+  return { v: 2, workspaces, collections: main?.collections ?? [], vars: main?.vars ?? [] };
 }
