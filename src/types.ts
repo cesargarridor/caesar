@@ -19,7 +19,9 @@ export interface BodyData {
   urlencoded: KV[];
 }
 
-export type AuthType = "none" | "bearer" | "basic" | "apikey";
+export type AuthType =
+  | "none" | "inherit" | "bearer" | "basic" | "apikey"
+  | "digest" | "ntlm" | "oauth1" | "oauth2" | "wsse" | "awsv4" | "akamai";
 
 export interface AuthData {
   type: AuthType;
@@ -29,6 +31,8 @@ export interface AuthData {
   key: string;
   value: string;
   in: "header" | "query";
+  /** Campos propios de cada tipo (OAuth, AWS, NTLM…). */
+  extra?: Record<string, string>;
 }
 
 export interface Settings {
@@ -46,12 +50,12 @@ export interface RequestState {
   auth: AuthData;
   body: BodyData;
   settings: Settings;
-  /** Script de tests (post-respuesta), estilo Postman. Opcional: borradores antiguos no lo tienen. */
+  /** Script (post-respuesta), estilo Postman. Opcional: borradores antiguos no lo tienen. */
   tests?: string;
 }
 
 export type TreeNode =
-  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[] }
+  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[]; /** Autorización de la colección o carpeta (la heredan las peticiones con "Inherit"). */ auth?: Partial<AuthData> & { type?: string } }
   | {
       type: "request";
       name: string;

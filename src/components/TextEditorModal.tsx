@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import JsonEditor from "./JsonEditor";
 import { t } from "../lib/i18n";
+import { checkJson, issueText } from "../lib/jsonCheck";
 
 interface Props {
   title?: string;
@@ -31,11 +32,16 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
   }, [onCancel]);
 
   const beautify = () => {
+    const issue = checkJson(value);
+    if (issue) {
+      setError(issueText(issue));
+      return;
+    }
     try {
       setValue(JSON.stringify(JSON.parse(value), null, 2));
       setError(null);
-    } catch (e) {
-      setError(t("JSON inválido: {0}", e instanceof Error ? e.message : t("error de sintaxis")));
+    } catch {
+      setError(t("No se puede formatear: el texto usa variables {{x}} fuera de comillas."));
     }
   };
 
