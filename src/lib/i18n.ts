@@ -69,6 +69,18 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Registrarse con Google": ["Sign up with Google", "Mit Google registrieren", "S’inscrire avec Google", "Registrati con Google"],
+  "Registrarse con GitHub": ["Sign up with GitHub", "Mit GitHub registrieren", "S’inscrire avec GitHub", "Registrati con GitHub"],
+  "Sesión iniciada": ["Signed in", "Angemeldet", "Connecté", "Accesso effettuato"],
+  "o": ["or", "oder", "ou", "oppure"],
+  "Entra con otra cuenta: este equipo pasará a usarla.": ["Sign in with another account: this computer will switch to it.", "Mit einem anderen Konto anmelden: Dieses Gerät wechselt darauf.", "Connecte-toi avec un autre compte : cet ordinateur passera dessus.", "Accedi con un altro account: questo computer passerà a usarlo."],
+  "Crea otra cuenta: este equipo pasará a usarla.": ["Create another account: this computer will switch to it.", "Ein weiteres Konto erstellen: Dieses Gerät wechselt darauf.", "Crée un autre compte : cet ordinateur passera dessus.", "Crea un altro account: questo computer passerà a usarlo."],
+  "+ Más métodos…": ["+ More methods…", "+ Weitere Methoden…", "+ Plus de méthodes…", "+ Altri metodi…"],
+  "Métodos HTTP": ["HTTP methods", "HTTP-Methoden", "Méthodes HTTP", "Metodi HTTP"],
+  "Elige qué métodos aparecen en el desplegable de la petición. También puedes abrir esta pantalla con «+ Más métodos…» al final de ese desplegable.": ["Choose which methods appear in the request dropdown. You can also open this screen with “+ More methods…” at the end of that dropdown.", "Wähle, welche Methoden im Dropdown der Anfrage erscheinen. Diesen Bildschirm öffnest du auch mit „+ Weitere Methoden…“ am Ende des Dropdowns.", "Choisis les méthodes affichées dans la liste de la requête. Tu peux aussi ouvrir cet écran avec « + Plus de méthodes… » à la fin de la liste.", "Scegli quali metodi compaiono nel menu della richiesta. Puoi aprire questa schermata anche con «+ Altri metodi…» in fondo al menu."],
+  "Siempre disponibles": ["Always available", "Immer verfügbar", "Toujours disponibles", "Sempre disponibili"],
+  "Otro método (p. ej. REPORT)": ["Other method (e.g. REPORT)", "Andere Methode (z. B. REPORT)", "Autre méthode (p. ex. REPORT)", "Altro metodo (es. REPORT)"],
+  "Añadir": ["Add", "Hinzufügen", "Ajouter", "Aggiungi"],
   "Continuar con Google": ["Continue with Google", "Weiter mit Google", "Continuer avec Google", "Continua con Google"],
   "Esperando al navegador…": ["Waiting for the browser…", "Warte auf den Browser…", "En attente du navigateur…", "In attesa del browser…"],
   "Se ha abierto tu navegador: elige tu cuenta de Google y vuelve aquí.": ["Your browser has opened: choose your Google account and come back here.", "Dein Browser wurde geöffnet: Wähle dein Google-Konto und komm hierher zurück.", "Ton navigateur s’est ouvert : choisis ton compte Google et reviens ici.", "Il browser si è aperto: scegli il tuo account Google e torna qui."],
