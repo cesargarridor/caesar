@@ -55,7 +55,7 @@ export interface RequestState {
 }
 
 export type TreeNode =
-  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[]; /** Autorización de la colección o carpeta (la heredan las peticiones con "Inherit"). */ auth?: Partial<AuthData> & { type?: string } }
+  | { type: "folder"; name: string; children: TreeNode[]; /** Id estable (para recordar si está desplegada aunque cambie su posición). */ uid?: string; /** Variables de la colección (solo carpeta raíz). */ variables?: KV[]; /** Colección compartida con un equipo (solo carpeta raíz): código, si la creó esta cuenta y marca de la última versión de la nube. */ team?: { code: string; owner: boolean; seen: number }; /** Autorización de la colección o carpeta (la heredan las peticiones con "Inherit"). */ auth?: Partial<AuthData> & { type?: string } }
   | {
       type: "request";
       name: string;
