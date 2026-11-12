@@ -900,6 +900,12 @@ fn parse_method(m: &str) -> Result<Method, String> {
         "PATCH" => Ok(Method::PATCH),
         "HEAD" => Ok(Method::HEAD),
         "OPTIONS" => Ok(Method::OPTIONS),
+        // CONNECT (túnel) y TRACE no tienen sentido en un cliente de APIs.
+        "CONNECT" | "TRACE" => Err(format!("Método HTTP no soportado: {}", m.trim().to_uppercase())),
+        // PROPFIND, MKCOL, COPY, LOCK, PURGE, LINK, VIEW… (WebDAV y extensiones, como en Postman)
+        other if !other.is_empty() && other.len() <= 20 && other.bytes().all(|b| b.is_ascii_uppercase() || b == b'-') => {
+            Method::from_bytes(other.as_bytes()).map_err(|_| format!("Método HTTP no válido: {other}"))
+        }
         other => Err(format!("Método HTTP no soportado: {other}")),
     }
 }
