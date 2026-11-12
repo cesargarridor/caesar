@@ -4,6 +4,8 @@ import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
 import CatLogo from "./CatLogo";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import type { WsMeta } from "../lib/workspaces";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import { canMove, canMoveRelative } from "../lib/tree";
 import type { AuthData, KV, TreeNode } from "../types";
@@ -23,6 +25,12 @@ interface Props extends TreeActions {
   /** Autorización de la colección (la usan las peticiones con "Inherit"). */
   collAuth: AuthData | null;
   onCollAuth: (a: AuthData) => void;
+  workspaces: WsMeta[];
+  activeWs: string;
+  onSwitchWs: (id: string) => void;
+  onAddWs: (name: string) => void;
+  onRenameWs: (id: string, name: string) => void;
+  onDeleteWs: (id: string) => void;
   onImport: () => void;
   onNewCollection: () => void;
   onSettings: () => void;
@@ -32,7 +40,7 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, collAuth, onCollAuth, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
   const [showColl, setShowColl] = useState(false);
@@ -165,6 +173,7 @@ export default function Sidebar({
           <CatLogo size={30} />
           <span className="cosmic-text">Caesar</span>
         </div>
+        <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} />
         <div className="relative flex shrink-0 gap-2">
           <button
             onClick={onImport}

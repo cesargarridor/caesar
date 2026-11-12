@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, Share2, Trash2, Users } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
@@ -27,6 +27,10 @@ export interface TreeActions {
   /** Compartir una colección con un equipo / ver su código. */
   onShare: (path: string) => void;
   onTeamInfo: (path: string) => void;
+  /** Rueda de actualizar: baja la colección de equipo solo si hay una versión más nueva. */
+  onTeamRefresh: (code: string) => void;
+  /** Códigos de equipo que se están actualizando ahora (la rueda gira). */
+  refreshingTeams: string[];
   /** Arrastrar y soltar: mueve `from` dentro de la carpeta `to` ("root" = nivel raíz). */
   onMove: (from: string, to: string, pos?: "before" | "after") => void;
   isOpen: (uid?: string) => boolean;
@@ -170,6 +174,11 @@ export default function SidebarTree(props: Props) {
             <span className={`flex-1 truncate ${isCollection ? "font-semibold text-mist" : "text-mist"}`} onDoubleClick={() => props.onStartRename(path)}>
               {node.name}
             </span>
+          )}
+          {!isRenaming && depth === 0 && node.team && (
+            <IconBtn title={t("Actualizar colección de equipo")} onClick={() => props.onTeamRefresh(node.team!.code)}>
+              <RefreshCw size={14} className={props.refreshingTeams.includes(node.team.code) ? "animate-spin text-aqua" : ""} />
+            </IconBtn>
           )}
           {!isRenaming && (
             <span className={`flex items-center gap-0.5 ${confirm ? "" : "invisible group-hover:visible"}`}>
