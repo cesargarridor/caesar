@@ -69,6 +69,7 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "{0} elementos": ["{0} items", "{0} Elemente", "{0} éléments", "{0} elementi"],
   "Espacio de equipo": ["Team workspace", "Team-Arbeitsbereich", "Espace d’équipe", "Spazio di team"],
   "Actualizar espacio de equipo": ["Refresh team workspace", "Team-Arbeitsbereich aktualisieren", "Actualiser l’espace d’équipe", "Aggiorna spazio di team"],
   "Unirme a un espacio con un código": ["Join a workspace with a code", "Arbeitsbereich mit Code beitreten", "Rejoindre un espace avec un code", "Unisciti a uno spazio con un codice"],
