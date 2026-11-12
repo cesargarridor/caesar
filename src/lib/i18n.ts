@@ -69,6 +69,9 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Continuar con Google": ["Continue with Google", "Weiter mit Google", "Continuer avec Google", "Continua con Google"],
+  "Esperando al navegador…": ["Waiting for the browser…", "Warte auf den Browser…", "En attente du navigateur…", "In attesa del browser…"],
+  "Se ha abierto tu navegador: elige tu cuenta de Google y vuelve aquí.": ["Your browser has opened: choose your Google account and come back here.", "Dein Browser wurde geöffnet: Wähle dein Google-Konto und komm hierher zurück.", "Ton navigateur s’est ouvert : choisis ton compte Google et reviens ici.", "Il browser si è aperto: scegli il tuo account Google e torna qui."],
   "Versión de HTTP": ["HTTP version", "HTTP-Version", "Version HTTP", "Versione HTTP"],
   "Automática": ["Auto", "Automatisch", "Automatique", "Automatica"],
   "Edición y atajos": ["Editing & shortcuts", "Bearbeiten & Tastenkürzel", "Édition et raccourcis", "Modifica e scorciatoie"],

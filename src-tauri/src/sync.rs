@@ -41,6 +41,12 @@ pub(crate) struct Cfg {
     /// Identificador público de la OAuth App de GitHub (vacío = el botón de GitHub no aparece).
     #[serde(rename = "githubClientId", default)]
     github_client_id: String,
+    /// Cliente OAuth de Google de tipo «Aplicación de escritorio» (vacío = el botón de Google no aparece).
+    /// En apps de escritorio el «secreto» no es confidencial (lo exige Google), por eso va en el binario.
+    #[serde(rename = "googleClientId", default)]
+    google_client_id: String,
+    #[serde(rename = "googleClientSecret", default)]
+    google_client_secret: String,
     /// Enlace de compra de Lemon Squeezy (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
     #[serde(rename = "checkoutUrl", default)]
     checkout_url: String,
@@ -413,6 +419,7 @@ async fn lookup_email(st: &SyncState, key: &str, id_token: &str) -> Option<Strin
 pub struct SyncStatus {
     configured: bool,
     github: bool,
+    google: bool,
     /// Hay cobro configurado (si no, la sincronización es gratuita).
     billing: bool,
     /// La nube rechazó la última subida por falta de suscripción.
@@ -435,6 +442,7 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
     SyncStatus {
         configured: cfg().is_some(),
         github: cfg().map(|c| !c.github_client_id.is_empty()).unwrap_or(false),
+        google: cfg().map(|c| !c.google_client_id.is_empty()).unwrap_or(false),
         billing: cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false),
         blocked: st.blocked.load(Ordering::SeqCst),
         signed_in,
@@ -564,6 +572,125 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
     .await?;
     let fallback = v["screenName"].as_str().map(|n| format!("GitHub: {n}")).unwrap_or_else(|| "GitHub".to_string());
     let s = session_from(&v, &fallback)?;
+    save_refresh(&s.refresh_token);
+    *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
+    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
+    st.dirty.store(false, Ordering::SeqCst);
+    let r = pull(&app, &st).await;
+    set_error(&st, r.err());
+    Ok(())
+}
+
+/// Inicio de sesión con Google: abre el navegador, recibe el código en 127.0.0.1 (OAuth con PKCE) y entra en Firebase.
+#[tauri::command]
+pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    use aes_gcm::aead::{rand_core::RngCore, OsRng};
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
+    use sha2::{Digest, Sha256};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let c = cfg().filter(|c| !c.google_client_id.is_empty()).ok_or("El inicio de sesión con Google no está configurado.")?;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.map_err(|e| format!("No se pudo abrir el puerto local: {e}"))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    let redirect = format!("http://127.0.0.1:{port}");
+    let mut vb = [0u8; 32];
+    OsRng.fill_bytes(&mut vb);
+    let verifier = B64.encode(vb);
+    let challenge = B64.encode(Sha256::digest(verifier.as_bytes()));
+    let mut sb = [0u8; 16];
+    OsRng.fill_bytes(&mut sb);
+    let state = B64.encode(sb);
+
+    let mut auth = url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth").map_err(|e| e.to_string())?;
+    auth.query_pairs_mut()
+        .append_pair("client_id", &c.google_client_id)
+        .append_pair("redirect_uri", &redirect)
+        .append_pair("response_type", "code")
+        .append_pair("scope", "openid email profile")
+        .append_pair("code_challenge", &challenge)
+        .append_pair("code_challenge_method", "S256")
+        .append_pair("state", &state)
+        .append_pair("prompt", "select_account");
+    open::that_detached(auth.as_str()).map_err(|e| format!("No se pudo abrir el navegador: {e}"))?;
+
+    // Espera la redirección del navegador (máx. 3 min). Se ignoran peticiones ajenas (p. ej. favicon).
+    let wait = async {
+        loop {
+            let (mut sock, _) = listener.accept().await.map_err(|e| e.to_string())?;
+            let mut buf = vec![0u8; 8192];
+            let n = sock.read(&mut buf).await.unwrap_or(0);
+            let req = String::from_utf8_lossy(&buf[..n]).to_string();
+            let path = req.lines().next().unwrap_or("").split_whitespace().nth(1).unwrap_or("").to_string();
+            let q: std::collections::HashMap<String, String> = url::Url::parse(&format!("http://127.0.0.1{path}"))
+                .map(|u| u.query_pairs().map(|(k, v)| (k.to_string(), v.to_string())).collect())
+                .unwrap_or_default();
+            let (result, msg) = if q.get("state").map(String::as_str) != Some(state.as_str()) {
+                (None, None)
+            } else if let Some(code) = q.get("code") {
+                (Some(Ok(code.clone())), Some("Listo. Ya puedes cerrar esta pestaña y volver a Caesar."))
+            } else if q.contains_key("error") {
+                (Some(Err("Has cancelado el acceso con Google.".to_string())), Some("Acceso cancelado. Puedes cerrar esta pestaña."))
+            } else {
+                (None, None)
+            };
+            let body = format!(
+                "<!doctype html><meta charset=utf-8><title>Caesar</title><body style=\"font-family:system-ui;text-align:center;margin-top:20vh\"><h2>Caesar</h2><p>{}</p>",
+                msg.unwrap_or("Esperando…")
+            );
+            let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body);
+            let _ = sock.write_all(resp.as_bytes()).await;
+            let _ = sock.shutdown().await;
+            if let Some(r) = result {
+                return r;
+            }
+        }
+    };
+    let code = tokio::time::timeout(Duration::from_secs(180), wait)
+        .await
+        .map_err(|_| "Se agotó el tiempo esperando a Google. Inténtalo de nuevo.".to_string())??;
+
+    let form = |pairs: &[(&str, &str)]| {
+        let mut s = url::form_urlencoded::Serializer::new(String::new());
+        for (k, v) in pairs {
+            s.append_pair(k, v);
+        }
+        s.finish()
+    };
+    let res = st
+        .client
+        .post("https://oauth2.googleapis.com/token")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(form(&[
+            ("client_id", &c.google_client_id),
+            ("client_secret", &c.google_client_secret),
+            ("code", &code),
+            ("code_verifier", &verifier),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", &redirect),
+        ]))
+        .send()
+        .await
+        .map_err(|_| "Sin conexión con Google.".to_string())?;
+    let ok = res.status().is_success();
+    let tok: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta de Google.".to_string())?).unwrap_or(Value::Null);
+    if !ok {
+        return Err(format!("Google: {}", tok["error_description"].as_str().or(tok["error"].as_str()).unwrap_or("error desconocido")));
+    }
+    let id_token = tok["id_token"].as_str().ok_or("Google no devolvió la identidad.")?;
+
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
+    let v = post_json(
+        &st,
+        &url,
+        json!({
+            "postBody": form(&[("id_token", id_token), ("providerId", "google.com")]),
+            "requestUri": "http://localhost",
+            "returnSecureToken": true,
+            "returnIdpCredential": true
+        }),
+    )
+    .await?;
+    let s = session_from(&v, "Google")?;
     save_refresh(&s.refresh_token);
     *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
