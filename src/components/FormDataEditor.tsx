@@ -25,7 +25,7 @@ const CT_OPTIONS = [
 
 const cell ="w-full rounded-xl bg-kelp px-3 py-1.5 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua";
 
-/** form-data estilo Postman: cada fila es Text o File. Text abre un editor grande al hacer clic en Value. */
+/** form-data: cada fila es Text o File. Text abre un editor grande al hacer clic en Value. */
 export default function FormDataEditor({ rows, onChange }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);

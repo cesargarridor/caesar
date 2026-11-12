@@ -128,7 +128,7 @@ export function ShareDialog({
             }}
             className={`${ghost} flex items-center gap-1.5`}
           >
-            <Download size={14} /> {f === "json" ? "Postman (JSON)" : f === "yaml" ? "Insomnia (YAML)" : "HAR"}
+            <Download size={14} /> {f === "json" ? "JSON" : f === "yaml" ? "YAML" : "HAR"}
             {saved === f && <Check size={14} className="text-leaf" />}
           </button>
         ))}

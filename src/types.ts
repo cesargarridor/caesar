@@ -52,7 +52,7 @@ export interface RequestState {
   auth: AuthData;
   body: BodyData;
   settings: Settings;
-  /** Script (post-respuesta), estilo Postman. Opcional: borradores antiguos no lo tienen. */
+  /** Script (post-respuesta). Opcional: borradores antiguos no lo tienen. */
   tests?: string;
 }
 
