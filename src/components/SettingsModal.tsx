@@ -69,7 +69,7 @@ function Preview({ t }: { t: Theme }) {
 function FontControls({ fonts, onFonts }: { fonts: FontPrefs; onFonts: (f: FontPrefs) => void }) {
   const changed = FONT_FIELDS.some((f) => fonts[f.key] !== FONT_DEFAULTS[f.key]);
   return (
-    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 py-1">
+    <div className="space-y-5 px-1 py-1">
       {FONT_FIELDS.map((f) => {
         const v = fonts[f.key];
         const set = (n: number) => onFonts({ ...fonts, [f.key]: Math.min(f.max, Math.max(f.min, n)) });
@@ -140,7 +140,7 @@ function FamilyControls() {
     applyFontFamily(fid);
   };
   return (
-    <div data-ready={ready} className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
+    <div data-ready={ready} className="grid grid-cols-2 gap-3 px-1 py-1 md:grid-cols-3">
       {FONT_OPTIONS.map((f) => (
         <button
           key={f.id}
@@ -162,7 +162,7 @@ function FamilyControls() {
 
 function ResponseControls({ hideEmpty, onHideEmpty }: { hideEmpty: boolean; onHideEmpty: (on: boolean) => void }) {
   return (
-    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
+    <div className="space-y-6 px-1 py-1">
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
@@ -272,9 +272,57 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
   );
 }
 
+function Block({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-8">
+      <h3 className="text-lg text-mist">{t(title)}</h3>
+      <p className="mb-3 text-xs text-slate">{t(hint)}</p>
+      {children}
+    </section>
+  );
+}
+
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, updates, onClose }: Props) {
   useLang();
-  const [section, setSection] = useState<"theme" | "fonts" | "family" | "response" | "updates" | "lang" | "cat" | "sync">("theme");
+  const UiSection = () => (
+    <>
+      <Block title="Tema" hint="Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.">
+    <div className="grid grid-cols-2 gap-4 px-1 py-1 md:grid-cols-3">
+      {THEMES.map((t) => {
+        const active = t.id === themeId;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onTheme(t.id)}
+            className={`rounded-2xl p-3 text-left transition ${active ? "ring-2 ring-aqua" : "ring-1 ring-fg/10 hover:ring-fg/30"}`}
+          >
+            <Preview t={t} />
+            <div className="mt-2.5 flex items-center justify-between px-1 text-sm text-mist">
+              <span>{t.name}</span>
+              {active && <Check size={15} className="text-aqua" />}
+            </div>
+            <div className="mt-1.5 flex gap-1 px-1">
+              {[t.ui.abyss, t.ui.iris, t.ui.accent, t.ui.hl, t.resp.key, t.resp.str].map((c, i) => (
+                <span key={i} className="h-3 w-3 rounded-full ring-1 ring-fg/20" style={{ background: c }} />
+              ))}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+      </Block>
+      <Block title="Tipo de letra" hint="Elige la fuente de la interfaz. Todas se incluyen en la app y funcionan sin conexión. Los editores de código siguen en monoespaciada.">
+        <FamilyControls />
+      </Block>
+      <Block title="Tamaño de letra" hint="Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante.">
+        <FontControls fonts={fonts} onFonts={onFonts} />
+      </Block>
+      <Block title="Respuesta" hint="Cómo se muestra el body de la respuesta que recibes.">
+        <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
+      </Block>
+    </>
+  );
+  const [section, setSection] = useState<"ui" | "updates" | "lang" | "cat" | "sync">("ui");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -294,22 +342,16 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           </button>
         </div>
         <p className="mb-4 shrink-0 text-sm text-slate">
-          {section === "theme"
-            ? t("Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.")
-            : section === "family"
-              ? t("Elige la fuente de la interfaz. Todas se incluyen en la app y funcionan sin conexión. Los editores de código siguen en monoespaciada.")
-            : section === "fonts"
-              ? t("Ajusta el tamaño de la letra en toda la aplicación o solo en la zona que quieras. Los cambios se aplican al instante.")
-              : section === "response"
-                ? t("Cómo se muestra el body de la respuesta que recibes.")
-                : section === "lang"
+          {section === "ui"
+            ? t("Todo lo visual de la aplicación en un solo sitio: tema, fuente, tamaños de letra y cómo se ve la respuesta. Los cambios se aplican al instante.")
+            : section === "lang"
                   ? t("Elige el idioma de la interfaz. Se aplica al instante.")
                   : section === "sync" ? t("Usa tus colecciones en varios equipos. Todo se cifra en tu equipo antes de subirse; la nube nunca puede leerlo.") : section === "cat"
                     ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="mb-5 flex shrink-0 gap-1 overflow-x-auto border-b border-fg/10">
-          {([["theme", "Tema"], ["fonts", "Tamaño de letra"], ["family", "Tipo de letra"], ["response", "Respuesta"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["ui", "Personalización de interfaz"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Sincronización"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -322,13 +364,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           ))}
         </div>
 
-        {section === "fonts" ? (
-          <FontControls fonts={fonts} onFonts={onFonts} />
-        ) : section === "family" ? (
-          <FamilyControls />
-        ) : section === "response" ? (
-          <ResponseControls hideEmpty={hideEmpty} onHideEmpty={onHideEmpty} />
-        ) : section === "sync" ? (<SyncSettings />) : section === "cat" ? (
+        {section === "sync" ? (<SyncSettings />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
@@ -348,28 +384,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         ) : section === "updates" ? (
           <UpdateControls u={updates} />
         ) : (
-        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-4 overflow-y-auto px-1 py-1 md:grid-cols-3">
-          {THEMES.map((t) => {
-            const active = t.id === themeId;
-            return (
-              <button
-                key={t.id}
-                onClick={() => onTheme(t.id)}
-                className={`rounded-2xl p-3 text-left transition ${active ? "ring-2 ring-aqua" : "ring-1 ring-fg/10 hover:ring-fg/30"}`}
-              >
-                <Preview t={t} />
-                <div className="mt-2.5 flex items-center justify-between px-1 text-sm text-mist">
-                  <span>{t.name}</span>
-                  {active && <Check size={15} className="text-aqua" />}
-                </div>
-                <div className="mt-1.5 flex gap-1 px-1">
-                  {[t.ui.abyss, t.ui.iris, t.ui.accent, t.ui.hl, t.resp.key, t.resp.str].map((c, i) => (
-                    <span key={i} className="h-3 w-3 rounded-full ring-1 ring-fg/20" style={{ background: c }} />
-                  ))}
-                </div>
-              </button>
-            );
-          })}
+        <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
+          {UiSection()}
         </div>
         )}
       </div>
