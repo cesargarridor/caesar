@@ -33,7 +33,7 @@ export interface DragState {
   from: string;
   /** Carpeta sobre la que está el cursor y donde se puede soltar (null = ninguna). */
   over: string | null;
-  /** Solo al reordenar colecciones: dónde se insertará respecto a la colección `over`. */
+  /** Al reordenar: dónde se insertará respecto al elemento `over` (línea de inserción). */
   pos?: "before" | "after";
   x: number;
   y: number;
@@ -51,6 +51,19 @@ interface Props extends TreeActions, DragProps {
   path: string;
   depth: number;
   selectedPath: string | null;
+}
+
+function DropLine({ pos, indent }: { pos: "before" | "after"; indent: number }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute right-1 z-10 flex items-center"
+      style={{ left: indent, [pos === "before" ? "top" : "bottom"]: -1 }}
+    >
+      <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+      <span className="h-0.5 flex-1 bg-accent" />
+    </div>
+  );
 }
 
 function RenameInput({ initial, onDone, onCancel }: { initial: string; onDone: (v: string) => void; onCancel: () => void }) {
@@ -120,17 +133,11 @@ export default function SidebarTree(props: Props) {
   if (node.type === "folder") {
     const open = props.isOpen(node.uid);
     const isOver = props.drag?.over === path;
-    const reorder = isOver && !!props.drag?.pos && isCollection;
+    const reorder = isOver && !!props.drag?.pos;
     const dropHere = isOver && !reorder;
     return (
-      <div
-        data-drop={path}
-        style={
-          reorder
-            ? { boxShadow: `0 ${props.drag?.pos === "before" ? "-" : ""}2px 0 0 var(--t-accent)` }
-            : undefined
-        }
-      >
+      <div data-drop={path} data-kind="folder" data-open={open ? "1" : "0"} className="relative">
+        {reorder && props.drag?.pos && <DropLine pos={props.drag.pos} indent={isCollection ? 0 : indent} />}
         <div
           style={{ paddingLeft: indent }}
           className={`group flex items-center gap-1.5 pr-2 text-sm ${
@@ -186,14 +193,18 @@ export default function SidebarTree(props: Props) {
   }
 
   const selected = selectedPath === path;
+  const lineHere = props.drag?.over === path ? props.drag.pos : undefined;
   return (
     <div
+      data-drop={path}
+      data-kind="request"
       style={{ paddingLeft: indent + 18 }}
-      className={`group flex items-center gap-2 py-1 pr-2 text-sm hover:bg-fg/5 ${selected ? "bg-fg/10" : ""} ${dragging ? "opacity-40" : ""}`}
+      className={`relative group flex items-center gap-2 py-1 pr-2 text-sm hover:bg-fg/5 ${selected ? "bg-fg/10" : ""} ${dragging ? "opacity-40" : ""}`}
       onClick={() => !isRenaming && props.onSelect(path, node)}
       onPointerDown={(e) => !isRenaming && props.onRowDown(path, node.name, e)}
       role="button"
     >
+      {lineHere && <DropLine pos={lineHere} indent={indent + 6} />}
       <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.method] ?? "text-silver"}`}>{node.method}</span>
       {isRenaming ? (
         <RenameInput initial={node.name} onDone={(v) => props.onRename(path, v)} onCancel={props.onCancelRename} />
