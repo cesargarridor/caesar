@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, Share2, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
@@ -22,6 +22,9 @@ export interface TreeActions {
   onAddFolder: (path: string) => void;
   onDelete: (path: string) => void;
   onExport: (path: string, format?: "json" | "yaml" | "har") => void;
+  /** Compartir una colección con un equipo / ver su código. */
+  onShare: (path: string) => void;
+  onTeamInfo: (path: string) => void;
   /** Arrastrar y soltar: mueve `from` dentro de la carpeta `to` ("root" = nivel raíz). */
   onMove: (from: string, to: string, pos?: "before" | "after") => void;
   isOpen: (uid?: string) => boolean;
@@ -153,7 +156,7 @@ export default function SidebarTree(props: Props) {
         >
           {open ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
           {isCollection ? (
-            <Library size={16} className="shrink-0 text-iris" />
+            node.team ? <Users size={16} className="shrink-0 text-aqua" aria-label={t("Colección de equipo")} /> : <Library size={16} className="shrink-0 text-iris" />
           ) : open ? (
             <FolderOpen size={15} className="shrink-0 text-aqua" />
           ) : (
@@ -173,6 +176,9 @@ export default function SidebarTree(props: Props) {
                   <IconBtn title={t("Nueva petición")} onClick={() => { props.onOpenFolder(node.uid); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
                   <IconBtn title={t("Nueva carpeta")} onClick={() => { props.onOpenFolder(node.uid); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
                   <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
+                  {depth === 0 && (node.team
+                    ? <IconBtn title={t("Equipo: código y opciones")} onClick={() => props.onTeamInfo(path)}><Users size={14} /></IconBtn>
+                    : <IconBtn title={t("Compartir con un equipo")} onClick={() => props.onShare(path)}><Share2 size={14} /></IconBtn>)}
                   {depth === 0 && <IconBtn title={t("Exportar colección (Postman v2.1)")} onClick={() => props.onExport(path)}><Download size={14} /></IconBtn>}
                 </>
               )}
