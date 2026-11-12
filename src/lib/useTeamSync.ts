@@ -116,5 +116,12 @@ export function useTeamSync(
     /** Marca un JSON como ya sincronizado (al compartir o unirse). */
     markSynced: (code: string, json: string) => synced.current.set(code, json),
     forget: (code: string) => synced.current.delete(code),
+    /** Sube los cambios pendientes de las colecciones de equipo ahora mismo (antes de cerrar sesión). */
+    flush: () => tick.current(),
+    /** Olvida todo el estado de sincronización (al cerrar sesión). */
+    reset: () => {
+      synced.current.clear();
+      warned.current.clear();
+    },
   };
 }

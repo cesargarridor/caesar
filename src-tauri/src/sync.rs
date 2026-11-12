@@ -784,18 +784,34 @@ pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), 
     clear_refresh();
     *st.session.lock().map_err(|_| "Estado bloqueado")? = None;
     st.dirty.store(false, Ordering::SeqCst);
+    st.blocked.store(false, Ordering::SeqCst);
+    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
+    *st.last_sync.lock().map_err(|_| "Estado bloqueado")? = 0;
     set_error(&st, None);
     Ok(())
 }
 
+/// Cierra la sesión. Antes intenta subir lo pendiente (sin red o sin suscripción no bloquea el cierre) y después
+/// borra el token del llavero y todo el estado de la cuenta. Los datos locales (`datos.json`) no se tocan.
 #[tauri::command]
-pub fn sync_sign_out(st: tauri::State<SyncState>) {
+pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    if st.dirty.load(Ordering::SeqCst) && !st.blocked.load(Ordering::SeqCst) {
+        let _ = tokio::time::timeout(Duration::from_secs(8), push(&app, &st)).await;
+    }
     clear_refresh();
     if let Ok(mut g) = st.session.lock() {
         *g = None;
     }
     st.dirty.store(false, Ordering::SeqCst);
+    st.blocked.store(false, Ordering::SeqCst);
+    if let Ok(mut g) = st.last_remote.lock() {
+        *g = 0;
+    }
+    if let Ok(mut g) = st.last_sync.lock() {
+        *g = 0;
+    }
     set_error(&st, None);
+    Ok(())
 }
 
 /// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos.
