@@ -10,8 +10,9 @@ import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import VarPicker from "./components/VarPicker";
-import { NewCollectionDialog, ShareDialog, TeamInfoDialog } from "./components/TeamDialogs";
+import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog } from "./components/TeamDialogs";
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
+import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
   DEFAULT_WS, loadWsActive, loadWsList, newWsId, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
@@ -99,6 +100,7 @@ export default function App() {
   // Espacios de trabajo: cada uno guarda sus propias colecciones, variables y pestañas (ver lib/workspaces.ts).
   const [wsList, setWsList] = useState<WsMeta[]>(loadWsList);
   const [wsId, setWsId] = useState<string>(() => loadWsActive(wsList));
+  useEffect(() => saveWsList(wsList), [wsList]);
   const [collections, setCollections] = useState<TreeNode[]>(() => ensureIds(load(wsKey("collections", wsId), [])));
   /** Carpetas desplegadas (por id estable, no por posición). Las colecciones empiezan abiertas. */
   const [openIds, setOpenIds] = useState<Set<string>>(
@@ -222,6 +224,7 @@ export default function App() {
   // ───── espacios de trabajo ─────
   /** Carga otro espacio: lee su bloque del disco y lo pone en pantalla al instante (sin red). */
   const enterWs = (id: string) => {
+    void wsTeam.flush(); // lo pendiente del espacio que se deja (si está compartido)
     save(wsKey("collections", wsId), collections);
     save(wsKey("vars", wsId), vars);
     save(wsKey("tabs", wsId), { tabs, activeId: active.id });
@@ -275,7 +278,11 @@ export default function App() {
       }
       return;
     }
-    const list: WsMeta[] = ws.map((w) => ({ id: w.id, name: typeof w.name === "string" && w.name ? w.name : t("Personal") }));
+    // Los espacios compartidos con un equipo no viajan por la cuenta: los locales se conservan tal cual.
+    const list: WsMeta[] = [
+      ...ws.map((w) => ({ id: w.id, name: typeof w.name === "string" && w.name ? w.name : t("Personal") })),
+      ...wsList.filter((w) => w.team),
+    ];
     for (const w of ws) {
       const cols = Array.isArray(w.collections) ? ensureIds(w.collections) : [];
       const vs = Array.isArray(w.vars) ? w.vars : [];
@@ -427,13 +434,30 @@ export default function App() {
   };
 
   // ───── colecciones de equipo ─────
-  const [teamDialog, setTeamDialog] = useState<null | { kind: "new" } | { kind: "share" | "info"; path: string }>(null);
+  const [teamDialog, setTeamDialog] = useState<null | { kind: "new" } | { kind: "shareWs" } | { kind: "infoWs" } | { kind: "share" | "info"; path: string }>(null);
   const team = useTeamSync(collections, setCollections, (kind, text) => setNotice({ kind, text }));
+  const wsTeam = useWorkspaceTeam({ wsList, wsId, collections, vars, setCollections, setVars, setWsList, notify: (kind, text) => setNotice({ kind, text }) });
+  const activeWsTeam = wsList.find((w) => w.id === wsId)?.team;
 
   const handleJoin = async (code: string) => {
     const norm = normCode(code);
     if (collections.some((c) => c.type === "folder" && c.team && normCode(c.team.code) === norm)) throw new Error(t("Ya tienes esa colección de equipo."));
+    if (wsList.some((w) => w.team && normCode(w.team.code) === norm)) throw new Error(t("Ya tienes ese espacio de equipo."));
     const doc = await teamJoin(code);
+    const wsp = parseWsPayload(doc.json);
+    if (wsp) {
+      // El código era de un espacio entero: se crea un espacio nuevo con su contenido.
+      const id = newWsId();
+      const cols = ensureIds(wsp.collections);
+      const h = hashJson(wsPayloadJson(wsp.name, cols, wsp.vars));
+      save(wsKey("collections", id), cols);
+      save(wsKey("vars", id), wsp.vars ?? []);
+      setWsList((l) => [...l, { id, name: wsp.name, team: { code: norm, owner: doc.owner, seen: doc.updatedAt, h, vars: wsp.vars !== null } }]);
+      enterWs(id);
+      setTeamDialog(null);
+      return;
+    }
+    if (activeWsTeam) throw new Error(t("Este espacio ya está compartido: no se pueden añadir colecciones de equipo sueltas dentro de él."));
     const root = JSON.parse(doc.json) as TreeNode;
     if (root.type !== "folder") throw new Error(t("La colección del equipo no es válida."));
     const [withId] = ensureIds([{ ...root, team: { code: norm, owner: doc.owner, seen: doc.updatedAt, h: hashJson(JSON.stringify(root)) } }]);
@@ -443,7 +467,27 @@ export default function App() {
     openFolder(withId.type === "folder" ? withId.uid : undefined);
   };
 
+  const handleShareWs = async (includeVars: boolean): Promise<string> => {
+    const ws = wsList.find((w) => w.id === wsId);
+    if (!ws) throw new Error(t("Espacio no encontrado."));
+    if (hasTeamCollections(collections)) throw new Error(t("Este espacio tiene colecciones de equipo: deja de compartirlas antes de compartir el espacio entero."));
+    const json = wsPayloadJson(ws.name, collections, includeVars ? vars : null);
+    const code = await teamPublish(json);
+    const norm = normCode(code);
+    setWsList((l) => l.map((w) => (w.id === wsId ? { ...w, team: { code: norm, owner: true, seen: Date.now(), h: hashJson(json), vars: includeVars } } : w)));
+    return code;
+  };
+
+  const handleLeaveWs = async () => {
+    const ws = wsList.find((w) => w.id === wsId);
+    if (!ws?.team) return;
+    if (ws.team.owner) await teamUnshare(ws.team.code);
+    setWsList((l) => l.map((w) => (w.id === wsId ? { ...w, team: undefined } : w)));
+    setTeamDialog(null);
+  };
+
   const handleShare = async (path: string): Promise<string> => {
+    if (activeWsTeam) throw new Error(t("Este espacio ya está compartido: no se pueden compartir colecciones sueltas dentro de él."));
     const node = getAt(collections, path);
     if (!node || node.type !== "folder") throw new Error(t("Colección no encontrada."));
     const json = teamJson(node);
@@ -519,7 +563,7 @@ export default function App() {
   };
 
   /** Cuántas colecciones compartidas (de equipo) hay en este equipo. */
-  const sharedCount = collections.filter((c) => c.type === "folder" && c.team).length;
+  const sharedCount = collections.filter((c) => c.type === "folder" && c.team).length + wsList.filter((w) => w.team).length;
 
   /**
    * Al cerrar sesión las colecciones compartidas salen de este equipo (siguen en la nube para quien las tenga);
@@ -547,8 +591,29 @@ export default function App() {
     setRenamingPath(null);
     return idxs.length;
   };
-  const purgeRef = useRef(purgeShared);
-  purgeRef.current = purgeShared;
+  /** Los espacios de equipo también salen de este equipo al cerrar sesión (siguen en la nube); los locales se quedan. */
+  const wsListRef = useRef(wsList);
+  wsListRef.current = wsList;
+  const purgeWs = () => {
+    const cur = wsListRef.current;
+    const shared = cur.filter((w) => w.team);
+    if (!shared.length) return 0;
+    let keep = cur.filter((w) => !w.team);
+    if (keep.length === 0) {
+      const id = newWsId();
+      keep = [{ id, name: t("Personal") }];
+      save(wsKey("collections", id), []);
+      save(wsKey("vars", id), []);
+    }
+    wsListRef.current = keep;
+    setWsList(keep);
+    if (shared.some((w) => w.id === wsId)) enterWs(keep[0].id);
+    for (const w of shared) removeWsData(w.id);
+    return shared.length;
+  };
+  const purgeAll = () => purgeShared() + purgeWs();
+  const purgeRef = useRef(purgeAll);
+  purgeRef.current = purgeAll;
 
   // Red de seguridad: si la sesión desaparece por cualquier vía (cuenta borrada, token revocado…), pasa lo mismo.
   useEffect(() => {
@@ -843,6 +908,11 @@ export default function App() {
         onAddWs={addWs}
         onRenameWs={renameWs}
         onDeleteWs={deleteWs}
+        onShareWs={() => setTeamDialog({ kind: "shareWs" })}
+        onInfoWs={() => setTeamDialog({ kind: "infoWs" })}
+        onJoinWs={handleJoin}
+        onRefreshWs={() => void wsTeam.refresh()}
+        refreshingWs={wsTeam.refreshing}
         onSettings={() => setShowSettings(true)}
         width={sidebarW}
         onWidth={setSidebarW}
@@ -948,7 +1018,7 @@ export default function App() {
             sharedCount={sharedCount}
             onBeforeSignOut={() => team.flush()}
             onSignedOut={() => {
-              const n = purgeShared();
+              const n = purgeAll();
               setNotice({ kind: "ok", text: n ? t("Sesión cerrada. Las colecciones compartidas han salido de este equipo; las locales se quedan.") : t("Sesión cerrada.") });
             }}
             updates={{
@@ -977,6 +1047,18 @@ export default function App() {
             <ShareDialog name={n.name} onClose={() => setTeamDialog(null)} onExport={(f) => backupBeforeShare(teamDialog.path, f)} onConfirm={() => handleShare(teamDialog.path)} />
           ) : null;
         })()}
+        {teamDialog?.kind === "shareWs" && (
+          <ShareWorkspaceDialog name={wsList.find((w) => w.id === wsId)?.name ?? ""} onClose={() => setTeamDialog(null)} onConfirm={handleShareWs} />
+        )}
+        {teamDialog?.kind === "infoWs" && activeWsTeam && (
+          <TeamInfoDialog
+            name={wsList.find((w) => w.id === wsId)?.name ?? ""}
+            code={activeWsTeam.code}
+            owner={activeWsTeam.owner}
+            onClose={() => setTeamDialog(null)}
+            onLeave={handleLeaveWs}
+          />
+        )}
         {teamDialog?.kind === "info" && (() => {
           const n = getAt(collections, teamDialog.path);
           return n && n.type === "folder" && n.team ? (
