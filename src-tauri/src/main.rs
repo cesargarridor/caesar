@@ -1180,6 +1180,8 @@ fn main() {
             sync::sync_github_begin,
             sync::sync_github_finish,
             sync::sync_google_begin,
+            sync::sync_link_confirm,
+            sync::sync_link_cancel,
             sync::sync_google_finish,
             sync::sync_sign_out,
             sync::sync_now,

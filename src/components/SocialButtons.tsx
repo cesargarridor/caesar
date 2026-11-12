@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { openUrl, syncGithubBegin, syncGithubFinish, syncGoogleBegin, syncGoogleFinish, type DeviceCode, type SyncStatus } from "../api";
+import { openUrl, syncGithubBegin, syncGithubFinish, syncGoogleBegin, syncGoogleFinish, syncLinkCancel, syncLinkConfirm, type DeviceCode, type SyncStatus } from "../api";
 import { t } from "../lib/i18n";
 
 export const GoogleIcon = ({ size = 18 }: { size?: number }) => (
@@ -26,6 +26,8 @@ const btnCls =
  */
 export default function SocialButtons({ st, busy, run }: { st: SyncStatus | null; busy: boolean; run: (fn: () => Promise<void>) => void | Promise<void> }) {
   const [device, setDevice] = useState<{ d: DeviceCode; name: string } | null>(null);
+  const [link, setLink] = useState<{ email: string; providers: string[] } | null>(null);
+  const [pw, setPw] = useState("");
   if (!st || (!st.github && !st.google)) return null;
 
   const go = (name: string, begin: () => Promise<DeviceCode>, finish: (d: DeviceCode) => Promise<void>) => () =>
@@ -35,10 +37,62 @@ export default function SocialButtons({ st, busy, run }: { st: SyncStatus | null
       openUrl(d.verification_uri).catch(() => {});
       try {
         await finish(d);
+      } catch (e) {
+        const m = typeof e === "string" ? e : "";
+        if (m.startsWith("LINK_REQUIRED|")) {
+          const [, email, prov] = m.split("|");
+          setLink({ email, providers: prov ? prov.split(",") : [] });
+          throw new Error(""); // la interfaz de vinculación sustituye al error
+        }
+        throw e;
       } finally {
         setDevice(null);
       }
     });
+
+  if (link) {
+    const canPw = link.providers.includes("password");
+    const others = link.providers.filter((p) => p !== "password").map((p) => p.replace(".com", ""));
+    return (
+      <div className="space-y-3 rounded-xl bg-deep p-4 text-left ring-1 ring-fg/15">
+        <p className="text-sm text-mist">
+          {t("Esa cuenta ya existe")}: <b>{link.email}</b>
+        </p>
+        <p className="text-xs text-slate">
+          {t("Puedes continuar: se vincularán las cuentas y, a partir de ahora, podrás iniciar sesión con las dos.")}
+        </p>
+        {canPw ? (
+          <>
+            <input
+              type="password"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              placeholder={t("Contraseña de esa cuenta")}
+              autoComplete="current-password"
+              className="w-full rounded-[10px] bg-kelp px-3 py-2.5 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+            />
+            <div className="flex gap-2">
+              <button type="button" disabled={busy || !pw} className="btn-aurora flex-1 px-4 py-2 text-sm font-semibold disabled:opacity-50" onClick={() => void run(async () => { await syncLinkConfirm(pw); setPw(""); setLink(null); })}>
+                {t("Vincular y continuar")}
+              </button>
+              <button type="button" className="rounded-[10px] px-4 py-2 text-sm text-silver hover:text-mist" onClick={() => { void syncLinkCancel(); setPw(""); setLink(null); }}>
+                {t("Cancelar")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-slate">
+              {t("Para vincular, inicia sesión primero con")} {others.join(", ")}.
+            </p>
+            <button type="button" className="rounded-[10px] px-4 py-2 text-sm text-silver hover:text-mist" onClick={() => { void syncLinkCancel(); setLink(null); }}>
+              {t("Cancelar")}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
