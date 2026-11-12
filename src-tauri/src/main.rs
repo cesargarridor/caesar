@@ -1325,6 +1325,8 @@ fn main() {
             sync::local_save,
             sync::sync_sign_in,
             sync::sync_google,
+            sync::sync_link_confirm,
+            sync::sync_link_cancel,
             sync::sync_github_begin,
             sync::sync_github_finish,
             sync::sync_sign_out,

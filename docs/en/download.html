@@ -24,28 +24,29 @@
 <meta name="twitter:image" content="https://cesargarridor.github.io/caesar/og.png">
 <link rel="icon" type="image/png" href="../favicon.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>html.pending body{opacity:0}</style>
+<script>(function(){var d=document.documentElement;d.classList.add("pending");var es=(d.lang||"es")=="es";function show(){d.classList.remove("pending")}window.addEventListener("load",function(){requestAnimationFrame(show)});setTimeout(function(){if(!d.classList.contains("pending"))return;var m=document.createElement("div");m.setAttribute("style","position:fixed;inset:0;display:grid;place-items:center;text-align:center;font:16px system-ui,sans-serif;background:#272822;color:#f8f8f2;padding:24px");m.innerHTML=(es?"No se ha podido cargar la página por completo.":"The page could not be fully loaded.")+"<br><a href=\"\" style=\"color:#66d9ef\" onclick=\"location.reload();return false\">"+(es?"Reintentar":"Retry")+"</a>";d.appendChild(m)},12000)})();</script>
 <link rel="stylesheet" href="../style.css">
 <script type="application/ld+json">[{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Caesar", "description": "Download Caesar, an open source desktop REST API client: Windows installer (.exe, .msi), universal macOS .dmg, and Linux .deb or AppImage. Requirements, install steps, SHA-256 verification and code signing policy.", "applicationCategory": "DeveloperApplication", "operatingSystem": "Windows, macOS, Linux", "url": "https://cesargarridor.github.io/caesar/en/download.html", "downloadUrl": "https://github.com/cesargarridor/caesar/releases/latest", "codeRepository": "https://github.com/cesargarridor/caesar", "license": "https://opensource.org/licenses/MIT", "image": "https://cesargarridor.github.io/caesar/og.png", "inLanguage": "en", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "author": {"@type": "Person", "name": "Cesar Garrido", "url": "https://github.com/cesargarridor"}}, {"@context": "https://schema.org", "@type": "WebPage", "name": "Download Caesar for Windows, macOS and Linux", "url": "https://cesargarridor.github.io/caesar/en/download.html", "inLanguage": "en", "mainEntity": {"@type": "SoftwareApplication", "name": "Caesar", "downloadUrl": "https://github.com/cesargarridor/caesar/releases/latest"}}]</script>
 </head>
 <body>
 <header class="top"><div class="wrap">
 <a class="brand" href="./"><img src="../logo.png" alt="" width="32" height="32"><span><b>C</b>aesar</span></a>
-<nav class="main" aria-label="Sections"><a href="./#features">Features</a><a href="download.html" aria-current="page">Download</a><a href="./#faq">FAQ</a><a href="./#privacy">Privacy</a></nav>
+<nav class="main" aria-label="Sections"><a href="./#features">Features</a><a href="./#comparison">Comparison</a><a href="download.html" aria-current="page">Download</a><a href="./#faq">FAQ</a><a href="./#privacy">Privacy</a></nav>
 <div class="lang" aria-label="Idioma / Language"><a href="../download.html" hreflang="es" lang="es">ES</a><span>EN</span></div>
 </div></header>
 <main><div class="wrap">
 <h1><span class="hash">#</span>Download Caesar for Windows, macOS and Linux</h1>
 <p class="lead">Caesar is free and open source (MIT). Installers are published on GitHub Releases; there is no other official download site.</p>
-<p><a class="btn" href="https://github.com/cesargarridor/caesar/releases/latest">Download the latest version</a> <a href="https://github.com/cesargarridor/caesar">View source on GitHub</a></p>
-<section id="downloads"><h2>Downloads by system</h2>
-<p>Open the <a href="https://github.com/cesargarridor/caesar/releases/latest">latest release</a> and download the file for your system (they are under <strong>Assets</strong>). <code>x.y.z</code> is the version number.</p>
+<p><a class="btn big" href="https://github.com/cesargarridor/caesar/releases/latest" data-dl data-label="Download for">Download Caesar</a> <a href="https://github.com/cesargarridor/caesar">View source on GitHub</a></p>
+<section id="downloads"><h2>Downloads by system</h2><p>Pick your system: the latest version <span data-version="(|)"></span> starts downloading right away.</p><div class="dl"><a href="https://github.com/cesargarridor/caesar/releases/latest" data-dl-os="macos"><b>macOS</b><span>Intel and Apple Silicon (.dmg)</span><span data-size></span><em>⬇ Download</em></a><a href="https://github.com/cesargarridor/caesar/releases/latest" data-dl-os="windows"><b>Windows</b><span>64-bit installer (.exe)</span><span data-size></span><em>⬇ Download</em></a><a href="https://github.com/cesargarridor/caesar/releases/latest" data-dl-os="linux"><b>Linux</b><span>AppImage, any distro</span><span data-size></span><em>⬇ Download</em></a></div><p><a href="https://github.com/cesargarridor/caesar/releases/latest" data-dl-os="deb">Prefer a .deb for Ubuntu/Debian?</a></p>
 <div class="tw"><table><thead><tr><th scope="col">System</th><th scope="col">File</th><th scope="col">Notes</th></tr></thead><tbody>
 <tr><th scope="row">Windows</th><td><code>Caesar_x.y.z_x64-setup.exe</code></td><td>Standard installer (64-bit). A <code>Caesar_x.y.z_x64_en-US.msi</code> is also available.</td></tr>
 <tr><th scope="row">macOS</th><td><code>Caesar_x.y.z_universal.dmg</code></td><td>Universal: Intel and Apple Silicon. Open the <code>.dmg</code> and drag Caesar to Applications.</td></tr>
 <tr><th scope="row">Linux (Debian/Ubuntu)</th><td><code>Caesar_x.y.z_amd64.deb</code></td><td><code>sudo apt install ./Caesar_x.y.z_amd64.deb</code></td></tr>
 <tr><th scope="row">Linux (any distro)</th><td><code>Caesar_x.y.z_amd64.AppImage</code></td><td><code>chmod +x Caesar_*.AppImage &amp;&amp; ./Caesar_*.AppImage</code></td></tr>
 </tbody></table></div>
-<p><a class="btn" href="https://github.com/cesargarridor/caesar/releases/latest">Download the latest version</a></p>
+
 <p>The <code>.sig</code> files, <code>latest.json</code> and <code>Caesar_universal.app.tar.gz</code> belong to the updater: you do not need to download them.</p></section>
 <section id="requirements"><h2>Requirements</h2><ul>
 <li><strong>Windows:</strong> 64-bit. Caesar uses the system WebView2; the installer takes care of it if it is missing.</li>
@@ -91,8 +92,9 @@ sha256sum Caesar_x.y.z_amd64.AppImage</pre>
 <li><strong>Privacy:</strong> see the <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">privacy policy</a>.</li></ul></section>
 </div></main>
 <footer><div class="wrap">
-<p>Caesar is free software (MIT). Static site, no cookies or scripts.</p>
+<p>Caesar is free software (MIT). Static site, no cookies, no tracking.</p>
 <p><a href="https://github.com/cesargarridor/caesar">GitHub</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/">Legal</a> · <a href="https://github.com/cesargarridor/caesar/issues">Support</a></p>
 </div></footer>
+<script src="../download.js" defer></script>
 </body>
 </html>

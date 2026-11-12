@@ -214,6 +214,11 @@ const D: Record<string, Row> = {
   "Términos": ["Terms", "Nutzungsbedingungen", "Conditions d'utilisation", "Termini"],
   "Política de privacidad": ["Privacy Policy", "Datenschutzerklärung", "Politique de confidentialité", "Informativa sulla privacy"],
   "Correo": ["Email", "E-Mail", "E-mail", "Email"],
+  "Esa cuenta ya existe": ["That account already exists", "Dieses Konto existiert bereits", "Ce compte existe déjà", "Questo account esiste già"],
+  "Puedes continuar: se vincularán las cuentas y, a partir de ahora, podrás iniciar sesión con las dos.": ["You can continue: the accounts will be linked and from now on you can sign in with both.", "Du kannst fortfahren: Die Konten werden verknüpft und du kannst dich künftig mit beiden anmelden.", "Vous pouvez continuer : les comptes seront liés et vous pourrez désormais vous connecter avec les deux.", "Puoi continuare: gli account verranno collegati e da ora potrai accedere con entrambi."],
+  "Contraseña de esa cuenta": ["Password for that account", "Passwort dieses Kontos", "Mot de passe de ce compte", "Password di quell'account"],
+  "Vincular y continuar": ["Link and continue", "Verknüpfen und fortfahren", "Lier et continuer", "Collega e continua"],
+  "Para vincular, inicia sesión primero con": ["To link, first sign in with", "Zum Verknüpfen melde dich zuerst an mit", "Pour lier, connectez-vous d'abord avec", "Per collegare, accedi prima con"],
   "Continuar con GitHub": ["Continue with GitHub", "Mit GitHub fortfahren", "Continuer avec GitHub", "Continua con GitHub"],
   "Escribe este código en GitHub (se ha abierto la página) y autoriza Caesar:": ["Enter this code on GitHub (the page has opened) and authorise Caesar:", "Gib diesen Code auf GitHub ein (die Seite wurde geöffnet) und autorisiere Caesar:", "Saisissez ce code sur GitHub (la page s'est ouverte) et autorisez Caesar :", "Inserisci questo codice su GitHub (la pagina si è aperta) e autorizza Caesar:"],
   // ── Auth, fuentes, variables y filtro ──

@@ -32,6 +32,9 @@ const PULL_EVERY: u32 = 10;
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
 
+/// Página que ve el usuario en el navegador al terminar el inicio de sesión con Google (gato de Caesar).
+const OAUTH_DONE_HTML: &str = include_str!("oauth_done.html");
+
 #[derive(Deserialize)]
 pub(crate) struct Cfg {
     #[serde(rename = "projectId")]
@@ -81,6 +84,8 @@ pub struct SyncState {
     last_remote: Mutex<i64>,
     last_sync: Mutex<i64>,
     last_error: Mutex<Option<String>>,
+    /// Entrada con GitHub/Google pendiente de vincular a una cuenta que ya existe: (postBody, correo).
+    pending_link: Mutex<Option<(String, String)>>,
     pub(crate) client: reqwest::Client,
 }
 
@@ -101,6 +106,7 @@ impl Default for SyncState {
             last_remote: Mutex::new(0),
             last_sync: Mutex::new(0),
             last_error: Mutex::new(None),
+            pending_link: Mutex::new(None),
             client,
         }
     }
@@ -581,27 +587,7 @@ pub async fn sync_github_finish(app: AppHandle, st: tauri::State<'_, SyncState>,
             e => return Err(format!("GitHub: {e}")),
         }
     };
-    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
-    let v = post_json(
-        &st,
-        &url,
-        json!({
-            "postBody": format!("access_token={gh_token}&providerId=github.com"),
-            "requestUri": "http://localhost",
-            "returnSecureToken": true,
-            "returnIdpCredential": true
-        }),
-    )
-    .await?;
-    let fallback = v["screenName"].as_str().map(|n| format!("GitHub: {n}")).unwrap_or_else(|| "GitHub".to_string());
-    let s = session_from(&v, &fallback)?;
-    save_refresh(&s.refresh_token);
-    *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
-    *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
-    st.dirty.store(false, Ordering::SeqCst);
-    let r = pull(&app, &st).await;
-    set_error(&st, r.err());
-    Ok(())
+    idp_sign_in(&app, &st, format!("access_token={gh_token}&providerId=github.com"), "GitHub").await
 }
 
 /// Inicio de sesión con Google: abre el navegador, recibe el código en 127.0.0.1 (OAuth con PKCE) y entra en Firebase.
@@ -647,19 +633,25 @@ pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Res
             let q: std::collections::HashMap<String, String> = url::Url::parse(&format!("http://127.0.0.1{path}"))
                 .map(|u| u.query_pairs().map(|(k, v)| (k.to_string(), v.to_string())).collect())
                 .unwrap_or_default();
-            let (result, msg) = if q.get("state").map(String::as_str) != Some(state.as_str()) {
-                (None, None)
+            let es = req.lines().any(|l| l.to_ascii_lowercase().starts_with("accept-language:") && l.to_ascii_lowercase().contains("es"));
+            let (result, kind) = if q.get("state").map(String::as_str) != Some(state.as_str()) {
+                (None, "wait")
             } else if let Some(code) = q.get("code") {
-                (Some(Ok(code.clone())), Some("Listo. Ya puedes cerrar esta pestaña y volver a Caesar."))
+                (Some(Ok(code.clone())), "ok")
             } else if q.contains_key("error") {
-                (Some(Err("Has cancelado el acceso con Google.".to_string())), Some("Acceso cancelado. Puedes cerrar esta pestaña."))
+                (Some(Err("Has cancelado el acceso con Google.".to_string())), "cancel")
             } else {
-                (None, None)
+                (None, "wait")
             };
-            let body = format!(
-                "<!doctype html><meta charset=utf-8><title>Caesar</title><body style=\"font-family:system-ui;text-align:center;margin-top:20vh\"><h2>Caesar</h2><p>{}</p>",
-                msg.unwrap_or("Esperando…")
-            );
+            let (msg, sub, hint) = match (kind, es) {
+                ("ok", true) => ("¡Listo! Has iniciado sesión.", "Caesar ya tiene tu cuenta.", "Puedes cerrar esta pestaña y volver a Caesar"),
+                ("ok", false) => ("All set! You're signed in.", "Caesar has your account now.", "You can close this tab and go back to Caesar"),
+                ("cancel", true) => ("Acceso cancelado.", "No se ha iniciado sesión.", "Puedes cerrar esta pestaña y volver a Caesar"),
+                ("cancel", false) => ("Sign-in cancelled.", "You were not signed in.", "You can close this tab and go back to Caesar"),
+                (_, true) => ("Esperando…", "", "Vuelve a Caesar"),
+                (_, false) => ("Waiting…", "", "Go back to Caesar"),
+            };
+            let body = OAUTH_DONE_HTML.replace("{{LANG}}", if es { "es" } else { "en" }).replace("{{MSG}}", msg).replace("{{SUB}}", sub).replace("{{HINT}}", hint);
             let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body);
             let _ = sock.write_all(resp.as_bytes()).await;
             let _ = sock.shutdown().await;
@@ -701,26 +693,60 @@ pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Res
     }
     let id_token = tok["id_token"].as_str().ok_or("Google no devolvió la identidad.")?;
 
+    idp_sign_in(&app, &st, form(&[("id_token", id_token), ("providerId", "google.com")]), "Google").await
+}
+
+/// Entra en Firebase con las credenciales de un proveedor. Si el correo ya existe con otro método de acceso,
+/// guarda la entrada pendiente y devuelve `LINK_REQUIRED|correo|métodos` para que la interfaz pida confirmar.
+async fn idp_sign_in(app: &AppHandle, st: &SyncState, post_body: String, fallback: &str) -> Result<(), String> {
+    let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
     let v = post_json(
-        &st,
+        st,
         &url,
-        json!({
-            "postBody": form(&[("id_token", id_token), ("providerId", "google.com")]),
-            "requestUri": "http://localhost",
-            "returnSecureToken": true,
-            "returnIdpCredential": true
-        }),
+        json!({ "postBody": post_body, "requestUri": "http://localhost", "returnSecureToken": true, "returnIdpCredential": true }),
     )
     .await?;
-    let s = session_from(&v, "Google")?;
+    if v["idToken"].is_null() {
+        if let Some(email) = v["email"].as_str() {
+            let others = v["allProviders"].as_array().map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(",")).unwrap_or_default();
+            *st.pending_link.lock().map_err(|_| "Estado bloqueado")? = Some((post_body, email.to_string()));
+            return Err(format!("LINK_REQUIRED|{email}|{others}"));
+        }
+    }
+    let name = v["screenName"].as_str().map(|n| format!("{fallback}: {n}")).unwrap_or_else(|| fallback.to_string());
+    finish_session(app, st, session_from(&v, &name)?).await
+}
+
+async fn finish_session(app: &AppHandle, st: &SyncState, s: Session) -> Result<(), String> {
     save_refresh(&s.refresh_token);
     *st.session.lock().map_err(|_| "Estado bloqueado")? = Some(s);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = 0;
     st.dirty.store(false, Ordering::SeqCst);
-    let r = pull(&app, &st).await;
-    set_error(&st, r.err());
+    let r = pull(app, st).await;
+    set_error(st, r.err());
     Ok(())
+}
+
+/// Confirma la vinculación: la contraseña demuestra que la cuenta existente es tuya y se le añade GitHub/Google.
+#[tauri::command]
+pub async fn sync_link_confirm(app: AppHandle, st: tauri::State<'_, SyncState>, password: String) -> Result<(), String> {
+    let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
+    let (post_body, email) = st.pending_link.lock().map_err(|_| "Estado bloqueado")?.clone().ok_or("No hay ninguna vinculación pendiente.")?;
+    let pw = post_json(&st, &format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={}", c.api_key), json!({ "email": email, "password": password, "returnSecureToken": true })).await?;
+    let id_token = pw["idToken"].as_str().ok_or("Respuesta de cuenta incompleta.")?.to_string();
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={}", c.api_key);
+    let v = post_json(&st, &url, json!({ "idToken": id_token, "postBody": post_body, "requestUri": "http://localhost", "returnSecureToken": true, "returnIdpCredential": true })).await?;
+    let s = session_from(&v, &email)?;
+    *st.pending_link.lock().map_err(|_| "Estado bloqueado")? = None;
+    finish_session(&app, &st, s).await
+}
+
+#[tauri::command]
+pub fn sync_link_cancel(st: tauri::State<'_, SyncState>) {
+    if let Ok(mut g) = st.pending_link.lock() {
+        *g = None;
+    }
 }
 
 #[derive(Serialize)]

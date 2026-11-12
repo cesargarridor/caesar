@@ -56,6 +56,8 @@ export const syncSignIn = (email: string, password: string, create: boolean) =>
   invoke<void>("sync_sign_in", { email, password, create });
 export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
 export const syncGoogle = () => invoke<void>("sync_google");
+export const syncLinkConfirm = (password: string) => invoke<void>("sync_link_confirm", { password });
+export const syncLinkCancel = () => invoke<void>("sync_link_cancel");
 export const syncGithubBegin = () => invoke<DeviceCode>("sync_github_begin");
 export const syncGithubFinish = (d: DeviceCode) =>
   invoke<void>("sync_github_finish", { deviceCode: d.device_code, interval: d.interval, expiresIn: d.expires_in });
