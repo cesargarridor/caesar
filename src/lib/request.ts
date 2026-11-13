@@ -1,6 +1,7 @@
 import type { AuthData, KV, RequestNode, RequestState, TreeNode } from "../types";
 import { buildUrl, encodeParam } from "./url";
 import { defaultSettings, emptyAuth } from "./curl";
+import { gqlRaw } from "./graphql";
 
 /** Reemplaza {{variable}} usando las variables definidas; las desconocidas se dejan tal cual. */
 export function substitute(s: string, vars: KV[]): string {
@@ -43,8 +44,9 @@ export function buildExecuteArgs(req: RequestState, vars: KV[]) {
     url,
     headers,
     body: {
-      mode: req.body.mode,
-      raw: sub(req.body.raw),
+      // GraphQL viaja como un POST JSON {query, variables}
+      mode: req.body.mode === "graphql" ? "json" : req.body.mode,
+      raw: req.body.mode === "graphql" ? gqlRaw(req.body, sub) : sub(req.body.raw),
       formdata: subKv(req.body.formdata),
       urlencoded: subKv(req.body.urlencoded),
     },
@@ -107,7 +109,7 @@ export function requestFromNode(n: RequestNode): RequestState {
 
   const auth = normAuth(n.auth);
 
-  const mode = ["none", "json", "text", "formdata", "urlencoded"].includes(n.body.mode) ? n.body.mode : "none";
+  const mode = ["none", "json", "text", "formdata", "urlencoded", "graphql"].includes(n.body.mode) ? n.body.mode : "none";
   return {
     method: n.method,
     url: base,
@@ -119,6 +121,9 @@ export function requestFromNode(n: RequestNode): RequestState {
       raw: n.body.raw ?? "",
       formdata: n.body.formdata ?? [],
       urlencoded: n.body.urlencoded ?? [],
+      gqlQuery: n.body.gqlQuery ?? "",
+      gqlVars: n.body.gqlVars ?? "",
+      gqlOp: n.body.gqlOp ?? "",
     },
     settings: defaultSettings(),
     tests: n.tests ?? "",
