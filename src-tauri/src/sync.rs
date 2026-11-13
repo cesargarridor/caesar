@@ -425,7 +425,8 @@ pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> 
     let (uid, tok) = valid_token(st).await?;
     let plain = std::fs::read(data_file(app)?).map_err(|e| format!("No se pudo leer datos.json: {e}"))?;
     let key = vault::load_key()?.ok_or("Activa el cifrado (clave de recuperación) antes de sincronizar.")?;
-    let blob = vault::encrypt(&key, &context(&uid), &plain)?;
+    // Filtro → compresión (solo si es grande) → cifrado → Base64. No hay nada pesado que filtrar: datos.json solo lleva peticiones, variables y lápidas.
+    let blob = vault::encrypt(&key, &context(&uid), &crate::pack::pack(&plain)?)?;
     if blob.len() > MAX_BLOB {
         return Err("Tus colecciones superan el límite de la nube gratuita (~650 KB). Exporta o divide las colecciones.".into());
     }
@@ -487,7 +488,8 @@ pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> 
     }
     let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento remoto no tiene datos.")?;
     let key = vault::load_key()?.ok_or("Falta la clave de cifrado en este equipo: vincúlalo o restaura la clave de recuperación.")?;
-    let plain = vault::decrypt_any(&key, &context(&uid), blob)?;
+    // Los datos antiguos (cifrados sin comprimir) y los nuevos (comprimidos con gzip) se leen igual.
+    let plain = crate::pack::unpack(vault::decrypt_any(&key, &context(&uid), blob)?)?;
     let text = String::from_utf8(plain).map_err(|_| "Los datos remotos no son texto válido.".to_string())?;
     let remote: Value = serde_json::from_str(&text).map_err(|_| "Los datos remotos no son JSON válido.".to_string())?;
     let file = data_file(app)?;

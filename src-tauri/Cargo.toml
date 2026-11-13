@@ -1,6 +1,6 @@
 [package]
 name = "caesar"
-version = "0.14.0"
+version = "0.14.1"
 description = "Caesar - cliente API rápido y seguro"
 edition = "2021"
 rust-version = "1.77"
@@ -18,6 +18,9 @@ open = "5"
 tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs", "io-util"] }
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "multipart", "gzip", "deflate"] }
+
+# Compresión gzip de lo que se sube a la nube (ver src/pack.rs)
+flate2 = "1"
 
 # Cifrado de extremo a extremo y vinculación de dispositivos (ver src/vault.rs)
 aes-gcm = "0.10"

@@ -75,6 +75,7 @@ pub struct TeamDoc {
 fn read_doc(v: &Value, key: &Key, id: &str, uid: &str) -> Result<TeamDoc, String> {
     let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento del equipo no tiene datos.")?;
     let plain = vault::decrypt(key, &format!("team:{id}"), blob).map_err(|_| "No se pudo descifrar la colección con ese código.".to_string())?;
+    let plain = crate::pack::unpack(plain)?;
     Ok(TeamDoc {
         json: String::from_utf8(plain).map_err(|_| "La colección del equipo no es texto válido.".to_string())?,
         updated_at: v["fields"]["updatedAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0),
@@ -108,7 +109,7 @@ pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Resu
     let code = new_code();
     let norm = normalize(&code)?;
     let (id, key) = derive(&norm);
-    let blob = vault::encrypt(&key, &format!("team:{id}"), json.as_bytes())?;
+    let blob = vault::encrypt(&key, &format!("team:{id}"), &crate::pack::pack(json.as_bytes())?)?;
     if blob.len() > MAX_BLOB {
         return Err("La colección supera el límite de la nube gratuita (~650 KB).".into());
     }
@@ -150,7 +151,7 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
     let (_uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
     let (id, key) = derive(&norm);
-    let blob = vault::encrypt(&key, &format!("team:{id}"), json.as_bytes())?;
+    let blob = vault::encrypt(&key, &format!("team:{id}"), &crate::pack::pack(json.as_bytes())?)?;
     if blob.len() > MAX_BLOB {
         return Err("La colección supera el límite de la nube gratuita (~650 KB).".into());
     }
