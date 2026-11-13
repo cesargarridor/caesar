@@ -1,4 +1,5 @@
-import { Check, Save, Send, Terminal } from "lucide-react";
+import { Check, Layers, Save, Send, Terminal } from "lucide-react";
+import type { ProfilesState } from "../types";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import VarInput from "./VarInput";
@@ -25,6 +26,11 @@ interface Props {
   /** Botones extra elegidos por el usuario (Ajustes → Edición y atajos). */
   extra?: { id: string; label: string }[];
   onCommand?: (id: string) => void;
+  /** Perfiles de variables del espacio y el activo; el selector queda justo encima de «Enviar». */
+  profiles: ProfilesState;
+  onProfile: (id: string | null) => void;
+  /** Abre el gestor de perfiles en la barra lateral. */
+  onManageProfiles: () => void;
 }
 
 const ghost =
@@ -33,10 +39,27 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, flash, extra = [], onCommand }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
   return (
-    <div className="flex gap-2 p-4">
+    <div className="flex flex-col gap-2 p-4">
+      <div className="flex items-center justify-end gap-2 text-xs text-slate">
+        <Layers size={13} />
+        <span className="uppercase tracking-[0.025em]">{t("Perfil de variables")}</span>
+        <select
+          value={profiles.active ?? ""}
+          onChange={(e) => (e.target.value === "__manage__" ? onManageProfiles() : onProfile(e.target.value || null))}
+          title={t("Perfil de variables que se usa al enviar")}
+          className="max-w-[14rem] rounded-[10px] bg-kelp px-3 py-1.5 text-xs font-semibold text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+        >
+          <option value="">{t("Sin perfil")}</option>
+          {profiles.list.map((p) => (
+            <option key={p.id} value={p.id}>{p.name || t("Sin nombre")}</option>
+          ))}
+          <option value="__manage__">{t("Gestionar perfiles…")}</option>
+        </select>
+      </div>
+      <div className="flex gap-2">
       <select
         value={method}
         onChange={(e) => (e.target.value === "__more__" ? onMore() : onMethod(e.target.value))}
@@ -77,6 +100,7 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
       <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
         <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
       </button>
+      </div>
     </div>
   );
 }
