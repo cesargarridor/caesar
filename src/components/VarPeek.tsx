@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
-import type { KV } from "../types";
+import type { KV, VarProfile } from "../types";
 import { t } from "../lib/i18n";
 
 interface Props {
   /** Variables globales del espacio. */
   vars: KV[];
   onVars: (v: KV[]) => void;
+  /** Perfil de variables activo (pisa a la colección y a las globales). null = ninguno. */
+  profile: VarProfile | null;
+  onProfileVars: (v: KV[]) => void;
   /** Variables de la colección abierta (pisan a las globales). null = no hay colección abierta. */
   collVars: KV[] | null;
   onCollVars: ((v: KV[]) => void) | null;
@@ -37,18 +40,18 @@ const upsert = (list: KV[], key: string, value: string): KV[] =>
  * editarlo. Si la variable está en la colección se edita ahí; si es global, en las globales; si no existe se crea (en la colección
  * abierta o, si no hay, en las globales).
  */
-export default function VarPeek({ vars, onVars, collVars, onCollVars }: Props) {
+export default function VarPeek({ vars, onVars, profile, onProfileVars, collVars, onCollVars }: Props) {
   const [open, setOpen] = useState<Open | null>(null);
   const [value, setValue] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  const ref = useRef({ vars, collVars });
-  ref.current = { vars, collVars };
+  const ref = useRef({ vars, collVars, profVars: profile?.vars ?? null });
+  ref.current = { vars, collVars, profVars: profile?.vars ?? null };
 
-  const where = (name: string): "coll" | "global" | "new" =>
-    collVars?.some((v) => v.key === name) ? "coll" : vars.some((v) => v.key === name) ? "global" : "new";
+  const where = (name: string): "prof" | "coll" | "global" | "new" =>
+    profile?.vars.some((v) => v.key === name) ? "prof" : collVars?.some((v) => v.key === name) ? "coll" : vars.some((v) => v.key === name) ? "global" : "new";
   const current = (name: string) => {
-    const { vars: g, collVars: c } = ref.current;
-    return (c?.find((v) => v.key === name) ?? g.find((v) => v.key === name))?.value ?? "";
+    const { vars: g, collVars: c, profVars: p } = ref.current;
+    return (p?.find((v) => v.key === name) ?? c?.find((v) => v.key === name) ?? g.find((v) => v.key === name))?.value ?? "";
   };
 
   useEffect(() => {
@@ -76,14 +79,16 @@ export default function VarPeek({ vars, onVars, collVars, onCollVars }: Props) {
 
   if (!open) return null;
   const place = where(open.name);
-  const toColl = place === "coll" || (place === "new" && !!onCollVars);
+  const toProf = place === "prof" || (place === "new" && !!profile);
+  const toColl = !toProf && (place === "coll" || (place === "new" && !!onCollVars));
 
   const save = () => {
-    if (toColl && onCollVars) onCollVars(upsert(collVars ?? [], open.name, value));
+    if (toProf) onProfileVars(upsert(profile?.vars ?? [], open.name, value));
+    else if (toColl && onCollVars) onCollVars(upsert(collVars ?? [], open.name, value));
     else onVars(upsert(vars, open.name, value));
     setOpen(null);
   };
-  const scope = place === "coll" ? t("De la colección") : place === "global" ? t("Global") : toColl ? t("No definida: se creará en la colección") : t("No definida: se creará como global");
+  const scope = place === "prof" ? `${t("Del perfil")}: ${profile?.name ?? ""}` : place === "coll" ? t("De la colección") : place === "global" ? t("Global") : toProf ? `${t("No definida: se creará en el perfil")}: ${profile?.name ?? ""}` : toColl ? t("No definida: se creará en la colección") : t("No definida: se creará como global");
 
   return (
     <div className="fixed inset-0 z-[85]" onMouseDown={() => setOpen(null)}>
