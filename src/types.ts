@@ -10,6 +10,19 @@ export interface KV {
   contentType?: string;
 }
 
+/** Perfil de variables (como un Environment de Postman): conjunto con nombre que se activa con el selector junto a «Enviar». */
+export interface VarProfile {
+  id: string;
+  name: string;
+  vars: KV[];
+}
+
+/** Perfiles de un espacio de trabajo y el que está activo (null = ninguno). */
+export interface ProfilesState {
+  list: VarProfile[];
+  active: string | null;
+}
+
 export type BodyMode = "none" | "json" | "text" | "formdata" | "urlencoded";
 
 export interface BodyData {
