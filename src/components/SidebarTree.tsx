@@ -118,7 +118,7 @@ function IconBtn({ title, onClick, children, danger, disabled }: { title: string
 /** Componente recursivo: Colección -> Carpetas -> Requests, con colapso y acciones al pasar el ratón. */
 export default function SidebarTree(props: Props) {
   const { node, path, depth, selectedPath, renaming } = props;
-  const guest = useAccount().account.mode === "guest";
+  const guest = !useAccount().account.is_pro;
   const [confirm, setConfirm] = useState(false);
   const indent = 8 + depth * 14;
   const isCollection = depth === 0;
