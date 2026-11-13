@@ -53,6 +53,9 @@ pub(crate) struct Cfg {
     /// Enlace de compra de Lemon Squeezy (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
     #[serde(rename = "checkoutUrl", default)]
     checkout_url: String,
+    /// URL del Worker de Cloudflare (valida los códigos de Pro para siempre en `/redeem`). Vacío = no se puede canjear.
+    #[serde(rename = "workerUrl", default)]
+    pub(crate) worker_url: String,
 }
 
 pub(crate) fn cfg() -> Option<Cfg> {

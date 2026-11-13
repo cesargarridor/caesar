@@ -3,7 +3,7 @@ import { accountState, onAccountLinked, openUrl, syncCheckoutUrl, type AccountMo
 import { useToast } from "../components/Toast";
 import { t } from "./i18n";
 
-const GUEST: AccountState = { mode: "guest", is_pro: false, whitelisted: false, days_left: 0, deleted: false, email: "" };
+const GUEST: AccountState = { mode: "guest", is_pro: false, whitelisted: false, forever: false, days_left: 0, deleted: false, email: "" };
 
 interface AccountApi {
   account: AccountState;

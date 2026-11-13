@@ -4,13 +4,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Pro = suscripción activa (users/{uid}/billing/status.active, lo escribe solo el Worker) o miembro de la lista blanca
-    // (users/{uid}.isWhitelistMember == true, editado a mano desde la consola/Admin; los clientes NO pueden escribirlo).
+    // (users/{uid}.isWhitelistMember == true, editado a mano desde la consola/Admin) o Pro para siempre por código canjeado
+    // (users/{uid}.proForever == true, lo escribe solo el Worker). Los clientes NO pueden escribir ninguno de los dos.
     function owner(uid) { return request.auth != null && request.auth.uid == uid; }
     function isPro(uid) {
       return (exists(/databases/$(database)/documents/users/$(uid)/billing/status)
           && get(/databases/$(database)/documents/users/$(uid)/billing/status).data.active == true)
         || (exists(/databases/$(database)/documents/users/$(uid))
-          && get(/databases/$(database)/documents/users/$(uid)).data.get('isWhitelistMember', false) == true);
+          && (get(/databases/$(database)/documents/users/$(uid)).data.get('isWhitelistMember', false) == true
+            || get(/databases/$(database)/documents/users/$(uid)).data.get('proForever', false) == true));
     }
 
     // Documento de usuario (isWhitelistMember): el dueño solo lo lee; nadie desde el cliente lo escribe (sin auto-whitelist).

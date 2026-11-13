@@ -109,3 +109,17 @@ Permisos IAM de la cuenta de servicio `caesar-billing` (además de **Cloud Datas
 `cloud-platform`.
 
 Tests: `cd cloudflare && node --test` (fetch simulado; no toca Google).
+
+## 8. Códigos de «Pro para siempre» (plan Compas)
+
+Para compañeros: un código desbloquea Pro de por vida (sin Lemon Squeezy). Lo valida el mismo Worker en `POST /redeem`.
+
+1. En el Worker añade la variable de texto `FIREBASE_API_KEY` (la `apiKey` de `src-tauri/sync_config.json`) y vuelve a pegar `worker.js`.
+2. Pon la URL del Worker en `src-tauri/sync_config.json` → `workerUrl` (sin barra final) y publica versión nueva.
+3. Despliega las reglas de `firebase/` (ahora `isPro` también acepta `users/{uid}.proForever`).
+4. Genera un código: `node cloudflare/gen-code.mjs 6` y crea en Firestore el documento que indica (`codes/<CÓDIGO>` con `max` y `uses` numéricos).
+   Para ampliar los usos basta con subir `max` desde la consola.
+5. Pásale el código al compañero: en Caesar, Ajustes → Cuenta y suscripción → **Canjear código** (necesita haber iniciado sesión).
+
+El canje es atómico (transacción): sube `uses` y escribe `users/<uid>.proForever`. Un mismo usuario no gasta dos usos, y el Cron de
+limpieza no borra nunca estas cuentas. Los clientes no pueden leer `codes/` (las reglas lo bloquean).

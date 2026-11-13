@@ -4,6 +4,8 @@ compatibility_date = "2025-01-01"
 
 [vars]
 FIREBASE_PROJECT = "caesar-sync-app"
+# Clave web pública de Firebase (la misma de sync_config.json): solo valida el token del usuario al canjear un código.
+FIREBASE_API_KEY = "AIzaSyAqQSFYps29gftmOnDJjB3lcz-O9KHq3J8"
 
 [triggers]
 crons = ["0 * * * *"]

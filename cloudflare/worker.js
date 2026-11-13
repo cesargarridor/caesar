@@ -5,6 +5,7 @@
 //   LS_WEBHOOK_SECRET  (secreto)  el "signing secret" del webhook en Lemon Squeezy
 //   FIREBASE_SA        (secreto)  el JSON completo de la clave de la cuenta de servicio de Google
 //   FIREBASE_PROJECT   (texto)    caesar-sync-app
+//   FIREBASE_API_KEY   (texto)    la apiKey web de Firebase (la de sync_config.json); solo valida el token del usuario al canjear un código
 
 const enc = new TextEncoder();
 
@@ -69,7 +70,7 @@ function isActive(attrs) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Limpieza horaria de cuentas de prueba caducadas (Cron Trigger).
-// Borra de Firebase Auth las cuentas con más de 7 días que NO sean whitelist (users/{uid}.isWhitelistMember) ni tengan
+// Borra de Firebase Auth las cuentas con más de 7 días que NO sean whitelist (users/{uid}.isWhitelistMember), ni Pro para siempre (users/{uid}.proForever, por código canjeado), ni tengan
 // suscripción activa (users/{uid}/billing/status.active). La whitelist vive solo en Firestore.
 // Variables extra: DRY_RUN="1" (solo loguea, no borra), MAX_DELETES (por defecto 2000),
 // MAX_SUBREQUESTS (por defecto 45; plan gratis = 50 por invocación). Todo en lote: batchGet Auth, documents:batchGet, batchDelete.
@@ -90,9 +91,9 @@ export function isExpired(createdAtMs, now = Date.now()) {
   return c < now - TRIAL_DAYS * 86400000;
 }
 
-/** Decisión pura: ¿borrar? (caducada y ni whitelist ni de pago). */
-export function shouldDelete({ createdAtMs, isWhitelistMember, billingActive }, now = Date.now()) {
-  return isExpired(createdAtMs, now) && isWhitelistMember !== true && billingActive !== true;
+/** Decisión pura: ¿borrar? (caducada y ni whitelist, ni Pro para siempre, ni de pago). */
+export function shouldDelete({ createdAtMs, isWhitelistMember, proForever, billingActive }, now = Date.now()) {
+  return isExpired(createdAtMs, now) && isWhitelistMember !== true && proForever !== true && billingActive !== true;
 }
 
 /** Estado de un doc leído en lote. */
@@ -147,7 +148,7 @@ async function readExemptions(env, token, uids, budget) {
         const user = docs.get(`users/${u}`);
         const bill = docs.get(`users/${u}/billing/status`);
         if (user === undefined || bill === undefined) out.set(u, { error: "respuesta incompleta" });
-        else out.set(u, { isWhitelistMember: user.isWhitelistMember?.booleanValue === true, billingActive: billingIsActive(bill) });
+        else out.set(u, { isWhitelistMember: user.isWhitelistMember?.booleanValue === true, proForever: user.proForever?.booleanValue === true, billingActive: billingIsActive(bill) });
       }
     } catch (e) {
       for (const u of chunk) out.set(u, { error: e.message });
@@ -248,6 +249,114 @@ export async function cleanupExpiredAccounts(env, now = Date.now()) {
   return summary;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Canjear código (Pro para siempre, plan «Compas»). POST /redeem  { idToken, code }
+// El código es un documento codes/{CÓDIGO} = { max: n, uses: n } que se crea a mano en la consola de Firestore.
+// Todo ocurre en una transacción: sube `uses` y marca users/{uid}.proForever. Un mismo usuario no gasta dos usos.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const CODE_RE = /^[A-Z0-9][A-Z0-9-]{6,38}[A-Z0-9]$/;
+const REDEEM_MAX_BODY = 4 * 1024;
+
+/** Normaliza lo que escribe el usuario: mayúsculas, sin espacios. null si no tiene pinta de código. */
+export function normalizeCode(raw) {
+  const c = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  return CODE_RE.test(c) ? c : null;
+}
+
+/** Decisión pura. code/user = `fields` de Firestore (o null si no existe). → "invalid" | "exhausted" | "already" | "ok". */
+export function decideRedeem(code, user) {
+  if (user?.proForever?.booleanValue === true) return "already"; // ya es Pro para siempre: no gasta un uso
+  if (!code) return "invalid";
+  const max = Number(code.max?.integerValue ?? code.max?.doubleValue);
+  const uses = Number(code.uses?.integerValue ?? code.uses?.doubleValue ?? 0);
+  if (!Number.isFinite(max) || max <= 0) return "invalid";
+  if (!Number.isFinite(uses) || uses >= max) return "exhausted";
+  return "ok";
+}
+
+/** uid del dueño del token (Firebase accounts:lookup). null si el token no vale. */
+async function uidFromToken(env, idToken) {
+  if (!env.FIREBASE_API_KEY || typeof idToken !== "string" || idToken.length < 20 || idToken.length > 4096) return null;
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(env.FIREBASE_API_KEY)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  if (!res.ok) return null;
+  const uid = (await res.json().catch(() => ({})))?.users?.[0]?.localId;
+  return typeof uid === "string" && /^[A-Za-z0-9]{10,64}$/.test(uid) ? uid : null;
+}
+
+/** Canjea el código para ese uid. Devuelve { status: "ok"|"already"|"invalid"|"exhausted" }; lanza si Firestore falla. */
+export async function redeemCode(env, uid, code, now = Date.now()) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const token = await googleToken(sa);
+  const base = `projects/${env.FIREBASE_PROJECT}/databases/(default)/documents`;
+  const api = `https://firestore.googleapis.com/v1/${base}`;
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const b = await fetch(`${api}:beginTransaction`, { method: "POST", headers, body: JSON.stringify({ options: { readWrite: {} } }) });
+    if (!b.ok) throw new Error(`Firestore beginTransaction ${b.status}`);
+    const { transaction } = await b.json();
+    const read = async (path) => {
+      const res = await fetch(`${api}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`Firestore get ${res.status}`);
+      return (await res.json()).fields || {};
+    };
+    const codeDoc = await read(`codes/${code}`);
+    const userDoc = await read(`users/${uid}`);
+    const decision = decideRedeem(codeDoc, userDoc);
+    if (decision !== "ok") {
+      // Se cierra la transacción sin escribir nada.
+      await fetch(`${api}:rollback`, { method: "POST", headers, body: JSON.stringify({ transaction }) }).catch(() => {});
+      return { status: decision };
+    }
+    const uses = Number(codeDoc.uses?.integerValue ?? 0);
+    const c = await fetch(`${api}:commit`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        transaction,
+        writes: [
+          { update: { name: `${base}/codes/${code}`, fields: { uses: { integerValue: String(uses + 1) } } }, updateMask: { fieldPaths: ["uses"] }, currentDocument: { exists: true } },
+          {
+            update: { name: `${base}/users/${uid}`, fields: { proForever: { booleanValue: true }, proCode: { stringValue: code }, proAt: { integerValue: String(now) } } },
+            updateMask: { fieldPaths: ["proForever", "proCode", "proAt"] },
+          },
+        ],
+      }),
+    });
+    if (c.ok) return { status: "ok" };
+    if (c.status !== 409 && c.status !== 400 && c.status !== 429) throw new Error(`Firestore commit ${c.status}`);
+    // 409/ABORTED: otro canje a la vez; se reintenta leyendo de nuevo.
+  }
+  throw new Error("Firestore: demasiada contención");
+}
+
+const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
+
+async function handleRedeem(request, env) {
+  if (request.method !== "POST") return json({ error: "method" }, 405);
+  const raw = await readLimited(request, REDEEM_MAX_BODY);
+  if (raw === null) return json({ error: "too_big" }, 413);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
+  const code = normalizeCode(body?.code);
+  if (!code) return json({ error: "invalid" }, 400);
+  try {
+    const uid = await uidFromToken(env, body?.idToken);
+    if (!uid) return json({ error: "auth" }, 401);
+    const { status } = await redeemCode(env, uid, code);
+    if (status === "ok" || status === "already") return json({ ok: true, already: status === "already" });
+    return json({ error: status }, status === "exhausted" ? 410 : 404);
+  } catch (e) {
+    console.error(`Canje fallido: ${e.message}`);
+    return json({ error: "server" }, 502);
+  }
+}
+
 const MAX_BODY = 100 * 1024;
 
 /** Lee el cuerpo con tope de bytes; devuelve null si lo supera. */
@@ -277,6 +386,7 @@ export default {
   },
 
   async fetch(request, env) {
+    if (new URL(request.url).pathname === "/redeem") return handleRedeem(request, env);
     if (request.method === "GET") return new Response("Caesar billing webhook", { status: 200 });
     if (request.method !== "POST") return new Response("Método no permitido", { status: 405, headers: { allow: "GET, POST" } });
     const len = Number(request.headers.get("content-length"));
