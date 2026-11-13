@@ -60,7 +60,7 @@ Estado a 12 de noviembre de 2026:
 - **Futuro:** se estudiará una opción de firma de código para Windows, sin garantías ni fecha. Los programas de firma gratuita para código abierto no valen para Caesar, porque su licencia FSL no es de código abierto.
 - **Equipo:** una sola persona, Cesar Garrido, autor, revisor y aprobador de las versiones. Se activará MFA en las
   cuentas implicadas en la publicación (intención, no verificada públicamente).
-- **Privacidad:** [política de privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html). Detalle:
+- **Privacidad:** [política de privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html). Caesar no incluye telemetría ni analítica. Detalle:
   [política de firma en la web](https://cesargarridor.github.io/caesar/download.html#politica-de-firma-de-codigo).
 
 ## Actualizaciones automáticas
@@ -102,6 +102,16 @@ Las contribuciones son bienvenidas y quedan sujetas a esta misma licencia.
 Los temas de color (Monokai, Dracula, Tokyo Night, Nord, One Dark y GitHub Light) y otros componentes de terceros tienen su
 origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar no usa Monokai Pro, que es de pago.
 
+## Planes y suscripción
+
+- **Invitado:** gratis, uso local sin cuenta. Los datos se guardan solo en tu dispositivo.
+- **Cuenta:** 7 días de prueba local; si no activas Pro, la cuenta se elimina.
+- **Pro:** suscripción gestionada por Lemon Squeezy (Merchant of Record) con **renovación automática**. El precio y la periodicidad (mensual o anual) se muestran en el checkout antes de pagar, con impuestos incluidos y sin cargos ocultos.
+- **Cancelar:** cuando quieras, en Ajustes → Cuenta y suscripción → Gestionar suscripción (Pro hasta el fin del periodo pagado). Borrar la cuenta también cancela la suscripción.
+- **Reembolso:** 14 días desde cualquier cobro.
+- Legal: [Términos](https://cesargarridor.github.io/caesar-legal/terms.html) · [Privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html) · [Reembolsos](https://cesargarridor.github.io/caesar-legal/refunds.html) · [Aviso legal](https://cesargarridor.github.io/caesar-legal/legal.html) · [Borrar datos](https://cesargarridor.github.io/caesar-legal/delete.html) · [Seguridad](https://cesargarridor.github.io/caesar-legal/security.html).
+- En modo Invitado/local tus datos no salen del equipo; con Sync solo se suben bloques cifrados.
+
 ## Seguridad
 
 - La interfaz nunca hace peticiones de red: todo pasa por Rust (`reqwest`) mediante IPC.
@@ -111,8 +121,7 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 ## Sincronización cifrada de extremo a extremo (en desarrollo)
 
 > **Estado:** el cifrado local, la cuenta (Firebase Auth, correo y contraseña), la base de datos (Firestore) y la
-> sincronización en segundo plano están hechos (Ajustes → Sincronización). Faltan la vinculación con QR en pantalla y los
-> pagos (Lemon Squeezy). Todo funciona en el plan gratuito (Spark) de Firebase, sin tarjeta.
+> sincronización en segundo plano están hechos (Ajustes → Cuenta y suscripción). Falta la vinculación con QR en pantalla. Los pagos funcionan con Lemon Squeezy (ver «Planes y suscripción»). Todo funciona en el plan gratuito (Spark) de Firebase, sin tarjeta.
 
 ### Cómo se sincroniza sin gastar cuota
 
@@ -178,8 +187,8 @@ los datos cifrados no se pueden recuperar.
 La primera vez que se abre Caesar (y una sola vez al actualizar desde una versión sin ella) aparece una pantalla con tres
 opciones: **iniciar sesión**, **registrarse** (correo y contraseña, o GitHub si está disponible) o **continuar como
 invitado**. Como invitado los datos se guardan solo en ese dispositivo: si se borran o se cambia de equipo, se pierden. Se
-puede crear la cuenta más tarde desde Ajustes → Sincronización sin perder lo local. Si ya hay una sesión iniciada, la
-pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Incluye enlaces a la política de privacidad y a los términos, publicados en el repositorio
+puede crear la cuenta más tarde desde Ajustes → Cuenta y suscripción sin perder lo local. Si ya hay una sesión iniciada, la
+pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Exige marcar dos casillas sin marcar por defecto («He leído y acepto los Términos y la Política de privacidad» y «Tengo 14 años o más»); la aceptación se guarda en local (`caesar.terms`) y, con sesión, en el servidor. Incluye enlaces a la política de privacidad y a los términos, publicados en el repositorio
 [caesar-legal](https://github.com/cesargarridor/caesar-legal) (https://cesargarridor.github.io/caesar-legal/); las URLs
 están en `src/lib/legal.ts`. Ahí también están el aviso legal, la página de seguridad (qué guarda la app y dónde) y cómo
 borrar los datos, en español e inglés.
@@ -188,7 +197,6 @@ borrar los datos, en español e inglés.
 
 1. Reglas de Firestore por usuario y TTL para los mensajes de vinculación (comprobar en la consola de Firebase).
 2. Pantallas de vinculación con QR y de recuperación.
-3. Suscripción con Lemon Squeezy y webhook (Cloud Function con verificación de firma), con Cloudflare, cuando se firme.
 
 ## Desarrollo
 

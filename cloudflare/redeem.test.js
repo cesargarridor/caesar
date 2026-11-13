@@ -1,7 +1,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
-import worker, { decideRedeem, normalizeCode, redeemCode, shouldDelete } from "./worker.js";
+import worker, { checkRateLimit, cleanupRateLimits, decideRate, rateKey, decideRedeem, normalizeCode, redeemCode, shouldDelete } from "./worker.js";
 
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const env = () => ({
@@ -128,4 +128,142 @@ test("endpoint /redeem: respuestas HTTP", async () => {
   r = await worker.fetch(req({ idToken: tok, code: CODE }), env());
   assert.equal(r.status, 401); // token no válido
   assert.equal(calls.commits.length, 0);
+});
+
+const H = 3600 * 1000;
+const D = 24 * H;
+
+test("decideRate: 3 a la hora y 7 al día", () => {
+  const now = 1_000_000_000_000;
+  assert.equal(decideRate([], now).allowed, true);
+  assert.equal(decideRate([now - 10 * 60000, now - 20 * 60000], now).allowed, true); // 2 en la última hora
+  let d = decideRate([now - 50 * 60000, now - 20 * 60000, now - 10 * 60000], now); // 3 en la última hora
+  assert.equal(d.allowed, false);
+  assert.equal(d.retryAfter, 10 * 60); // el más antiguo sale de la ventana en 10 min
+  // 3 intentos hace más de 1 h no bloquean por hora
+  assert.equal(decideRate([now - 2 * H, now - 3 * H, now - 4 * H], now).allowed, true);
+  // 7 en el día (ninguna racha de 3 en una hora): bloquea hasta que el más antiguo cumpla 24 h
+  const seven = [1, 2, 3, 5, 7, 9, 11].map((h) => now - h * H - 5 * 60000);
+  d = decideRate(seven, now);
+  assert.equal(d.allowed, false);
+  assert.equal(d.retryAfter, Math.ceil((now - 11 * H - 5 * 60000 + D - now) / 1000));
+  // lo de hace más de 24 h se olvida
+  assert.equal(decideRate([now - D - 1, now - D - 2, now - D - 3, now - D - 4, now - D - 5, now - D - 6, now - D - 7], now).allowed, true);
+  assert.equal(decideRate("basura", now).allowed, true);
+});
+
+test("checkRateLimit: apunta el intento; bloqueado no escribe", async () => {
+  const now = 1_000_000_000_000;
+  const att = (...ts) => ({ attempts: { arrayValue: { values: ts.map(int) } } });
+  calls = mock({ docs: { [`redeemLimits/${UID}`]: att(now - 5000, now - 4000) } });
+  assert.deepEqual(await checkRateLimit(env(), UID, now), { allowed: true, retryAfter: 0 });
+  assert.equal(calls.commits.length, 1);
+  const w = calls.commits[0].writes[0];
+  assert.equal(w.update.name, PRE + `redeemLimits/${UID}`);
+  assert.equal(w.update.fields.expiresAt.integerValue, String(now + D)); // caduca 24 h después del último intento
+  assert.deepEqual(w.updateMask.fieldPaths, ["attempts", "expiresAt"]);
+  assert.deepEqual(w.update.fields.attempts.arrayValue.values.map((v) => v.integerValue), [String(now - 5000), String(now - 4000), String(now)]);
+  calls.restore();
+  calls = mock({ docs: { [`redeemLimits/${UID}`]: att(now - 5000, now - 4000, now - 3000) } });
+  const r = await checkRateLimit(env(), UID, now);
+  assert.equal(r.allowed, false);
+  assert.ok(r.retryAfter > 3500 && r.retryAfter <= 3600);
+  assert.equal(calls.commits.length, 0);
+  assert.equal(calls.rollbacks, 1);
+  calls.restore();
+  calls = mock({ docs: {} }); // primer intento: el documento no existe
+  assert.equal((await checkRateLimit(env(), UID, now)).allowed, true);
+});
+
+test("endpoint /redeem: el 4.º intento en una hora da 429 con Retry-After y no llega a mirar el código", async () => {
+  const store = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => {
+    url = String(url);
+    const j = (b, s = 200) => new Response(JSON.stringify(b), { status: s });
+    if (url.startsWith("https://oauth2.googleapis.com/token")) return j({ access_token: "t", expires_in: 3600 });
+    if (url.includes("accounts:lookup")) return j({ users: [{ localId: UID }] });
+    if (url.endsWith(":beginTransaction")) return j({ transaction: "tx" });
+    if (url.endsWith(":rollback")) return j({});
+    if (url.endsWith(":commit")) {
+      for (const w of JSON.parse(opts.body).writes) if (w.update.name.includes("redeemLimits")) store.lim = w.update.fields;
+      return j({});
+    }
+    const m = decodeURIComponent(url).match(/documents\/([^?]+)\?transaction=/);
+    if (m && m[1].startsWith("redeemLimits/")) return store.lim ? j({ fields: store.lim }) : j({}, 404);
+    if (m && m[1].startsWith("codes/")) return j({}, 404); // el código no existe
+    return j({}, 404);
+  };
+  calls = { restore: () => (globalThis.fetch = orig) };
+  const tok = "x".repeat(40);
+  const statuses = [];
+  let last;
+  for (let i = 0; i < 4; i++) {
+    last = await worker.fetch(req({ idToken: tok, code: "CAESAR-NOPE-NOPE-NOPE" }), env());
+    statuses.push(last.status);
+  }
+  assert.deepEqual(statuses, [404, 404, 404, 429]);
+  assert.ok(Number(last.headers.get("retry-after")) > 0);
+  assert.equal((await last.json()).error, "rate_limited");
+});
+
+test("rateKey: depende de la IP (hash, no la IP en claro); sin IP cae al uid", async () => {
+  const a = await rateKey("203.0.113.7", "u1");
+  assert.equal(a, await rateKey("203.0.113.7", "otro-uid")); // mismo IP, distinto usuario → misma clave
+  assert.notEqual(a, await rateKey("203.0.113.8", "u1"));
+  assert.match(a, /^[0-9a-f]{32}$/);
+  assert.ok(!a.includes("203"));
+  assert.notEqual(await rateKey(null, "u1"), await rateKey(null, "u2"));
+});
+
+test("endpoint /redeem: el límite es por IP aunque cambie el usuario", async () => {
+  const store = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => {
+    url = String(url);
+    const j = (b, s = 200) => new Response(JSON.stringify(b), { status: s });
+    if (url.startsWith("https://oauth2.googleapis.com/token")) return j({ access_token: "t", expires_in: 3600 });
+    if (url.includes("accounts:lookup")) return j({ users: [{ localId: JSON.parse(opts.body).idToken.slice(0, 12).padEnd(12, "a") }] });
+    if (url.endsWith(":beginTransaction")) return j({ transaction: "tx" });
+    if (url.endsWith(":rollback")) return j({});
+    if (url.endsWith(":commit")) {
+      for (const w of JSON.parse(opts.body).writes) if (w.update.name.includes("redeemLimits")) store[w.update.name] = w.update.fields;
+      return j({});
+    }
+    const m = decodeURIComponent(url).match(/documents\/([^?]+)\?transaction=/);
+    if (m && m[1].startsWith("redeemLimits/")) return store[PRE + m[1]] ? j({ fields: store[PRE + m[1]] }) : j({}, 404);
+    return j({}, 404);
+  };
+  calls = { restore: () => (globalThis.fetch = orig) };
+  const send = (tokPrefix, ip) =>
+    worker.fetch(new Request("https://w.example/redeem", { method: "POST", headers: { "cf-connecting-ip": ip }, body: JSON.stringify({ idToken: tokPrefix.padEnd(40, "x"), code: "CAESAR-NOPE-NOPE-NOPE" }) }), env());
+  const s = [];
+  for (const [u, ip] of [["usuarioAAAAAA", "1.1.1.1"], ["usuarioBBBBBB", "1.1.1.1"], ["usuarioCCCCCC", "1.1.1.1"], ["usuarioDDDDDD", "1.1.1.1"]]) s.push((await send(u, ip)).status);
+  assert.deepEqual(s, [404, 404, 404, 429]); // 4 usuarios distintos, misma IP → bloqueado
+  assert.equal((await send("usuarioEEEEEE", "2.2.2.2")).status, 404); // otra IP → pasa
+});
+
+test("cleanupRateLimits: borra solo los caducados; DRY_RUN no borra", async () => {
+  const now = 1_000_000_000_000;
+  const orig = globalThis.fetch;
+  const seen = { query: null, commit: null };
+  globalThis.fetch = async (url, opts = {}) => {
+    url = String(url);
+    const j = (b, s = 200) => new Response(JSON.stringify(b), { status: s });
+    if (url.startsWith("https://oauth2.googleapis.com/token")) return j({ access_token: "t", expires_in: 3600 });
+    if (url.endsWith(":runQuery")) { seen.query = JSON.parse(opts.body); return j([{ document: { name: PRE + "redeemLimits/aaa" } }, { document: { name: PRE + "redeemLimits/bbb" } }, { readTime: "x" }]); }
+    if (url.endsWith(":commit")) { seen.commit = JSON.parse(opts.body); return j({}); }
+    throw new Error("url inesperada " + url);
+  };
+  calls = { restore: () => (globalThis.fetch = orig) };
+  const f = seen.query;
+  assert.deepEqual(await cleanupRateLimits({ ...env(), DRY_RUN: "1" }, now), { caducados: 2, borrados: 0 });
+  assert.equal(seen.commit, null);
+  assert.deepEqual(await cleanupRateLimits(env(), now), { caducados: 2, borrados: 2 });
+  const q = seen.query.structuredQuery;
+  assert.equal(q.from[0].collectionId, "redeemLimits");
+  assert.equal(q.where.fieldFilter.field.fieldPath, "expiresAt");
+  assert.equal(q.where.fieldFilter.op, "LESS_THAN");
+  assert.equal(q.where.fieldFilter.value.integerValue, String(now));
+  assert.deepEqual(seen.commit.writes, [{ delete: PRE + "redeemLimits/aaa" }, { delete: PRE + "redeemLimits/bbb" }]);
 });

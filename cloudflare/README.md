@@ -40,19 +40,37 @@ El Worker necesita una cuenta de servicio de Google con permiso solo sobre Fires
      `subscription_expired`, `subscription_paused`, `subscription_unpaused`, `subscription_payment_failed`,
      `subscription_payment_success`, `subscription_payment_recovered`.
 
+6. **API key** (para cancelar suscripciones al borrar una cuenta): **Settings → API → Create API key**. Hazlo en **Test mode** y en
+   **Live mode** (son claves distintas; la de test solo ve suscripciones de test). Copia la clave: es el secreto `LS_API_KEY`
+   (ver el paso 4 de la sección 3). Nunca la pegues en el repositorio ni en la app.
+
 ## 3. Cloudflare Worker (plan gratuito)
 
 1. Crea una cuenta en <https://dash.cloudflare.com> (gratis, sin tarjeta).
 2. **Workers & Pages → Create → Create Worker** → nombre `caesar-billing` → **Deploy**.
 3. **Edit code**: borra el contenido, pega todo `cloudflare/worker.js` y pulsa **Deploy**.
-4. **Settings → Variables and Secrets → Add** (tres entradas):
+4. **Settings → Variables and Secrets → Add** (cuatro entradas):
    | Nombre | Tipo | Valor |
    | --- | --- | --- |
    | `FIREBASE_PROJECT` | Texto | `caesar-sync-app` |
    | `FIREBASE_SA` | **Secreto** | el contenido completo del JSON del paso 1 |
    | `LS_WEBHOOK_SECRET` | **Secreto** | el signing secret del paso 2.5 |
+   | `LS_API_KEY` | **Secreto** | la API key de Lemon Squeezy del paso 2.6 |
+
+   Con Wrangler: `cd cloudflare && npx wrangler secret put LS_API_KEY` (pega la clave cuando lo pida). **Hay que redesplegar el Worker**
+   (`npx wrangler deploy`, o pegar el nuevo `worker.js` y pulsar Deploy) para que existan las rutas nuevas.
 5. La URL del Worker (`https://caesar-billing.TU-USUARIO.workers.dev`) es la que va en el webhook de Lemon Squeezy.
    Si abres esa URL en el navegador debe responder `Caesar billing webhook`.
+
+### Rutas nuevas del Worker (cumplimiento legal)
+
+- `POST /account/terms` con `{idToken, version, age14}`: valida el token y registra la aceptación en
+  `users/{uid}/consent/terms` = `{version, acceptedAt, age14}`. La app lo llama tras aceptar la pantalla de bienvenida
+  (versión de términos actual: `2026-11-13`, constante `TERMS_VERSION` en `src/lib/legal.ts`; si sube, la app vuelve a pedir aceptar).
+  La aceptación también se guarda en local (`localStorage` `caesar.terms`).
+- `POST /account/close` con `{idToken}`: valida el token, lee `users/{uid}/billing/status.subscriptionId`, llama a Lemon Squeezy
+  `DELETE /v1/subscriptions/{id}` con `LS_API_KEY` y borra `users/{uid}/consent/terms`. Si la suscripción está activa y esto
+  falla, la app **no** borra la cuenta y pide cancelar desde «Ajustes → Cuenta y suscripción → Gestionar suscripción».
 
 ## 4. Activar el cobro en Caesar (lo hago yo)
 
@@ -66,16 +84,16 @@ Hasta ese momento, la sincronización es gratuita y no se exige suscripción.
 
 ## 5. Páginas legales
 
-`docs/privacy.html` y `docs/terms.html` son un borrador. Rellena `{{NOMBRE LEGAL}}`, `{{CORREO DE CONTACTO}}`, `{{FECHA}}` y
-`{{CIUDAD}}` y **hazlas revisar por alguien** antes de cobrar: no sustituyen a un asesor legal. Después se publican con GitHub
-Pages (carpeta `/docs` de `main`) y esas URLs son las que pide Lemon Squeezy.
+Las páginas legales están publicadas en <https://cesargarridor.github.io/caesar-legal/> (`privacy.html`, `terms.html`, `refunds.html`, `legal.html`, `delete.html`, `security.html`, y versión inglesa en `en/`). Son las URLs que pide Lemon Squeezy (privacidad, términos y reembolsos). Hazlas revisar por alguien antes de cobrar: no sustituyen a un asesor legal.
 
 ## 6. Prueba completa (en modo test)
 
-1. En Caesar: Ajustes → Sincronización → crea cuenta → **Suscribirme** → paga con la tarjeta de prueba.
+1. En Caesar: Ajustes → Cuenta y suscripción → crea cuenta → **Suscribirme** → paga con la tarjeta de prueba.
 2. En Cloudflare, el Worker debe mostrar peticiones con respuesta 200. En Firestore aparece `users/<uid>/billing/status`.
 3. En Caesar pulsa **Ya he pagado, comprobar**: debe poner «Activa» y la sincronización sube datos.
 4. Cancela desde **Gestionar suscripción** y comprueba que pone «Cancelada: activa hasta …».
+5. Borra una cuenta con suscripción activa (en test): la suscripción debe quedar cancelada en Lemon Squeezy y desaparecer
+   `users/<uid>/consent/terms`. Si `LS_API_KEY` falta o es de otro modo (test/live), la app no debe borrar la cuenta.
 
 ## 7. Limpieza horaria de cuentas de prueba (Cron Trigger)
 
@@ -123,3 +141,5 @@ Para compañeros: un código desbloquea Pro de por vida (sin Lemon Squeezy). Lo 
 
 El canje es atómico (transacción): sube `uses` y escribe `users/<uid>.proForever`. Un mismo usuario no gasta dos usos, y el Cron de
 limpieza no borra nunca estas cuentas. Los clientes no pueden leer `codes/` (las reglas lo bloquean).
+
+5. Límite de intentos: como máximo 3 códigos a la hora y 7 al día **por IP** (`redeemLimits/{hash de la IP}` en Firestore, solo lo toca el Worker; la IP no se guarda en claro). Pasado el límite `/redeem` responde 429 con `Retry-After`. El Cron horario borra los documentos caducados (24 h). Redespliega `worker.js` para activarlo.

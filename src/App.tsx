@@ -5,7 +5,8 @@ import SettingsModal from "./components/SettingsModal";
 import Welcome from "./components/Welcome";
 import { useToast } from "./components/Toast";
 import { useAccount, planError } from "./lib/account";
-import { isOnboarded } from "./lib/legal";
+import { isOnboarded, termsAccepted } from "./lib/legal";
+import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import RequestBar from "./components/RequestBar";
@@ -209,6 +210,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"ui" | "edit">("ui");
   const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
+  const [, setTermsRev] = useState(0); // fuerza el repintado al aceptar los términos
   // Arranque: comprueba prueba de 7 días / lista blanca (Rust hace la red). Si la cuenta se borró, vuelve al modo Invitado.
   useEffect(() => {
     checkTrialAndWhitelist()
@@ -1086,6 +1088,7 @@ export default function App() {
           />
         )}
         {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
+        {!showWelcome && !termsAccepted() && <TermsGate onAccepted={() => setTermsRev((n) => n + 1)} />}
         <VarPicker vars={effVars} />
         <VarPeek
           vars={vars}

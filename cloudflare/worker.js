@@ -6,6 +6,7 @@
 //   FIREBASE_SA        (secreto)  el JSON completo de la clave de la cuenta de servicio de Google
 //   FIREBASE_PROJECT   (texto)    caesar-sync-app
 //   FIREBASE_API_KEY   (texto)    la apiKey web de Firebase (la de sync_config.json); solo valida el token del usuario al canjear un código
+//   LS_API_KEY         (secreto)  API key de Lemon Squeezy (Settings → API): permite cancelar la suscripción al borrar la cuenta
 
 const enc = new TextEncoder();
 
@@ -335,7 +336,101 @@ export async function redeemCode(env, uid, code, now = Date.now()) {
   throw new Error("Firestore: demasiada contención");
 }
 
-const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
+// Límite de intentos de canje por IP: 3 a la hora y 7 al día (cuenta TODOS los intentos con código bien formado, acierten o no).
+// Se guarda en Firestore (redeemLimits/{hash de la IP}: attempts = lista de instantes en ms, expiresAt = ms en que ya no hace falta);
+// la IP no se guarda en claro, solo su hash SHA-256. Los clientes no pueden leerlo ni escribirlo (regla por defecto: denegado).
+// Un intento bloqueado NO se apunta, así que no alarga la espera. El Cron horario borra los documentos caducados (cleanupRateLimits).
+export const REDEEM_MAX_PER_HOUR = 3;
+export const REDEEM_MAX_PER_DAY = 7;
+const HOUR_MS = 3600 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Id del documento de límite para una petición: hash de la IP (CF-Connecting-IP). Sin IP (no pasa en producción) cae al uid. */
+export async function rateKey(ip, uid) {
+  const raw = ip ? `ip:${String(ip).trim()}` : `uid:${uid}`;
+  const d = await crypto.subtle.digest("SHA-256", enc.encode(`caesar-redeem:${raw}`));
+  return hex(d).slice(0, 32);
+}
+
+/** Decisión pura. attempts = instantes (ms) de intentos anteriores. → { allowed, retryAfter (segundos), kept (lista podada, sin el intento actual) }. */
+export function decideRate(attempts, now = Date.now()) {
+  const kept = (Array.isArray(attempts) ? attempts : []).filter((t) => Number.isFinite(t) && t > now - DAY_MS && t <= now).sort((a, b) => a - b);
+  const lastHour = kept.filter((t) => t > now - HOUR_MS);
+  let wait = 0;
+  if (kept.length >= REDEEM_MAX_PER_DAY) wait = Math.max(wait, kept[kept.length - REDEEM_MAX_PER_DAY] + DAY_MS - now);
+  if (lastHour.length >= REDEEM_MAX_PER_HOUR) wait = Math.max(wait, lastHour[lastHour.length - REDEEM_MAX_PER_HOUR] + HOUR_MS - now);
+  return { allowed: wait <= 0, retryAfter: Math.max(0, Math.ceil(wait / 1000)), kept };
+}
+
+/** Apunta un intento para esa clave (ver rateKey) si no ha superado el límite. Devuelve { allowed, retryAfter }; lanza si Firestore falla. */
+export async function checkRateLimit(env, key, now = Date.now()) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const token = await googleToken(sa);
+  const base = `projects/${env.FIREBASE_PROJECT}/databases/(default)/documents`;
+  const api = `https://firestore.googleapis.com/v1/${base}`;
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  const path = `redeemLimits/${key}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const b = await fetch(`${api}:beginTransaction`, { method: "POST", headers, body: JSON.stringify({ options: { readWrite: {} } }) });
+    if (!b.ok) throw new Error(`Firestore beginTransaction ${b.status}`);
+    const { transaction } = await b.json();
+    const res = await fetch(`${api}/${path}?transaction=${encodeURIComponent(transaction)}`, { headers });
+    if (res.status !== 404 && !res.ok) throw new Error(`Firestore get ${res.status}`);
+    const fields = res.status === 404 ? {} : (await res.json()).fields || {};
+    const prev = (fields.attempts?.arrayValue?.values || []).map((v) => Number(v.integerValue));
+    const d = decideRate(prev, now);
+    if (!d.allowed) {
+      await fetch(`${api}:rollback`, { method: "POST", headers, body: JSON.stringify({ transaction }) }).catch(() => {});
+      return { allowed: false, retryAfter: d.retryAfter };
+    }
+    const values = [...d.kept, now].map((t) => ({ integerValue: String(t) }));
+    const c = await fetch(`${api}:commit`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        transaction,
+        writes: [{ update: { name: `${base}/${path}`, fields: { attempts: { arrayValue: { values } }, expiresAt: { integerValue: String(now + DAY_MS) } } }, updateMask: { fieldPaths: ["attempts", "expiresAt"] } }],
+      }),
+    });
+    if (c.ok) return { allowed: true, retryAfter: 0 };
+    if (c.status !== 409 && c.status !== 400 && c.status !== 429) throw new Error(`Firestore commit ${c.status}`);
+  }
+  throw new Error("Firestore: demasiada contención");
+}
+
+/**
+ * Borra los documentos de límite que ya no sirven (expiresAt < ahora: pasaron 24 h desde el último intento).
+ * 2 llamadas como mucho (consulta + borrado en lote), hasta 300 por ejecución; el Cron es horario, así que no se acumulan.
+ * DRY_RUN="1" solo cuenta. Devuelve { caducados, borrados }.
+ */
+export async function cleanupRateLimits(env, now = Date.now()) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const token = await googleToken(sa, CLOUD_SCOPE);
+  const base = `projects/${env.FIREBASE_PROJECT}/databases/(default)/documents`;
+  const api = `https://firestore.googleapis.com/v1/${base}`;
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  const q = await fetch(`${api}:runQuery`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: "redeemLimits" }],
+        where: { fieldFilter: { field: { fieldPath: "expiresAt" }, op: "LESS_THAN", value: { integerValue: String(now) } } },
+        limit: 300,
+      },
+    }),
+  });
+  if (!q.ok) throw new Error(`Firestore runQuery ${q.status}`);
+  const names = ((await q.json()) || []).map((r) => r.document?.name).filter((n) => typeof n === "string" && n.startsWith(`${base}/redeemLimits/`));
+  const summary = { caducados: names.length, borrados: 0 };
+  if (!names.length || String(env.DRY_RUN || "") === "1") return summary;
+  const c = await fetch(`${api}:commit`, { method: "POST", headers, body: JSON.stringify({ writes: names.map((name) => ({ delete: name })) }) });
+  if (!c.ok) throw new Error(`Firestore commit ${c.status}`);
+  summary.borrados = names.length;
+  return summary;
+}
+
+const json = (obj, status = 200, extra = {}) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", ...extra } });
 
 async function handleRedeem(request, env) {
   if (request.method !== "POST") return json({ error: "method" }, 405);
@@ -348,11 +443,93 @@ async function handleRedeem(request, env) {
   try {
     const uid = await uidFromToken(env, body?.idToken);
     if (!uid) return json({ error: "auth" }, 401);
+    const rate = await checkRateLimit(env, await rateKey(request.headers.get("cf-connecting-ip"), uid));
+    if (!rate.allowed) return json({ error: "rate_limited", retryAfter: rate.retryAfter }, 429, { "retry-after": String(rate.retryAfter) });
     const { status } = await redeemCode(env, uid, code);
     if (status === "ok" || status === "already") return json({ ok: true, already: status === "already" });
     return json({ error: status }, status === "exhausted" ? 410 : 404);
   } catch (e) {
     console.error(`Canje fallido: ${e.message}`);
+    return json({ error: "server" }, 502);
+  }
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Cuenta: registro de aceptación de los términos (POST /account/terms) y cierre de cuenta (POST /account/close).
+// Los dos validan el idToken de Firebase y escriben con la cuenta de servicio (las reglas de Firestore no dejan escribir a la app).
+// /account/close cancela la suscripción en Lemon Squeezy (necesita el secreto LS_API_KEY) y borra el registro de aceptación.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const TERMS_VERSION_RE = /^\d{4}-\d{2}-\d{2}$/;
+const CANCELLABLE = new Set(["active", "on_trial", "past_due", "paused", "unpaid"]);
+
+/** ¿Hay que cancelar algo en Lemon Squeezy? `fields` = users/{uid}/billing/status (o null). → id de suscripción o null. */
+export function subscriptionToCancel(fields) {
+  const id = fields?.subscriptionId?.stringValue;
+  const status = fields?.status?.stringValue;
+  return id && /^\d{1,20}$/.test(id) && CANCELLABLE.has(status) ? id : null;
+}
+
+/** Guarda que `uid` aceptó los términos `version` (y que tiene 14 años o más). Lanza si Firestore falla. */
+export async function recordTerms(env, uid, version, now = Date.now()) {
+  if (typeof version !== "string" || !TERMS_VERSION_RE.test(version)) return { status: "invalid" };
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const token = await googleToken(sa);
+  const fields = { version: { stringValue: version }, acceptedAt: { integerValue: String(now) }, age14: { booleanValue: true } };
+  const mask = Object.keys(fields).map((f) => `updateMask.fieldPaths=${f}`).join("&");
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT}/databases/(default)/documents/users/${uid}/consent/terms?${mask}`;
+  const res = await fetch(url, { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ fields }) });
+  if (!res.ok) throw new Error(`Firestore terms ${res.status}`);
+  return { status: "ok" };
+}
+
+/**
+ * Cancela la suscripción activa de `uid` en Lemon Squeezy y borra su registro de aceptación.
+ * → { status: "ok", cancelled: boolean } | { status: "no_key" } (hay suscripción pero falta LS_API_KEY) | { status: "ls_error" }.
+ * Lanza si Firestore falla.
+ */
+export async function closeAccount(env, uid) {
+  const sa = JSON.parse(env.FIREBASE_SA);
+  const token = await googleToken(sa);
+  const api = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT}/databases/(default)/documents/users/${uid}`;
+  const headers = { authorization: `Bearer ${token}` };
+  const b = await fetch(`${api}/billing/status`, { headers });
+  if (!b.ok && b.status !== 404) throw new Error(`Firestore billing ${b.status}`);
+  const subId = b.ok ? subscriptionToCancel((await b.json()).fields || {}) : null;
+  let cancelled = false;
+  if (subId) {
+    if (!env.LS_API_KEY) return { status: "no_key" };
+    const r = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subId}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${env.LS_API_KEY}`, accept: "application/vnd.api+json" },
+    });
+    if (!r.ok && r.status !== 404) return { status: "ls_error" };
+    cancelled = r.ok;
+  }
+  const d = await fetch(`${api}/consent/terms`, { method: "DELETE", headers });
+  if (!d.ok && d.status !== 404) throw new Error(`Firestore consent ${d.status}`);
+  return { status: "ok", cancelled };
+}
+
+async function handleAccount(request, env, kind) {
+  if (request.method !== "POST") return json({ error: "method" }, 405);
+  const raw = await readLimited(request, REDEEM_MAX_BODY);
+  if (raw === null) return json({ error: "too_big" }, 413);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ error: "bad_json" }, 400); }
+  try {
+    const uid = await uidFromToken(env, body?.idToken);
+    if (!uid) return json({ error: "auth" }, 401);
+    if (kind === "terms") {
+      const { status } = await recordTerms(env, uid, body?.version);
+      return status === "ok" ? json({ ok: true }) : json({ error: status }, 400);
+    }
+    const r = await closeAccount(env, uid);
+    if (r.status === "ok") return json({ ok: true, cancelled: r.cancelled });
+    return json({ error: r.status }, r.status === "no_key" ? 501 : 502);
+  } catch (e) {
+    console.error(`Cuenta (${kind}) fallida: ${e.message}`);
     return json({ error: "server" }, 502);
   }
 }
@@ -381,12 +558,18 @@ async function readLimited(request, limit) {
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      cleanupExpiredAccounts(env).catch((e) => console.error(`Limpieza fallida: ${e.message}`)),
+      (async () => {
+        try { console.log(`Límites de canje: ${JSON.stringify(await cleanupRateLimits(env))}`); } catch (e) { console.error(`Limpieza de límites fallida: ${e.message}`); }
+        await cleanupExpiredAccounts(env).catch((e) => console.error(`Limpieza fallida: ${e.message}`));
+      })(),
     );
   },
 
   async fetch(request, env) {
-    if (new URL(request.url).pathname === "/redeem") return handleRedeem(request, env);
+    const path = new URL(request.url).pathname;
+    if (path === "/redeem") return handleRedeem(request, env);
+    if (path === "/account/terms") return handleAccount(request, env, "terms");
+    if (path === "/account/close") return handleAccount(request, env, "close");
     if (request.method === "GET") return new Response("Caesar billing webhook", { status: 200 });
     if (request.method !== "POST") return new Response("Método no permitido", { status: 405, headers: { allow: "GET, POST" } });
     const len = Number(request.headers.get("content-length"));

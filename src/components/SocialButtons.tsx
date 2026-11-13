@@ -26,12 +26,14 @@ const btnCls =
  * `run` envuelve la acción (estado ocupado y errores en quien lo usa); `onSuccess` se llama al entrar.
  */
 export default function SocialButtons({
-  st, busy, run, reg = false, onSuccess,
+  st, busy, run, reg = false, locked = false, onSuccess,
 }: {
   st: SyncStatus | null;
   busy: boolean;
   run: (fn: () => Promise<void>) => void | Promise<void>;
   reg?: boolean;
+  /** Bloquea los botones sin mostrar «esperando» (p. ej. faltan las casillas de aceptación). */
+  locked?: boolean;
   onSuccess?: () => void;
 }) {
   const [device, setDevice] = useState<DeviceCode | null>(null);
@@ -118,7 +120,7 @@ export default function SocialButtons({
       {idpNote && <p className="rounded-xl bg-deep p-3 text-xs text-silver ring-1 ring-fg/15">{idpNote}</p>}
       {st.google && (
         <>
-          <button type="button" disabled={busy} className={btnCls} onClick={() => void run(() => guard(() => syncGoogle()))}>
+          <button type="button" disabled={busy || locked} className={btnCls} onClick={() => void run(() => guard(() => syncGoogle()))}>
             <GoogleIcon /> {busy ? t("Esperando al navegador…") : reg ? t("Registrarse con Google") : t("Continuar con Google")}
           </button>
           {busy && <p className="text-xs text-slate">{t("Se ha abierto tu navegador: elige tu cuenta de Google y vuelve aquí.")}</p>}
@@ -128,7 +130,7 @@ export default function SocialButtons({
         <>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || locked}
             className={btnCls}
             onClick={() =>
               void run(() =>
