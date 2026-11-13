@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 import type { KV } from "../types";
 import { t } from "../lib/i18n";
+import VarInput from "./VarInput";
 
 interface Props {
   rows: KV[];
@@ -37,14 +38,14 @@ export default function KVEditor({ rows, onChange, keyPlaceholder = "Key", value
             onChange={(e) => update(i, { enabled: e.target.checked })}
             className="accent-[var(--t-accent)]"
           />
-          <input
+          <VarInput
             className={input}
             list={suggestions ? listId : undefined}
             placeholder={keyPlaceholder}
             value={row.key}
             onChange={(e) => update(i, { key: e.target.value })}
           />
-          <input className={input} placeholder={valuePlaceholder} value={row.value} onChange={(e) => update(i, { value: e.target.value })} />
+          <VarInput className={input} placeholder={valuePlaceholder} value={row.value} onChange={(e) => update(i, { value: e.target.value })} />
           <button
             onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
             className="text-slate hover:text-rose"
