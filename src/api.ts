@@ -76,8 +76,10 @@ export const vaultReplace = (recovery: string) => invoke<void>("vault_replace", 
 
 // Cuenta / plan (la red la hace Rust).
 export type AccountMode = "guest" | "limbo" | "pro";
-export interface AccountState { mode: AccountMode; is_pro: boolean; whitelisted: boolean; days_left: number; deleted: boolean; email: string }
+export interface AccountState { mode: AccountMode; is_pro: boolean; whitelisted: boolean; forever: boolean; days_left: number; deleted: boolean; email: string }
 export const checkTrialAndWhitelist = () => invoke<AccountState>("check_trial_and_whitelist");
+/** Canjea un código de Pro para siempre (plan Compas). Devuelve el estado de cuenta ya actualizado. */
+export const redeemCode = (code: string) => invoke<AccountState>("redeem_code", { code });
 export const accountState = () => invoke<AccountState>("account_state");
 export const syncLinkIdp = (provider: "google.com" | "github.com") => invoke<string>("sync_link_idp", { provider });
 export interface SyncRole { role: "none" | "master" | "member" | "needs_key" | "revoked"; device_id: string; master_device_id: string | null; has_key: boolean }

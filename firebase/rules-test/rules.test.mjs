@@ -18,6 +18,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'users/billing1/billing/status'), { active: true });
     await setDoc(doc(db, 'users/wl1'), { isWhitelistMember: true });
+    await setDoc(doc(db, 'users/forever1'), { proForever: true, proCode: 'X' });
     await setDoc(doc(db, 'users/free1'), { name: 'x' });
     await setDoc(doc(db, 'users/inactive1/billing/status'), { active: false });
     await setDoc(doc(db, 'users/free1/sync/main'), { blob: 'a', updatedAt: 1, schema: 3 });
@@ -29,7 +30,7 @@ const good = { blob: 'abc', updatedAt: 1, schema: 3 };
 const meta = { masterDeviceId: 'd', keyCheck: 'k', updatedAt: 1 };
 const team = { blob: 'abc', updatedAt: 1, owner: '' };
 
-for (const uid of ['billing1', 'wl1']) {
+for (const uid of ['billing1', 'wl1', 'forever1']) {
   test(`pro (${uid}) escribe sync/main, sync/meta, teams`, async () => {
     await assertSucceeds(setDoc(doc(db(uid), `users/${uid}/sync/main`), good));
     await assertSucceeds(setDoc(doc(db(uid), `users/${uid}/sync/meta`), meta));
@@ -69,6 +70,8 @@ test('usuario no puede escribir su propio users/{uid} (sin auto-whitelist)', asy
   await assertFails(setDoc(doc(db('free1'), 'users/free1'), { isWhitelistMember: true }));
   await assertFails(setDoc(doc(db('nodoc1'), 'users/nodoc1'), { isWhitelistMember: true }));
   await assertFails(setDoc(doc(db('wl1'), 'users/wl1'), { isWhitelistMember: false }));
+  await assertFails(setDoc(doc(db('free1'), 'users/free1'), { proForever: true }));
+  await assertFails(setDoc(doc(db('forever1'), 'users/forever1'), { proForever: false }));
   await assertFails(deleteDoc(doc(db('wl1'), 'users/wl1')));
 });
 
