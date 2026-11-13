@@ -1,5 +1,5 @@
 import { t } from "./i18n";
-import type { KV, Tombstone, TreeNode } from "../types";
+import type { KV, ProfilesState, Tombstone, TreeNode } from "../types";
 
 /**
  * Espacios de trabajo: cada uno es un conjunto independiente de colecciones, variables y pestañas guardado en local.
@@ -19,7 +19,7 @@ export const DEFAULT_WS = "default";
 const LIST_KEY = "caesar.workspaces";
 const ACTIVE_KEY = "caesar.workspace";
 
-export const wsKey = (base: "collections" | "vars" | "tabs", id: string) =>
+export const wsKey = (base: "collections" | "vars" | "tabs" | "envs", id: string) =>
   id === DEFAULT_WS ? `caesar.${base}` : `caesar.${base}.${id}`;
 
 function read<T>(key: string, fallback: T): T {
@@ -66,7 +66,7 @@ export const newWsId = () => "w" + Date.now().toString(36) + Math.floor(Math.ran
 
 export function removeWsData(id: string) {
   try {
-    for (const b of ["collections", "vars", "tabs"] as const) localStorage.removeItem(wsKey(b, id));
+    for (const b of ["collections", "vars", "tabs", "envs"] as const) localStorage.removeItem(wsKey(b, id));
   } catch {
     /* sin almacenamiento */
   }
@@ -77,8 +77,22 @@ export interface WsData {
   name: string;
   collections: TreeNode[];
   vars: KV[];
+  /** Perfiles de variables y el activo. Opcional: lo guardado antes no lo tiene. */
+  envs?: ProfilesState;
   updatedAt?: number;
 }
+
+/** Normaliza lo leído de disco o de la nube (acepta cualquier cosa y devuelve siempre un estado válido). */
+export function normProfiles(raw: unknown): ProfilesState {
+  const r = raw as Partial<ProfilesState> | null | undefined;
+  const list = Array.isArray(r?.list)
+    ? r.list.filter((p) => p && typeof p.id === "string" && typeof p.name === "string").map((p) => ({ id: p.id, name: p.name, vars: Array.isArray(p.vars) ? p.vars : [] }))
+    : [];
+  const active = typeof r?.active === "string" && list.some((p) => p.id === r.active) ? r.active : null;
+  return { list, active };
+}
+export const loadProfiles = (id: string): ProfilesState => normProfiles(read<unknown>(wsKey("envs", id), null));
+export const newProfileId = () => "p" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
 
 /** Sin plan Pro (invitado o cuenta sin pagar): un solo espacio de trabajo. Solo Pro puede tener varios. */
 export const canCreateWorkspace = (isPro: boolean, list: WsMeta[]) => isPro || list.length < 1;
@@ -107,11 +121,11 @@ export function collectNodeIds(n: TreeNode): string[] {
  * Lo que se sincroniza con la cuenta: todos los espacios PERSONALES (los compartidos con un equipo viajan por su propio código). Además se deja `collections`/`vars` del espacio principal en la
  * raíz para que versiones anteriores de Caesar (que no conocen los espacios) sigan leyendo sus datos.
  */
-export function snapshotAll(list: WsMeta[], activeId: string, collections: TreeNode[], vars: KV[]) {
+export function snapshotAll(list: WsMeta[], activeId: string, collections: TreeNode[], vars: KV[], envs: ProfilesState) {
   const workspaces: WsData[] = list.filter((w) => !w.team).map((w) =>
     w.id === activeId
-      ? { id: w.id, name: w.name, collections, vars, updatedAt: w.updatedAt }
-      : { id: w.id, name: w.name, collections: read<TreeNode[]>(wsKey("collections", w.id), []), vars: read<KV[]>(wsKey("vars", w.id), []), updatedAt: w.updatedAt },
+      ? { id: w.id, name: w.name, collections, vars, envs, updatedAt: w.updatedAt }
+      : { id: w.id, name: w.name, collections: read<TreeNode[]>(wsKey("collections", w.id), []), vars: read<KV[]>(wsKey("vars", w.id), []), envs: loadProfiles(w.id), updatedAt: w.updatedAt },
   );
   const main = workspaces.find((w) => w.id === DEFAULT_WS) ?? workspaces[0];
   return { v: 3, workspaces, collections: main?.collections ?? [], vars: main?.vars ?? [], tombstones: loadTombstones() };
