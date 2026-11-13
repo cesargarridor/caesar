@@ -265,7 +265,7 @@ export default function App() {
     setOpenIds(new Set(cols.flatMap((c) => (c.type === "folder" && c.uid ? [c.uid] : []))));
   };
   const addWs = (name: string) => {
-    if (!canCreateWorkspace(account.mode, wsList)) {
+    if (!canCreateWorkspace(account.is_pro, wsList)) {
       setNotice({ kind: "err", text: planError("GUEST_LIMIT_WORKSPACES") ?? "" });
       return;
     }
@@ -926,7 +926,7 @@ export default function App() {
           setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a, updatedAt: Date.now() } : n)))
         }
         onImport={handleImport}
-        onNewCollection={() => (account.mode === "guest" ? handleNewCollection() : setTeamDialog({ kind: "new" }))}
+        onNewCollection={() => (!account.is_pro ? handleNewCollection() : setTeamDialog({ kind: "new" }))}
         onShare={(path) => setTeamDialog({ kind: "share", path })}
         onTeamInfo={(path) => setTeamDialog({ kind: "info", path })}
         onTeamRefresh={(code) => void team.refresh(code)}
