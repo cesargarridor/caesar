@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { checkTrialAndWhitelist, openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, redeemCode, openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import { t } from "../lib/i18n";
 import { openCheckout, planError, useAccount } from "../lib/account";
@@ -42,6 +42,8 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   /** Pestaña de acceso abierta. Con sesión iniciada solo se ve si el usuario pulsa una (para entrar con otra cuenta). */
   const [mode, setMode] = useState<"login" | "register" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const refresh = useCallback(() => {
     void refreshAccount();
@@ -231,6 +233,43 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
         </div>
       )}
 
+      {st.signed_in && account.forever && (
+        <div className="max-w-md space-y-1 rounded-xl bg-deep p-4 ring-1 ring-aqua/40">
+          <p className="text-sm font-medium text-mist">{t("Plan Compas · Pro para siempre")}</p>
+          <p className="text-xs text-slate">{t("Tu cuenta es Pro de por vida: no hay suscripción ni caducidad. A Nemo le haces feliz.")}</p>
+        </div>
+      )}
+      {st.signed_in && !account.is_pro && (
+        <section className="space-y-2">
+          <h3 className="text-sm text-mist">{t("Canjear código")}</h3>
+          <p className="max-w-md text-xs text-slate">{t("¿Te han pasado un código? Pégalo aquí para desbloquear Pro para siempre.")}</p>
+          <form
+            className="flex max-w-md gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!code.trim()) return;
+              setBusy(true);
+              setCodeMsg(null);
+              redeemCode(code)
+                .then((a) => {
+                  setAccount(a);
+                  setCode("");
+                  setCodeMsg({ ok: true, text: t("¡Listo! Ya eres Pro para siempre.") });
+                })
+                .catch((err) => setCodeMsg({ ok: false, text: errText(err) }))
+                .finally(() => {
+                  setBusy(false);
+                  refresh();
+                });
+            }}
+          >
+            <input className={`${inputCls} font-mono`} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="CAESAR-XXXX-XXXX-XXXX" spellCheck={false} autoComplete="off" />
+            <button type="submit" className={btnCls} disabled={busy || !code.trim()}>{t("Canjear")}</button>
+          </form>
+          {codeMsg && <p className={`text-xs ${codeMsg.ok ? "text-emerald-400" : "text-rose"}`}>{codeMsg.text}</p>}
+        </section>
+      )}
+
       {/* 2. Clave de cifrado (según el rol de este equipo) */}
       {st.signed_in && account.mode === "pro" && role && (
       <section className="space-y-3">
@@ -315,7 +354,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       )}
 
       {/* Suscripción */}
-      {st.signed_in && account.whitelisted && !bill?.active && (
+      {st.signed_in && account.whitelisted && !account.forever && !bill?.active && (
         <section className="space-y-3">
           <h3 className="text-sm text-mist">{t("Suscripción")}</h3>
           <div className="max-w-md space-y-1 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
@@ -324,7 +363,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
           </div>
         </section>
       )}
-      {st.signed_in && st.billing && !(account.whitelisted && !bill?.active) && (
+      {st.signed_in && st.billing && !account.forever && !(account.whitelisted && !bill?.active) && (
         <section className="space-y-3">
           <h3 className="text-sm text-mist">{t("Suscripción")}</h3>
           {bill?.active ? (
