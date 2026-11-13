@@ -47,6 +47,7 @@ button:not(:disabled):active { transform: scale(.95); }
 button[class*="ring-1"]:not(:disabled):hover { transform: translateY(-1px); }
 button[class*="ring-1"]:not(:disabled):active { transform: translateY(0) scale(.95); }
 button:focus-visible { outline: 2px solid var(--t-iris); outline-offset: 2px; }
+a:focus-visible, input[type="checkbox"]:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--t-iris); outline-offset: 2px; }
 
 /* Gatito del logo: se menea al pasar el ratón */
 .cat-logo { transition: transform .25s cubic-bezier(.3,1.6,.5,1); image-rendering: pixelated; filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--t-iris) 45%, transparent)); }

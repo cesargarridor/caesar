@@ -200,10 +200,36 @@ pub async fn redeem_code(app: AppHandle, st: tauri::State<'_, SyncState>, code: 
         400 => return Err("El código no es válido. Revisa que lo hayas copiado entero.".into()),
         404 => return Err("Ese código no existe.".into()),
         410 => return Err("Ese código ya se ha usado el máximo de veces.".into()),
+        429 => {
+            // Límite de intentos del Worker (3 a la hora, 7 al día): dice cuánto falta en `retryAfter` (segundos).
+            let secs = res.bytes().await.ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).and_then(|v| v["retryAfter"].as_u64()).unwrap_or(0);
+            let mins = secs.div_ceil(60);
+            return Err(if mins >= 120 {
+                format!("Demasiados intentos. Inténtalo de nuevo en unas {} horas.", mins.div_ceil(60))
+            } else if mins > 0 {
+                format!("Demasiados intentos. Inténtalo de nuevo en {mins} min.")
+            } else {
+                "Demasiados intentos. Inténtalo más tarde.".to_string()
+            });
+        }
         401 => return Err("Vuelve a iniciar sesión e inténtalo de nuevo.".into()),
         n => return Err(format!("No se pudo canjear el código ({n}). Inténtalo más tarde.")),
     }
     evaluate(&app, &st, false).await
+}
+
+/// Registra en el servidor (Worker `/account/terms`) que esta cuenta aceptó los términos `version` y confirmó tener 14 años o más.
+/// Sin sesión o sin Worker no hace nada. La app lo llama tras iniciar sesión y reintenta si falla.
+#[tauri::command]
+pub async fn record_terms(st: tauri::State<'_, SyncState>, version: String) -> Result<(), String> {
+    let c = sync::cfg().ok_or("Sincronización no configurada.")?;
+    if c.worker_url.is_empty() || !st.has_session() {
+        return Ok(());
+    }
+    let (_uid, tok) = sync::valid_token(&st).await?;
+    let body = serde_json::to_vec(&serde_json::json!({ "idToken": tok, "version": version })).map_err(|e| e.to_string())?;
+    let res = st.client.post(format!("{}/account/terms", c.worker_url.trim_end_matches('/'))).header("content-type", "application/json").body(body).send().await.map_err(|_| "Sin conexión.".to_string())?;
+    if res.status().is_success() { Ok(()) } else { Err(format!("No se pudo registrar la aceptación ({}).", res.status().as_u16())) }
 }
 
 /// Último estado conocido, sin red.

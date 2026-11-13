@@ -53,7 +53,7 @@
     var base = g.getAttribute("data-base");
     [1, 2, 3, 4].forEach(function (i) {
       var u = base + "shot-" + i + ".png";
-      fetch(u, { method: "HEAD" }).then(function (r) { if (r.ok) { var im = new Image(); im.src = u; im.alt = ""; im.loading = "lazy"; g.appendChild(im); } }).catch(function () {});
+      fetch(u, { method: "HEAD" }).then(function (r) { if (r.ok) { var im = new Image(); im.src = u; im.alt = (document.documentElement.lang === "en" ? "Caesar screenshot " : "Captura de pantalla de Caesar ") + (g.children.length + 1); im.loading = "lazy"; g.appendChild(im); } }).catch(function () {});
     });
   });
 
