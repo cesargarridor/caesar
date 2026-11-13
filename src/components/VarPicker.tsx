@@ -47,12 +47,10 @@ export default function VarPicker({ vars }: { vars: KV[] }) {
   const filterRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.code !== "Space") return;
+    // Lo lanza el comando «Elegir una variable de entorno» (atajo editable en Ajustes).
+    const onKey = () => {
       const f = asField(document.activeElement);
       if (!f) return;
-      e.preventDefault();
-      e.stopPropagation();
       const caret = f.selectionStart ?? f.value.length;
       const before = f.value.slice(0, caret);
       const m = /\{\{\s*([\w.$-]*)$/.exec(before);
@@ -67,8 +65,8 @@ export default function VarPicker({ vars }: { vars: KV[] }) {
       setSel(0);
       setOpen({ field: f, x: Math.max(8, Math.min(r.left, window.innerWidth - 360)), y: r.bottom + 4, from, to, initial: m?.[1] ?? "" });
     };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener("caesar-var-picker", onKey);
+    return () => window.removeEventListener("caesar-var-picker", onKey);
   }, []);
 
   useEffect(() => {
