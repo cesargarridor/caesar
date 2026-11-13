@@ -15,6 +15,16 @@ interface Props {
   autoFocus?: boolean;
   /** Pares que se cierran solos, 2 caracteres por par (por defecto {} [] () ""). */
   autoClose?: string;
+  /** Resaltado propio (p. ej. GraphQL) en lugar del de JSON. Sin validación JSON. */
+  paintText?: (text: string) => ReactNode[];
+  /** Acceso al textarea (para insertar texto o leer el cursor). */
+  taRef?: React.MutableRefObject<HTMLTextAreaElement | null>;
+  /** Se ejecuta antes que el manejo normal de teclas; devuelve true si la tecla ya se gestionó. */
+  onKeyDownExtra?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
+  /** Clic o pérdida de foco (para cerrar popups). */
+  onCaretMove?: () => void;
+  /** Superposición dentro del editor (popup de sugerencias). */
+  children?: ReactNode;
 }
 
 const TOKEN = /("(?:\\.|[^"\\\n])*")(\s*:)?|\{\{[^{}\n]*\}\}|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\],:]/g;
@@ -76,17 +86,21 @@ function metrics(t: HTMLTextAreaElement) {
 }
 
 export default function JsonEditor({
-  value, onChange, placeholder, className = "", highlight = true, autoFocus, autoClose = '{}[]()""',
+  value, onChange, placeholder, className = "", highlight = true, autoFocus, autoClose = '{}[]()""', paintText, taRef, onKeyDownExtra, onCaretMove, children,
 }: Props) {
   const pairs = useMemo(() => parsePairs(autoClose), [autoClose]);
   const box = useRef<HTMLDivElement>(null);
-  const ta = useRef<HTMLTextAreaElement>(null);
+  const ta = useRef<HTMLTextAreaElement | null>(null);
+  const setTa = (el: HTMLTextAreaElement | null) => {
+    ta.current = el;
+    if (taRef) taRef.current = el;
+  };
   const pre = useRef<HTMLPreElement>(null);
   const markPre = useRef<HTMLPreElement>(null);
-  const colored = highlight && value.length <= MAX;
+  const colored = (highlight || !!paintText) && value.length <= MAX;
 
   // ── validación del JSON con el error exacto ──
-  const issue = useMemo(() => (highlight && value.length <= MAX ? checkJson(value) : null), [highlight, value]);
+  const issue = useMemo(() => (highlight && !paintText && value.length <= MAX ? checkJson(value) : null), [highlight, paintText, value]);
   const goTo = (pos: number) => {
     const t = ta.current;
     if (!t) return;
@@ -203,17 +217,22 @@ export default function JsonEditor({
       )}
       {colored && (
         <pre ref={pre} aria-hidden style={mono} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
-          {paint(value)}
+          {paintText ? paintText(value) : paint(value)}
           {"\n"}
         </pre>
       )}
       <textarea
-        ref={ta}
+        ref={setTa}
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => handleEditKey(e, pairs)}
-        onPaste={(e) => highlight && handlePasteJson(e)}
+        onKeyDown={(e) => {
+          if (onKeyDownExtra?.(e)) return;
+          handleEditKey(e, pairs);
+        }}
+        onClick={onCaretMove}
+        onBlur={onCaretMove}
+        onPaste={(e) => highlight && !paintText && handlePasteJson(e)}
         onScroll={(e) => {
           const { scrollTop, scrollLeft } = e.currentTarget;
           for (const p of [pre.current, markPre.current]) {
@@ -229,6 +248,7 @@ export default function JsonEditor({
         style={{ ...mono, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
         className={`absolute inset-0 block h-full w-full resize-none bg-transparent outline-none placeholder:text-slate/60 ${shared} ${colored ? "" : "text-silver"}`}
       />
+      {children}
       {issue && (
         <button
           type="button"

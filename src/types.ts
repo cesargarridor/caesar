@@ -23,13 +23,18 @@ export interface ProfilesState {
   active: string | null;
 }
 
-export type BodyMode = "none" | "json" | "text" | "formdata" | "urlencoded";
+export type BodyMode = "none" | "json" | "text" | "formdata" | "urlencoded" | "graphql";
 
 export interface BodyData {
   mode: BodyMode;
   raw: string;
   formdata: KV[];
   urlencoded: KV[];
+  /** Modo GraphQL: consulta y variables (JSON en texto). */
+  gqlQuery?: string;
+  gqlVars?: string;
+  /** Operación a ejecutar cuando la query tiene varias (operationName). */
+  gqlOp?: string;
 }
 
 export type AuthType =

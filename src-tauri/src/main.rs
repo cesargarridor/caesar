@@ -191,6 +191,7 @@ struct PmBody {
     #[serde(default, deserialize_with = "lenient_vec")]
     urlencoded: Vec<PmKeyValue>,
     options: Option<Value>,
+    graphql: Option<Value>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -252,7 +253,7 @@ struct GrantedFiles(std::sync::Mutex<std::collections::HashSet<std::path::PathBu
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct BodyData {
-    /// "none" | "json" | "text" | "formdata" | "urlencoded"
+    /// "none" | "json" | "text" | "formdata" | "urlencoded" | "graphql"
     mode: String,
     #[serde(default)]
     raw: String,
@@ -260,6 +261,13 @@ struct BodyData {
     formdata: Vec<Kv>,
     #[serde(default)]
     urlencoded: Vec<Kv>,
+    /// Modo "graphql": consulta y variables (JSON en texto).
+    #[serde(default, rename = "gqlQuery")]
+    gql_query: String,
+    #[serde(default, rename = "gqlVars")]
+    gql_vars: String,
+    #[serde(default, rename = "gqlOp")]
+    gql_op: String,
 }
 
 #[derive(Debug, Serialize, Clone, Default)]
@@ -531,6 +539,16 @@ fn convert_body(body: Option<PmBody>) -> BodyData {
             urlencoded: convert_kvs(b.urlencoded),
             ..Default::default()
         },
+        Some("graphql") => {
+            let g = b.graphql.unwrap_or(Value::Null);
+            let s = |k: &str| g.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            BodyData {
+                mode: "graphql".into(),
+                gql_query: s("query"),
+                gql_vars: s("variables"),
+                ..Default::default()
+            }
+        }
         _ => BodyData {
             mode: "none".into(),
             ..Default::default()

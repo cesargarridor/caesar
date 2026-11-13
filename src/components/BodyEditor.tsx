@@ -3,24 +3,30 @@ import { Sparkles, Minimize2 } from "lucide-react";
 import KVEditor from "./KVEditor";
 import FormDataEditor from "./FormDataEditor";
 import JsonEditor from "./JsonEditor";
-import type { BodyData, BodyMode } from "../types";
+import type { AuthData, BodyData, BodyMode, KV, RequestState } from "../types";
 import { t } from "../lib/i18n";
 import { checkJson, issueText } from "../lib/jsonCheck";
-
+import GraphqlEditor from "./GraphqlEditor";
 interface Props {
   body: BodyData;
   onChange: (b: BodyData) => void;
+  /** Petición completa (URL, cabeceras, auth) y variables: el modo GraphQL los usa para cargar el esquema. */
+  req: RequestState;
+  vars?: KV[];
+  inherited?: AuthData | null;
+  onMethod?: (m: string) => void;
 }
 
 const MODES: { id: BodyMode; label: string }[] = [
   { id: "none", label: "none" },
   { id: "json", label: "JSON" },
   { id: "text", label: "Text" },
+  { id: "graphql", label: "GraphQL" },
   { id: "formdata", label: "form-data" },
   { id: "urlencoded", label: "x-www-form-urlencoded" },
 ];
 
-export default function BodyEditor({ body, onChange }: Props) {
+export default function BodyEditor({ body, onChange, req, vars, inherited, onMethod }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const reformat = (indent: number | undefined) => {
@@ -50,6 +56,8 @@ export default function BodyEditor({ body, onChange }: Props) {
               onChange={() => {
                 setError(null);
                 onChange({ ...body, mode: m.id });
+                // GraphQL va por POST: si estaba en GET se cambia solo.
+                if (m.id === "graphql" && req.method === "GET") onMethod?.("POST");
               }}
               className="accent-[var(--t-accent)]"
             />
@@ -88,6 +96,9 @@ export default function BodyEditor({ body, onChange }: Props) {
           placeholder={body.mode === "json" ? '{ "clave": "valor" }' : t("Texto plano")}
           className="min-h-48 flex-1"
         />
+      )}
+      {body.mode === "graphql" && (
+        <GraphqlEditor body={body} onChange={onChange} req={req} vars={vars ?? []} inherited={inherited} onMethod={onMethod} />
       )}
       {body.mode === "formdata" && (
         <FormDataEditor rows={body.formdata} onChange={(formdata) => onChange({ ...body, formdata })} />

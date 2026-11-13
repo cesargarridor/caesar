@@ -1,5 +1,6 @@
 // Importar y exportar colecciones en otros formatos: JSON/YAML (v4 y v5) y HAR (HTTP Archive 1.2).
 // El formato JSON v2.1 lo procesa Rust al importar (parse_collection_content) y collectionExport.ts al exportar.
+import { gqlRaw } from "./graphql";
 import YAML from "yaml";
 import type { AuthData, BodyData, ImportedCollection, KV, RequestNode, TreeNode } from "../types";
 
@@ -299,11 +300,15 @@ function parseHar(doc: Obj): ImportedCollection {
 const rid = (p: string) => `${p}_${crypto.randomUUID().replace(/-/g, "")}`;
 
 function reqBody(n: RequestNode): BodyData {
+  const gql = n.body.mode === "graphql"; // los formatos externos reciben GraphQL como JSON
   return {
-    mode: (n.body.mode as BodyData["mode"]) ?? "none",
-    raw: n.body.raw ?? "",
+    mode: gql ? "json" : ((n.body.mode as BodyData["mode"]) ?? "none"),
+    raw: gql ? gqlRaw(n.body) : (n.body.raw ?? ""),
     formdata: n.body.formdata ?? [],
     urlencoded: n.body.urlencoded ?? [],
+    gqlQuery: n.body.gqlQuery ?? "",
+    gqlVars: n.body.gqlVars ?? "",
+    gqlOp: n.body.gqlOp ?? "",
   };
 }
 

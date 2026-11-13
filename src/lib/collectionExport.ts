@@ -52,6 +52,8 @@ function pmBody(b: BodyData): Record<string, unknown> | undefined {
       return { mode: "raw", raw: b.raw, options: { raw: { language: "json" } } };
     case "text":
       return { mode: "raw", raw: b.raw, options: { raw: { language: "text" } } };
+    case "graphql":
+      return { mode: "graphql", graphql: { query: b.gqlQuery ?? "", variables: b.gqlVars ?? "" } };
     case "formdata":
       return { mode: "formdata", formdata: kv(b.formdata) };
     case "urlencoded":
@@ -114,6 +116,9 @@ function pmRequest(n: RequestNode) {
     raw: n.body.raw ?? "",
     formdata: n.body.formdata ?? [],
     urlencoded: n.body.urlencoded ?? [],
+    gqlQuery: n.body.gqlQuery ?? "",
+    gqlVars: n.body.gqlVars ?? "",
+    gqlOp: n.body.gqlOp ?? "",
   });
   const auth = pmAuth(n.auth);
   return {
