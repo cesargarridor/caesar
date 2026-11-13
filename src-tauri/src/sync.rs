@@ -7,7 +7,7 @@
 //!    en UNA petición. Si no hay cambios, no hace ninguna llamada.
 //!
 //! Para bajar cambios de otros equipos lee el documento remoto al arrancar, al iniciar sesión, al pulsar «Sincronizar»
-//! y cada 5 minutos. Conflictos: gana la última escritura (documento entero).
+//! y cada 5 minutos. Conflictos: se fusiona elemento a elemento (id + `updatedAt`, gana el último cambio; ver `merge.rs`).
 //! El servidor solo ve un bloque cifrado y una marca de tiempo. Firebase se usa por su API REST desde Rust: la interfaz
 //! nunca hace peticiones de red.
 

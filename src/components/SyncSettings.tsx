@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import { t } from "../lib/i18n";
 import { openCheckout, planError, useAccount } from "../lib/account";
@@ -34,7 +34,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const [confirmNew, setConfirmNew] = useState(false);
   const [confirmMaster, setConfirmMaster] = useState(false);
   const [role, setRole] = useState<SyncRole | null>(null);
-  const { account, refresh: refreshAccount } = useAccount();
+  const { account, refresh: refreshAccount, setAccount } = useAccount();
   const [copied, setCopied] = useState(false);
   const [bill, setBill] = useState<Billing | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -69,7 +69,17 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
 
   const signedIn = st?.signed_in ?? false;
   const billingOn = st?.billing ?? false;
-  const checkBilling = useCallback(() => syncBilling().then(setBill).catch(() => {}), []);
+  // Si el cobro ya consta como activo pero la cuenta sigue en limbo, se reevalúa el plan contra la red (account_state es solo caché).
+  const checkBilling = useCallback(
+    () =>
+      syncBilling()
+        .then(async (b) => {
+          setBill(b);
+          if (b.active && account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
+        })
+        .catch(() => {}),
+    [account.mode, setAccount],
+  );
   useEffect(() => {
     if (!signedIn || !billingOn) return;
     checkBilling();
