@@ -47,7 +47,7 @@ export const openCheckout = async () => openUrl(await syncCheckoutUrl());
 export function planError(e: unknown): string | null {
   const m = typeof e === "string" ? e : e instanceof Error ? e.message : "";
   if (m.startsWith("PRO_REQUIRED")) return t("Esta función requiere el plan Pro.");
-  if (m.startsWith("GUEST_LIMIT_WORKSPACES")) return t("El modo Invitado permite un solo espacio de trabajo. Pásate a Pro para crear más.");
+  if (m.startsWith("GUEST_LIMIT_WORKSPACES")) return t("Sin el plan Pro solo puedes tener un espacio de trabajo. Pásate a Pro para crear más.");
   return null;
 }
 

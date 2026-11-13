@@ -1,6 +1,5 @@
 import { t } from "./i18n";
 import type { KV, Tombstone, TreeNode } from "../types";
-import type { AccountMode } from "../api";
 
 /**
  * Espacios de trabajo: cada uno es un conjunto independiente de colecciones, variables y pestañas guardado en local.
@@ -81,8 +80,8 @@ export interface WsData {
   updatedAt?: number;
 }
 
-/** Invitado: un solo espacio de trabajo. Pro y limbo: sin límite. */
-export const canCreateWorkspace = (mode: AccountMode, list: WsMeta[]) => mode !== "guest" || list.length < 1;
+/** Sin plan Pro (invitado o cuenta sin pagar): un solo espacio de trabajo. Solo Pro puede tener varios. */
+export const canCreateWorkspace = (isPro: boolean, list: WsMeta[]) => isPro || list.length < 1;
 
 // ───── lápidas de nodos borrados (se emiten en el snapshot para que el merge no los resucite) ─────
 const TOMB_KEY = "caesar.tombstones";
