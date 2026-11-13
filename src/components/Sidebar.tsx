@@ -3,12 +3,13 @@ import { ChevronDown, ChevronRight, Download, FileUp, Plus, Settings } from "luc
 import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
+import ProfilesPanel from "./ProfilesPanel";
 import CatLogo from "./CatLogo";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import type { WsMeta } from "../lib/workspaces";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import { canMove, canMoveRelative } from "../lib/tree";
-import type { AuthData, KV, TreeNode } from "../types";
+import type { AuthData, KV, ProfilesState, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 
 interface Props extends TreeActions {
@@ -18,6 +19,11 @@ interface Props extends TreeActions {
   error: string | null;
   vars: KV[];
   onVars: (v: KV[]) => void;
+  /** Perfiles de variables (Desarrollo, Producción…) y el activo. */
+  profiles: ProfilesState;
+  onProfiles: (p: ProfilesState) => void;
+  /** Sube cada vez que se pide «Gestionar perfiles…» desde el selector: abre esa sección. */
+  manageProfilesTick: number;
   /** Variables de la colección de la pestaña activa (pisan a las globales). */
   collName: string | null;
   collVars: KV[];
@@ -45,9 +51,13 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
+  const [showProfiles, setShowProfiles] = useState(false);
+  useEffect(() => {
+    if (manageProfilesTick > 0) setShowProfiles(true);
+  }, [manageProfilesTick]);
   const [showColl, setShowColl] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -310,6 +320,19 @@ export default function Sidebar({
                 </div>
               </>
             )}
+          </div>
+        )}
+        <button
+          onClick={() => setShowProfiles((s) => !s)}
+          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
+        >
+          {showProfiles ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <span className="truncate">{t("Perfiles de variables")}</span>{" "}
+          <span className="font-light text-slate">({profiles.list.length})</span>
+        </button>
+        {showProfiles && (
+          <div className="max-h-80 overflow-y-auto p-2">
+            <ProfilesPanel profiles={profiles} onChange={onProfiles} />
           </div>
         )}
         <button

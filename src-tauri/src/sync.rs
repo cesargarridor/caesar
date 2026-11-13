@@ -34,6 +34,8 @@ const MAX_BLOB: usize = 880_000;
 
 /// Página que ve el usuario en el navegador al terminar el inicio de sesión con Google (gato de Caesar).
 const OAUTH_DONE_HTML: &str = include_str!("oauth_done.html");
+/// Página pública (GitHub Pages) a la que se redirige el navegador cuando termina el inicio de sesión.
+const DONE_URL: &str = "https://cesargarridor.github.io/caesar/signed-in.html";
 
 #[derive(Deserialize)]
 pub(crate) struct Cfg {
@@ -885,8 +887,15 @@ async fn google_post_body(st: &SyncState) -> Result<String, String> {
                 (_, true) => ("Esperando…", "", "Vuelve a Caesar"),
                 (_, false) => ("Waiting…", "", "Go back to Caesar"),
             };
-            let body = OAUTH_DONE_HTML.replace("{{LANG}}", if es { "es" } else { "en" }).replace("{{MSG}}", msg).replace("{{SUB}}", sub).replace("{{HINT}}", hint);
-            let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body);
+            // Al terminar se lleva al navegador a una página pública de Caesar: así la barra de direcciones no se queda en
+            // «127.0.0.1:puerto» (el localhost del usuario). El código de acceso nunca sale de esta petición local.
+            let resp = if result.is_some() {
+                let loc = format!("{DONE_URL}?r={}&l={}", if kind == "ok" { "ok" } else { "cancel" }, if es { "es" } else { "en" });
+                format!("HTTP/1.1 302 Found\r\nlocation: {loc}\r\ncache-control: no-store\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+            } else {
+                let body = OAUTH_DONE_HTML.replace("{{LANG}}", if es { "es" } else { "en" }).replace("{{MSG}}", msg).replace("{{SUB}}", sub).replace("{{HINT}}", hint);
+                format!("HTTP/1.1 200 OK\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}", body.len(), body)
+            };
             let _ = sock.write_all(resp.as_bytes()).await;
             let _ = sock.shutdown().await;
             if let Some(r) = result {
