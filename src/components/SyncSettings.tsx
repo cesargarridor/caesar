@@ -315,7 +315,16 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       )}
 
       {/* Suscripción */}
-      {st.signed_in && st.billing && (
+      {st.signed_in && account.whitelisted && !bill?.active && (
+        <section className="space-y-3">
+          <h3 className="text-sm text-mist">{t("Suscripción")}</h3>
+          <div className="max-w-md space-y-1 rounded-xl bg-deep p-4 ring-1 ring-fg/15">
+            <p className="text-sm text-mist">{t("Plan Pro concedido")}</p>
+            <p className="text-xs text-slate">{t("Tienes acceso Pro sin coste: no necesitas suscribirte.")}</p>
+          </div>
+        </section>
+      )}
+      {st.signed_in && st.billing && !(account.whitelisted && !bill?.active) && (
         <section className="space-y-3">
           <h3 className="text-sm text-mist">{t("Suscripción")}</h3>
           {bill?.active ? (
