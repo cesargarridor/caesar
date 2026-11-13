@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FileUp, Plus, Trash2 } from "lucide-react";
 import TextEditorModal from "./TextEditorModal";
+import VarInput from "./VarInput";
 import { pickFile } from "../api";
 import type { KV } from "../types";
 import { t } from "../lib/i18n";
@@ -57,7 +58,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
               onChange={(e) => update(i, { enabled: e.target.checked })}
               className="accent-[var(--t-accent)]"
             />
-            <input className={cell} placeholder="Key" value={row.key} onChange={(e) => update(i, { key: e.target.value })} />
+            <VarInput className={cell} placeholder="Key" value={row.key} onChange={(e) => update(i, { key: e.target.value })} />
             <select
               value={isFile ? "file" : "text"}
               onChange={(e) =>
