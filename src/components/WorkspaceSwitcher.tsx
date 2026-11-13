@@ -26,8 +26,8 @@ const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text
 /** Selector de espacio de trabajo: el cambio es instantáneo (todo vive en local). */
 export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onRename, onDelete, onShare, onInfo, onJoin, onRefresh, refreshing }: Props) {
   const { account } = useAccount();
-  const guest = account.mode === "guest";
-  const canNew = canCreateWorkspace(account.mode, list);
+  const guest = !account.is_pro;
+  const canNew = canCreateWorkspace(account.is_pro, list);
   const proTip = t("Requiere el plan Pro");
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<null | "new" | "rename" | "join">(null);
@@ -133,7 +133,7 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
             </div>
           ) : (
             <>
-              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Modo Invitado: un solo espacio. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
+              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Sin el plan Pro solo puedes tener un espacio. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
                 <Plus size={14} /> {t("Nuevo espacio de trabajo")}
               </button>
               <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { setText(""); setMode("join"); }}>
