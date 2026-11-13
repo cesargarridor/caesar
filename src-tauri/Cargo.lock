@@ -254,10 +254,11 @@ dependencies = [
 
 [[package]]
 name = "caesar"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
+ "flate2",
  "hkdf",
  "keyring",
  "open",
