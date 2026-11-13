@@ -119,9 +119,6 @@ impl SyncState {
         }
         self.is_pro.store(pro, Ordering::SeqCst);
     }
-    pub(crate) fn mode_is(&self, m: &str) -> bool {
-        self.mode.lock().map(|g| g.as_str() == m).unwrap_or(false)
-    }
     /// Vuelve al estado de invitado (sin sesión).
     pub(crate) fn reset_account(&self) {
         self.set_mode("guest", false);
@@ -702,8 +699,8 @@ pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> 
     if std::fs::read(&path).map(|old| old == json.as_bytes()).unwrap_or(false) {
         return Ok(()); // sin cambios reales: no se levanta la bandera
     }
-    // Invitado: un solo espacio de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
-    if st.mode_is("guest") {
+    // Sin Pro (invitado o cuenta sin pagar): un solo espacio de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
+    if !st.is_pro.load(Ordering::SeqCst) {
         let count = |b: &[u8]| serde_json::from_slice::<Value>(b).ok().and_then(|v| v["workspaces"].as_array().map(|a| a.len())).unwrap_or(0);
         let new_n = count(json.as_bytes());
         let old_n = std::fs::read(&path).map(|b| count(&b)).unwrap_or(0);
