@@ -1053,7 +1053,7 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} />
+        <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} />
         </div>
         <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
         {sending && <NetworkLoader steps={steps} method={req.method} />}

@@ -3,7 +3,7 @@ import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
 import BodyEditor from "./BodyEditor";
 import JsonEditor from "./JsonEditor";
-import type { AuthData, RequestState } from "../types";
+import type { AuthData, KV, RequestState } from "../types";
 import { t } from "../lib/i18n";
 
 type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
@@ -13,6 +13,8 @@ interface Props {
   patch: (p: Partial<RequestState>) => void;
   /** Autorización que hereda la petición (si usa "Inherit"). */
   inherited?: AuthData | null;
+  /** Variables efectivas ({{x}}), para cargar el esquema GraphQL. */
+  vars?: KV[];
 }
 
 const COMMON_HEADERS = [
@@ -37,7 +39,7 @@ let lastTab: Tab = (() => {
   }
 })();
 
-export default function RequestTabs({ req, patch, inherited }: Props) {
+export default function RequestTabs({ req, patch, inherited, vars }: Props) {
   const [tab, setTabState] = useState<Tab>(lastTab);
   const setTab = (t: Tab) => {
     lastTab = t;
@@ -85,7 +87,7 @@ export default function RequestTabs({ req, patch, inherited }: Props) {
           />
         )}
         {tab === "auth" && <AuthEditor auth={req.auth} onChange={(auth) => patch({ auth })} inherited={inherited} />}
-        {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} />}
+        {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} req={req} vars={vars} inherited={inherited} onMethod={(method) => patch({ method })} />}
         {tab === "tests" && (
           <div className="flex h-full min-h-64 flex-col gap-2">
             <p className="text-xs text-slate">
