@@ -1244,6 +1244,10 @@ fn app_version(app: tauri::AppHandle) -> String {
 
 #[tauri::command]
 async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
+    // Dentro de un snap el sistema de archivos es de solo lectura y Snap Store actualiza solo.
+    if std::env::var_os("SNAP").is_some() {
+        return Ok(None);
+    }
     let updater = app
         .updater()
         .map_err(|e| format!("Actualizador no disponible: {e}"))?;
@@ -1345,6 +1349,7 @@ fn main() {
             team::team_pull,
             account::check_trial_and_whitelist,
             account::redeem_code,
+            account::record_terms,
             account::account_state,
             sync::sync_link_idp,
             keyrole::sync_role,

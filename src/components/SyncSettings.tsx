@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { checkTrialAndWhitelist, redeemCode, openUrl, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
+import PlanNotice from "./PlanNotice";
+import { acceptedTerms } from "../lib/legal";
 import { t } from "../lib/i18n";
 import { openCheckout, planError, useAccount } from "../lib/account";
 
@@ -42,6 +44,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   /** Pestaña de acceso abierta. Con sesión iniciada solo se ve si el usuario pulsa una (para entrar con otra cuenta). */
   const [mode, setMode] = useState<"login" | "register" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -67,6 +70,29 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       setBusy(false);
       refresh();
     }
+  };
+
+  /** Portabilidad (RGPD): guarda en un JSON la cuenta, el plan, la aceptación de términos y todo lo que Caesar guarda en este equipo. */
+  const downloadData = async () => {
+    const local: Record<string, unknown> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith("caesar.")) continue;
+        const v = localStorage.getItem(k) ?? "";
+        try { local[k] = JSON.parse(v); } catch { local[k] = v; }
+      }
+    } catch { /* sin almacenamiento */ }
+    const data = {
+      app: "Caesar",
+      exportedAt: new Date().toISOString(),
+      account: { email: account.email, plan: account.mode, pro: account.is_pro, proForever: account.forever, whitelisted: account.whitelisted },
+      subscription: bill ? { active: bill.active, status: bill.status, endsAt: bill.ends_at || null } : null,
+      termsAcceptance: acceptedTerms(),
+      local,
+    };
+    const path = await saveTextFile("caesar-mis-datos.json", JSON.stringify(data, null, 2), "json");
+    if (path) setSavedMsg(`${t("Datos guardados en")} ${path}`);
   };
 
   const signedIn = st?.signed_in ?? false;
@@ -229,6 +255,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
           <p className="text-xs text-slate">
             {t("Funciona solo en local. Te quedan {0} día(s); después la cuenta se elimina y vuelves al modo Invitado.", String(account.days_left))}
           </p>
+          <PlanNotice />
           <button className={btnCls} disabled={busy} onClick={() => run(openCheckout)}>{t("Activar Pro")}</button>
         </div>
       )}
@@ -384,6 +411,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
               <p className="text-xs text-slate">
                 {t("Para sincronizar entre equipos necesitas la suscripción. Tus colecciones locales y todo lo demás de Caesar siguen siendo gratis.")}
               </p>
+              <PlanNotice />
               <div className="flex flex-wrap gap-2">
                 <button
                   className={btnCls}
@@ -416,10 +444,18 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       )}
       {st.signed_in && (
         <section className="space-y-2 border-t border-fg/10 pt-4">
+          <h3 className="text-sm text-mist">{t("Tus datos")}</h3>
+          <p className="max-w-md text-xs text-slate">{t("Descarga un JSON con tu cuenta, tu plan, el registro de aceptación y tu contenido local.")}</p>
+          <button className={ghostCls} disabled={busy} onClick={() => run(downloadData)}>{t("Descargar mis datos")}</button>
+          {savedMsg && <p className="break-all text-xs text-aqua">{savedMsg}</p>}
+        </section>
+      )}
+      {st.signed_in && (
+        <section className="space-y-2 border-t border-fg/10 pt-4">
           {confirmDel ? (
             <div className="max-w-md space-y-3">
               <p className="text-xs text-slate">
-                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Las colecciones compartidas saldrán de este equipo; tus colecciones locales no se tocan. Si tienes suscripción, cancélala antes en «Gestionar suscripción».")}
+                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Las colecciones compartidas saldrán de este equipo; tus colecciones locales no se tocan. Si tienes una suscripción activa, se cancelará al borrar la cuenta (no se te cobrará más) y conservas Pro solo hasta el final del periodo ya pagado.")}
               </p>
               <div className="flex gap-2">
                 <button

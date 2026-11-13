@@ -1101,6 +1101,36 @@ pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> 
     Ok(format!("{base}{sep}checkout%5Bcustom%5D%5Buid%5D={uid}"))
 }
 
+/// ¿Un estado de Lemon Squeezy implica que la suscripción puede seguir cobrando?
+pub(crate) fn billing_live(status: &str) -> bool {
+    matches!(status, "active" | "on_trial" | "past_due" | "paused" | "unpaid")
+}
+
+/// Cancela la suscripción viva (si la hay) y borra el registro de aceptación a través del Worker (`/account/close`).
+/// Sin suscripción viva, un fallo del Worker no impide borrar la cuenta. Con suscripción viva, sí: nunca se borra la
+/// cuenta dejando un cobro en marcha.
+async fn close_remote(st: &SyncState, c: &Cfg, uid: &str, tok: &str) -> Result<(), String> {
+    let url = format!("https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/billing/status", c.project_id);
+    let live = match st.client.get(url).bearer_auth(tok).send().await {
+        Ok(r) if r.status().is_success() => {
+            let v: Value = serde_json::from_slice(&r.bytes().await.unwrap_or_default()).unwrap_or(Value::Null);
+            billing_live(v["fields"]["status"]["stringValue"].as_str().unwrap_or(""))
+        }
+        _ => false,
+    };
+    let fail = "No se pudo cancelar tu suscripción automáticamente, así que la cuenta no se ha borrado. Cancélala primero en «Gestionar suscripción» y vuelve a borrar la cuenta.".to_string();
+    if c.worker_url.is_empty() {
+        return if live { Err(fail) } else { Ok(()) };
+    }
+    let body = serde_json::to_vec(&json!({ "idToken": tok })).map_err(|e| e.to_string())?;
+    let res = st.client.post(format!("{}/account/close", c.worker_url.trim_end_matches('/'))).header("content-type", "application/json").body(body).send().await;
+    match res {
+        Ok(r) if r.status().is_success() => Ok(()),
+        _ if !live => Ok(()),
+        _ => Err(fail),
+    }
+}
+
 /// Borra la cuenta: primero los datos de la nube y después el usuario de Firebase. Los datos locales no se tocan.
 #[tauri::command]
 pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), String> {
@@ -1112,6 +1142,8 @@ pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
     let (uid, tok) = valid_token(st).await?;
     // Las colecciones de equipo creadas por esta cuenta se eliminan con ella.
     crate::team::delete_owned(st, &uid, &tok).await?;
+    // Si hay suscripción viva, se cancela en Lemon Squeezy antes de borrar nada (si no, seguirían cobrando).
+    close_remote(st, &c, &uid, &tok).await?;
     for doc in ["sync/main", "billing/status"] {
         let url = format!(
             "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/{doc}",

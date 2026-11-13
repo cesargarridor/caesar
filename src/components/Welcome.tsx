@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Check, Cloud, HardDrive } from "lucide-react";
 import CatLogo from "./CatLogo";
 import SocialButtons from "./SocialButtons";
-import { openUrl, syncSignIn, syncStatus, type SyncStatus } from "../api";
+import { syncSignIn, syncStatus, type SyncStatus } from "../api";
 import { openCheckout, useAccount } from "../lib/account";
 import { t, useLang } from "../lib/i18n";
-import { PRIVACY_URL, TERMS_URL, markOnboarded } from "../lib/legal";
+import { acceptTerms, markOnboarded } from "../lib/legal";
+import { ConsentChecks } from "./ConsentChecks";
+import PlanNotice from "./PlanNotice";
 
 type Mode = "signin" | "signup";
 
@@ -24,8 +26,13 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
   /** Cuenta creada pero sin pagar (limbo): aviso antes de entrar. */
   const [limbo, setLimbo] = useState(false);
   const { refresh } = useAccount();
+  /** Casillas de aceptación (sin marcar): sin las dos no se puede entrar ni crear cuenta. */
+  const [agree, setAgree] = useState(false);
+  const [age, setAge] = useState(false);
+  const ok = agree && age;
 
   const finish = () => {
+    if (ok) acceptTerms();
     markOnboarded();
     onDone();
   };
@@ -42,7 +49,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
   }, []);
 
   const run = async (fn: () => Promise<string | void>) => {
-    if (busy) return;
+    if (busy || !ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -61,12 +68,6 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
       setBusy(false);
     }
   };
-
-  const link = (label: string, url: string) => (
-    <button type="button" onClick={() => void openUrl(url).catch(() => {})} className="underline hover:text-mist">
-      {label}
-    </button>
-  );
 
   const up = mode === "signup";
   const accountsOn = st?.configured ?? true;
@@ -95,10 +96,10 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
             <input type="email" autoFocus autoComplete="username" placeholder={t("Correo")} value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             <input type="password" autoComplete={up ? "new-password" : "current-password"} placeholder={t("Contraseña")} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
             {error && <p className="text-xs text-rose">{error}</p>}
-            <button type="submit" disabled={busy || !email.trim() || !password} className="btn-aurora w-full px-4 py-2.5 font-semibold disabled:opacity-50">
+            <button type="submit" disabled={busy || !ok || !email.trim() || !password} className="btn-aurora w-full px-4 py-2.5 font-semibold disabled:opacity-50">
               {busy ? t("Un momento…") : up ? t("Crear cuenta") : t("Iniciar sesión")}
             </button>
-            <SocialButtons st={st} busy={busy} run={run} reg={up} />
+            <SocialButtons st={st} busy={busy} locked={!ok} run={run} reg={up} />
             <button type="button" onClick={() => setMode(up ? "signin" : "signup")} className="text-xs text-slate hover:text-mist">
               {up ? t("Ya tengo cuenta") : t("Crear una cuenta")}
             </button>
@@ -109,6 +110,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
             <p className="text-sm text-silver">
               {t("Se ha abierto tu navegador para activar el plan Pro. Mientras no lo actives, Caesar funciona solo en local durante 7 días; pasado ese plazo la cuenta se elimina y vuelves al modo Invitado.")}
             </p>
+            <PlanNotice />
             <button onClick={() => void openCheckout().catch(() => {})} className="w-full rounded-[10px] bg-kelp px-4 py-2.5 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">
               {t("Abrir página de pago otra vez")}
             </button>
@@ -116,7 +118,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
           </div>
         ) : (
           <div className="space-y-3 text-left">
-            <button onClick={finish} className="w-full rounded-[14px] bg-kelp p-4 text-left ring-1 ring-fg/10 hover:ring-fg/30">
+            <button onClick={finish} disabled={!ok} className="w-full rounded-[14px] bg-kelp p-4 text-left ring-1 ring-fg/10 hover:ring-fg/30 disabled:opacity-50">
               <span className="flex items-center gap-2 text-sm font-semibold text-mist"><HardDrive size={16} /> {t("Continuar como Invitado (Local)")}</span>
               <span className="mt-1 block text-xs text-slate">
                 {t("Sin cuenta. Tus datos se guardan solo en este dispositivo (si lo borras o cambias de equipo, los perderás). Un espacio de trabajo, sin compartir con equipos ni sincronizar.")}
@@ -131,20 +133,22 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-slate">{t("Al crear la cuenta tienes 7 días para activar Pro; mientras tanto funciona en local.")}</p>
+                <PlanNotice className="mt-2" />
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => setMode("signin")} className="btn-aurora flex-1 px-4 py-2 text-sm font-semibold">{t("Iniciar sesión")}</button>
-                  <button onClick={() => setMode("signup")} className="flex-1 rounded-[10px] bg-deep px-4 py-2 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30">{t("Crear cuenta")}</button>
+                  <button disabled={!ok} onClick={() => setMode("signin")} className="btn-aurora flex-1 px-4 py-2 text-sm font-semibold disabled:opacity-50">{t("Iniciar sesión")}</button>
+                  <button disabled={!ok} onClick={() => setMode("signup")} className="flex-1 rounded-[10px] bg-deep px-4 py-2 text-sm text-mist ring-1 ring-fg/10 hover:ring-fg/30 disabled:opacity-50">{t("Crear cuenta")}</button>
                 </div>
-                <div className="mt-3"><SocialButtons st={st} busy={busy} run={run} /></div>
+                <div className="mt-3"><SocialButtons st={st} busy={busy} locked={!ok} run={run} /></div>
                 {error && <p className="mt-2 text-xs text-rose">{error}</p>}
               </div>
             )}
           </div>
         )}
 
-        <p className="mt-8 text-xs text-slate">
-          {t("Al continuar aceptas nuestros")} {link(t("Términos"), TERMS_URL)} {t("y reconoces nuestra")} {link(t("Política de privacidad"), PRIVACY_URL)}.
-        </p>
+        <div className="mt-8">
+          <ConsentChecks agree={agree} age={age} onAgree={setAgree} onAge={setAge} />
+          {!ok && <p className="mt-2 text-left text-xs text-slate">{t("Marca las dos casillas para continuar.")}</p>}
+        </div>
       </div>
     </div>
   );
