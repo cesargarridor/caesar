@@ -1343,6 +1343,7 @@ fn main() {
             team::team_push,
             team::team_pull,
             account::check_trial_and_whitelist,
+            account::redeem_code,
             account::account_state,
             sync::sync_link_idp,
             keyrole::sync_role,
