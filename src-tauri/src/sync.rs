@@ -535,6 +535,8 @@ fn write_atomic(path: &PathBuf, bytes: &[u8]) -> Result<(), String> {
 // ───────────────────────── trabajador de fondo ─────────────────────────
 
 pub fn start_worker(app: AppHandle) {
+    // Estado de la cuenta guardado de la última vez: la interfaz sabe al instante si es Pro, sin esperar a la red.
+    crate::account::load_cached(&app, &app.state::<SyncState>(), load_refresh().is_some());
     tauri::async_runtime::spawn(async move {
         let st = app.state::<SyncState>();
         // Restaura la sesión guardada en el llavero.
