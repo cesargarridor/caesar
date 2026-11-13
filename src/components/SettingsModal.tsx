@@ -425,7 +425,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={onClose}>
       <div
-        className="glass flex max-h-full w-full max-w-4xl flex-col rounded-2xl bg-kelp p-8"
+        className="glass flex max-h-full w-full max-w-5xl flex-col rounded-2xl bg-kelp p-8"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex shrink-0 items-center justify-between">
@@ -443,20 +443,21 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
                     ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
-        <div className="mb-5 flex shrink-0 flex-wrap gap-x-1 border-b border-fg/10">
+        <div className="flex min-h-0 flex-1 gap-6">
+        <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-fg/10 pr-4" aria-label={t("Ajustes")}>
           {([["ui", "Personalización de interfaz"], ["edit", "Edición y atajos"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Cuenta y suscripción"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
-              className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm ${
-                section === id ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"
+              className={`rounded-lg px-3 py-2 text-left text-sm ${
+                section === id ? "bg-fg/10 text-mist ring-1 ring-aqua/60" : "text-slate hover:bg-fg/5 hover:text-silver"
               }`}
             >
               {t(label)}
             </button>
           ))}
-        </div>
-
+        </nav>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {section === "edit" ? (
           <EditControls autosave={autosave} onAutosave={onAutosave} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
         ) : section === "sync" ? (<SyncSettings sharedCount={sharedCount} onBeforeSignOut={onBeforeSignOut} onSignedOut={onSignedOut} />) : section === "cat" ? (
@@ -483,6 +484,8 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
           {UiSection()}
         </div>
         )}
+        </div>
+        </div>
       </div>
     </div>
   );
