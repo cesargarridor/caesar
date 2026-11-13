@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import type { AuthData, AuthType } from "../types";
 import { t } from "../lib/i18n";
+import VarInput from "./VarInput";
 
 interface Props {
   auth: AuthData;
@@ -67,7 +68,7 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
   const setX = (k: string, v: string) => onChange({ ...auth, extra: { ...x, [k]: v } });
   const text = (k: string, label: string, placeholder?: string) => (
     <Field label={label}>
-      <input className={input} value={x[k] ?? ""} placeholder={placeholder} onChange={(e) => setX(k, e.target.value)} />
+      <VarInput className={input} value={x[k] ?? ""} placeholder={placeholder} onChange={(e) => setX(k, e.target.value)} />
     </Field>
   );
   const secret = (k: string, label: string) => (
@@ -106,7 +107,7 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
       {(auth.type === "basic" || auth.type === "digest" || auth.type === "wsse") && (
         <>
           <Field label="Username">
-            <input className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} />
+            <VarInput className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} />
           </Field>
           <Field label="Password">
             <Secret value={auth.password} onChange={(password) => set({ password })} />
@@ -118,7 +119,7 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
       {auth.type === "ntlm" && (
         <>
           <Field label="Username">
-            <input className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} placeholder="usuario o DOMINIO\usuario" />
+            <VarInput className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} placeholder="usuario o DOMINIO\usuario" />
           </Field>
           <Field label="Password">
             <Secret value={auth.password} onChange={(password) => set({ password })} />
@@ -132,7 +133,7 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
       {auth.type === "apikey" && (
         <>
           <Field label="Key">
-            <input className={input} value={auth.key} onChange={(e) => set({ key: e.target.value })} placeholder="X-API-Key" />
+            <VarInput className={input} value={auth.key} onChange={(e) => set({ key: e.target.value })} placeholder="X-API-Key" />
           </Field>
           <Field label="Value">
             <Secret value={auth.value} onChange={(value) => set({ value })} />
@@ -204,7 +205,7 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
               {x.grantType === "password" && (
                 <>
                   <Field label="Username">
-                    <input className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} />
+                    <VarInput className={input} value={auth.username} onChange={(e) => set({ username: e.target.value })} />
                   </Field>
                   <Field label="Password">
                     <Secret value={auth.password} onChange={(password) => set({ password })} />

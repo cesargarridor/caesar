@@ -3,6 +3,7 @@ import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
+import ShortcutsEditor from "./ShortcutsEditor";
 import SyncSettings from "./SyncSettings";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
 import { BASE_METHODS, EXTRA_METHODS, setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
@@ -227,21 +228,6 @@ function CatControls() {
   );
 }
 
-const SHORTCUTS: [string, string][] = [
-  ["Ctrl+S", "Guardar la petición en la colección"],
-  ["Ctrl+Enter", "Enviar la petición"],
-  ["Ctrl+T", "Nueva pestaña"],
-  ["Ctrl+W", "Cerrar la pestaña"],
-  ["Ctrl+Tab / Ctrl+Mayús+Tab", "Pestaña siguiente / anterior"],
-  ["Ctrl+1 … 9", "Ir a la pestaña número N"],
-  ["Alt+← / Alt+→", "Volver / avanzar en las pestañas visitadas"],
-  ["Ctrl+L", "Ir a la barra de URL"],
-  ["Ctrl+F", "Buscar en la respuesta o en el editor"],
-  ["Ctrl+Space", "Elegir una variable de entorno"],
-  ["Ctrl+,", "Abrir los ajustes"],
-  ["Ctrl+/", "Ver estos atajos"],
-];
-
 function MethodControls({ extra, onExtra }: { extra: string[]; onExtra: (m: string[]) => void }) {
   const [custom, setCustom] = useState("");
   const all = [...EXTRA_METHODS, ...extra.filter((m) => !EXTRA_METHODS.includes(m))];
@@ -293,18 +279,7 @@ function EditControls({ autosave, onAutosave, extraMethods, onExtraMethods }: { 
           </span>
         </span>
       </label>
-      <section>
-        <h3 className="mb-2 text-lg text-mist">{t("Atajos de teclado")}</h3>
-        <div className="divide-y divide-fg/10 rounded-xl bg-deep ring-1 ring-fg/10">
-          {SHORTCUTS.map(([keys, what]) => (
-            <div key={keys} className="flex items-center justify-between gap-4 px-4 py-2 text-sm">
-              <span className="text-silver">{t(what)}</span>
-              <kbd className="shrink-0 rounded-md bg-kelp px-2 py-0.5 font-mono text-xs text-mist ring-1 ring-fg/20">{keys}</kbd>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-slate">{t("En macOS, Ctrl se sustituye por Cmd.")}</p>
-      </section>
+      <ShortcutsEditor />
     </div>
   );
 }
@@ -425,7 +400,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={onClose}>
       <div
-        className="glass flex max-h-full w-full max-w-5xl flex-col rounded-2xl bg-kelp p-8"
+        className="glass flex h-full max-h-[44rem] w-full max-w-5xl flex-col rounded-2xl bg-kelp p-8"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex shrink-0 items-center justify-between">
