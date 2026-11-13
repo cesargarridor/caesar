@@ -83,7 +83,7 @@ export function NewCollectionDialog({ onClose, onOwn, onJoin }: { onClose: () =>
         <button onClick={() => void join()} disabled={busy || !code.trim()} className={ghost}>{busy ? t("Uniéndote…") : t("Unirme")}</button>
       </div>
       {err && <p className="mt-3 text-xs text-rose">{err}</p>}
-      <p className="mt-3 text-xs text-slate">{t("Necesitas haber iniciado sesión (Ajustes → Sincronización). La colección se descarga a tu equipo y se mantiene al día sola.")}</p>
+      <p className="mt-3 text-xs text-slate">{t("Necesitas haber iniciado sesión (Ajustes → Cuenta y suscripción). La colección se descarga a tu equipo y se mantiene al día sola.")}</p>
     </Shell>
   );
 }
