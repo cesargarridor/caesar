@@ -3,6 +3,7 @@
 mod account;
 mod keyrole;
 mod merge;
+mod pack;
 mod sync;
 mod team;
 mod vault;
