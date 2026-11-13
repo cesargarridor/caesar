@@ -73,9 +73,11 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const checkBilling = useCallback(
     () =>
       syncBilling()
-        .then(async (b) => {
-          setBill(b);
-          if (b.active && account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
+        .then((b) => setBill(b))
+        .catch(() => {})
+        // Reevalúa el plan siempre que no sea Pro: cubre tanto un pago como un alta en la lista blanca.
+        .then(async () => {
+          if (account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
         })
         .catch(() => {}),
     [account.mode, setAccount],
@@ -105,8 +107,8 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-mist">{st.email || "—"}</div>
                 <div className="flex items-center gap-1.5 text-xs text-slate">
-                  <span className={`inline-block h-2 w-2 rounded-full ${st.error ? "bg-red-400" : st.dirty ? "bg-amber-400" : "bg-emerald-400"}`} />
-                  {st.error ? t("Con problemas de sincronización") : st.dirty ? t("Subiendo cambios…") : t("Sesión iniciada")}
+                  <span className={`inline-block h-2 w-2 rounded-full ${st.error ? "bg-red-400" : !account.is_pro ? "bg-slate-400" : st.dirty ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  {st.error ? t("Con problemas de sincronización") : !account.is_pro ? t("Solo local (sin Pro)") : st.dirty ? t("Subiendo cambios…") : t("Sesión iniciada")}
                 </div>
               </div>
               {!confirmOut && (
@@ -358,7 +360,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
               {t("Sincronizar ahora")}
             </button>
             <span className="text-xs text-slate">
-              {st.dirty ? t("Cambios pendientes de subir (se suben solos cada 30 s).") : st.last_sync ? `${t("Última sincronización")}: ${new Date(st.last_sync).toLocaleTimeString()}` : t("Al día")}
+              {!account.is_pro ? t("Sin Pro no se sincroniza: tus datos quedan solo en este equipo.") : st.dirty ? t("Cambios pendientes de subir (se suben solos cada 30 s).") : st.last_sync ? `${t("Última sincronización")}: ${new Date(st.last_sync).toLocaleTimeString()}` : t("Al día")}
             </span>
           </div>
           {st.error && <p className="text-xs text-red-400">{st.error}</p>}
