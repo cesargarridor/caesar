@@ -17,7 +17,7 @@ import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog 
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
-  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
   appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
@@ -46,7 +46,7 @@ import {
   applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
-import type { KV, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
+import type { KV, ProfilesState, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
 const STEP_DEFS = [
   { id: "validate", label: "Validando petición" },
@@ -128,6 +128,7 @@ export default function App() {
       return n;
     });
   const [vars, setVars] = useState<KV[]>(() => load(wsKey("vars", wsId), []));
+  const [profiles, setProfiles] = useState<ProfilesState>(() => loadProfiles(wsId));
   const initial = useMemo(() => loadTabs(wsId), []);
   const [tabs, setTabs] = useState<Tab[]>(initial.tabs);
   const [activeId, setActiveId] = useState(initial.activeId);
@@ -221,6 +222,7 @@ export default function App() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [manageTick, setManageTick] = useState(0);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
@@ -229,7 +231,10 @@ export default function App() {
   const rootIdx = active.path !== null ? Number(active.path.split("/")[0]) : null;
   const rootNode = rootIdx !== null ? collections[rootIdx] : undefined;
   const collVars: KV[] = rootNode && rootNode.type === "folder" ? rootNode.variables ?? [] : [];
-  const effVars = useMemo(() => [...vars, ...collVars], [vars, collVars]);
+  /** Perfil de variables activo (selector junto a «Enviar»). Pisa a las globales y a las de la colección. */
+  const activeProfile = profiles.list.find((p) => p.id === profiles.active) ?? null;
+  const profVars: KV[] = activeProfile?.vars ?? [];
+  const effVars = useMemo(() => [...vars, ...collVars, ...profVars], [vars, collVars, profVars]);
   /** Autorización efectiva: con "Inherit" sube por las carpetas hasta la de la colección. */
   const effAuth = useMemo(() => resolveInherit(req.auth, collections, active.path), [req.auth, collections, active.path]);
   const collAuth = rootNode && rootNode.type === "folder" ? normAuth(rootNode.auth ?? { type: "none" }) : null;
@@ -240,19 +245,21 @@ export default function App() {
   useEffect(() => save(wsKey("tabs", wsId), { tabs, activeId: active.id }), [tabs, active.id, wsId]);
   useEffect(() => save(wsKey("collections", wsId), collections), [collections, wsId]);
   useEffect(() => save(wsKey("vars", wsId), vars), [vars, wsId]);
+  useEffect(() => save(wsKey("envs", wsId), profiles), [profiles, wsId]);
   // Barrera 1: 2 s sin cambios antes de pasar los datos a Rust (que los guarda en disco y avisa al trabajador de sincronización).
   useEffect(() => {
     const id = setTimeout(() => {
-      localSave(JSON.stringify(snapshotAll(wsList, wsId, collections, vars))).catch(() => {});
+      localSave(JSON.stringify(snapshotAll(wsList, wsId, collections, vars, profiles))).catch(() => {});
     }, 2000);
     return () => clearTimeout(id);
-  }, [collections, vars, wsList, wsId]);
+  }, [collections, vars, profiles, wsList, wsId]);
   // ───── espacios de trabajo ─────
   /** Carga otro espacio: lee su bloque del disco y lo pone en pantalla al instante (sin red). */
   const enterWs = (id: string) => {
     void wsTeam.flush(); // lo pendiente del espacio que se deja (si está compartido)
     save(wsKey("collections", wsId), collections);
     save(wsKey("vars", wsId), vars);
+    save(wsKey("envs", wsId), profiles);
     save(wsKey("tabs", wsId), { tabs, activeId: active.id });
     const cols = ensureIds(load<TreeNode[]>(wsKey("collections", id), []));
     const tb = loadTabs(id);
@@ -260,6 +267,7 @@ export default function App() {
     setWsId(id);
     setCollections(cols);
     setVars(load<KV[]>(wsKey("vars", id), []));
+    setProfiles(loadProfiles(id));
     setTabs(tb.tabs);
     setActiveId(tb.activeId);
     setResults({});
@@ -316,12 +324,16 @@ export default function App() {
     for (const w of ws) {
       const cols = Array.isArray(w.collections) ? ensureIds(w.collections) : [];
       const vs = Array.isArray(w.vars) ? w.vars : [];
+      // Versiones anteriores no traen perfiles: en ese caso se conservan los locales.
+      const pr = w.envs === undefined ? null : normProfiles(w.envs);
       if (w.id === wsId) {
         setCollections(cols);
         setVars(vs);
+        if (pr) setProfiles(pr);
       } else {
         save(wsKey("collections", w.id), cols);
         save(wsKey("vars", w.id), vs);
+        if (pr) save(wsKey("envs", w.id), pr);
       }
     }
     for (const old of wsList) if (!list.some((w) => w.id === old.id) && old.id !== wsId) removeWsData(old.id);
@@ -768,9 +780,14 @@ export default function App() {
             }
             return next;
           };
-          // Si la variable ya existe en la colección se actualiza ahí; si no, en las globales.
-          const inColl = new Set(collVars.map((v) => v.key));
-          setVars((cur) => apply(cur, (k) => !inColl.has(k), true));
+          // Si la variable ya existe en el perfil activo se actualiza ahí; si no, en la colección; y si no, en las globales.
+          const inProf = new Set(profVars.map((v) => v.key));
+          const inColl = new Set(collVars.map((v) => v.key).filter((k) => !inProf.has(k)));
+          setVars((cur) => apply(cur, (k) => !inColl.has(k) && !inProf.has(k), true));
+          if (activeProfile && inProf.size) {
+            const pid = activeProfile.id;
+            setProfiles((p) => ({ ...p, list: p.list.map((x) => (x.id === pid ? { ...x, vars: apply(x.vars, (k) => inProf.has(k), false) } : x)) }));
+          }
           if (rootIdx !== null && inColl.size) {
             setCollections((c) =>
               updateAt(c, String(rootIdx), (n) =>
@@ -919,6 +936,9 @@ export default function App() {
           rootIdx !== null &&
           setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v, updatedAt: Date.now() } : n)))
         }
+        profiles={profiles}
+        onProfiles={setProfiles}
+        manageProfilesTick={manageTick}
         collAuth={collAuth}
         onCollAuth={(a) =>
           rootIdx !== null &&
@@ -1006,6 +1026,9 @@ export default function App() {
           method={req.method}
           methods={[...BASE_METHODS, ...extraMethods]}
           onMore={() => { setSettingsSection("edit"); setShowSettings(true); }}
+          profiles={profiles}
+          onProfile={(active) => setProfiles((p) => ({ ...p, active }))}
+          onManageProfiles={() => setManageTick((n) => n + 1)}
           url={fullUrl}
           sending={sending}
           onMethod={(method) => patch({ method })}
@@ -1067,6 +1090,8 @@ export default function App() {
         <VarPeek
           vars={vars}
           onVars={setVars}
+          profile={activeProfile}
+          onProfileVars={(v) => activeProfile && setProfiles((p) => ({ ...p, list: p.list.map((x) => (x.id === activeProfile.id ? { ...x, vars: v } : x)) }))}
           collVars={rootIdx !== null ? collVars : null}
           onCollVars={
             rootIdx !== null
