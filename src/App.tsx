@@ -12,6 +12,7 @@ import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import VarPicker from "./components/VarPicker";
+import VarPeek from "./components/VarPeek";
 import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog } from "./components/TeamDialogs";
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
@@ -37,7 +38,9 @@ import {
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { runScript, type ScriptResult } from "./lib/script";
-import { installFindShortcut } from "./lib/find";
+import { installFindShortcut, triggerFind } from "./lib/find";
+import { allCommands, getToolbar, installKeymap, stepsOf } from "./lib/keymap";
+import { useKeymapVersion } from "./lib/useKeymap";
 import { t, useLang } from "./lib/i18n";
 import {
   applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
@@ -786,6 +789,8 @@ export default function App() {
   };
 
   // Atajos globales: Ctrl+S guarda, Ctrl+Enter envía desde CUALQUIER campo (siempre con el estado más reciente).
+  const copyCurlRef = useRef(handleCopyCurl);
+  copyCurlRef.current = handleCopyCurl;
   const saveRef = useRef(handleSave);
   const sendRef = useRef(handleSend);
   saveRef.current = handleSave;
@@ -802,47 +807,48 @@ export default function App() {
     },
     goto: (n) => tabs[n] && setActiveId(tabs[n].id),
   };
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-      const k = e.key.toLowerCase();
-      const stop = () => e.preventDefault();
-      if (k === "s") {
-        stop();
-        saveRef.current();
-      } else if (e.key === "Enter") {
-        stop();
-        sendRef.current();
-      } else if (k === "t") {
-        stop();
-        kb.current.newTab();
-      } else if (k === "w") {
-        stop();
-        kb.current.closeTab();
-      } else if (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") {
-        stop();
-        kb.current.step(e.key === "PageUp" || (e.key === "Tab" && e.shiftKey) ? -1 : 1);
-      } else if (/^[1-9]$/.test(e.key)) {
-        stop();
-        kb.current.goto(Number(e.key) - 1);
-      } else if (k === "l") {
-        stop();
+  // Atajos de teclado editables (lib/keymap): el despachador traduce la combinación pulsada en un comando y lo ejecuta aquí.
+  const histGo = useRef<(d: -1 | 1) => void>(() => {});
+  const runStep = (id: string) => {
+    const gt = /^gotoTab([1-9])$/.exec(id);
+    if (gt) return kb.current.goto(Number(gt[1]) - 1);
+    switch (id) {
+      case "save": return saveRef.current();
+      case "send": return sendRef.current();
+      case "copyCurl": return void copyCurlRef.current();
+      case "newTab": return kb.current.newTab();
+      case "closeTab": return kb.current.closeTab();
+      case "nextTab": return kb.current.step(1);
+      case "prevTab": return kb.current.step(-1);
+      case "historyBack": return histGo.current(-1);
+      case "historyForward": return histGo.current(1);
+      case "focusUrl": {
         const el = document.getElementById("caesar-url") as HTMLInputElement | null;
         el?.focus();
         el?.select();
-      } else if (e.key === ",") {
-        stop();
-        setSettingsSection("ui");
-        setShowSettings(true);
-      } else if (e.key === "/") {
-        stop();
-        setSettingsSection("edit");
-        setShowSettings(true);
+        return;
       }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, []);
+      case "find": return triggerFind();
+      case "varPicker": return void window.dispatchEvent(new Event("caesar-var-picker"));
+      case "settings":
+        setSettingsSection("ui");
+        return setShowSettings(true);
+      case "shortcuts":
+        setSettingsSection("edit");
+        return setShowSettings(true);
+    }
+  };
+  const runCommand = (id: string) => {
+    for (const step of stepsOf(id)) runStep(step);
+  };
+  const runCommandRef = useRef(runCommand);
+  runCommandRef.current = runCommand;
+  useEffect(() => installKeymap((id) => runCommandRef.current(id)), []);
+  useKeymapVersion();
+  const toolbarButtons = getToolbar().flatMap((id) => {
+    const c = allCommands().find((x) => x.id === id);
+    return c ? [{ id, label: c.user ? c.label : t(c.label) }] : [];
+  });
 
   // Autoguardado (si está activado): guarda la petición abierta de una colección un instante después de dejar de editar.
   useEffect(() => {
@@ -887,21 +893,14 @@ export default function App() {
       e.preventDefault(); // evita la navegación nativa del webview
       if (e.type === "mouseup") go(e.button === 3 ? -1 : 1);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-        e.preventDefault();
-        go(e.key === "ArrowLeft" ? -1 : 1);
-      }
-    };
+    histGo.current = go;
     window.addEventListener("mousedown", onMouse, true);
     window.addEventListener("mouseup", onMouse, true);
     window.addEventListener("auxclick", onMouse, true);
-    window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("mousedown", onMouse, true);
       window.removeEventListener("mouseup", onMouse, true);
       window.removeEventListener("auxclick", onMouse, true);
-      window.removeEventListener("keydown", onKey, true);
     };
   }, []);
 
@@ -1016,6 +1015,8 @@ export default function App() {
           onSave={() => handleSave()}
           onCopyCurl={handleCopyCurl}
           flash={flash}
+          extra={toolbarButtons}
+          onCommand={(id) => runCommandRef.current(id)}
         />
         {notice && (
           <div
@@ -1063,6 +1064,16 @@ export default function App() {
         )}
         {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
         <VarPicker vars={effVars} />
+        <VarPeek
+          vars={vars}
+          onVars={setVars}
+          collVars={rootIdx !== null ? collVars : null}
+          onCollVars={
+            rootIdx !== null
+              ? (v) => setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v, updatedAt: Date.now() } : n)))
+              : null
+          }
+        />
         {teamDialog?.kind === "new" && (
           <NewCollectionDialog
             onClose={() => setTeamDialog(null)}
