@@ -6,7 +6,9 @@
 //! - Resto: `limbo` durante 7 días desde el alta; cero escritura en Firestore. El borrado de cuentas sin pago lo hace
 //!   el Cron del Worker: aquí solo se detecta (Firebase dice que el usuario ya no existe) y se cierra la sesión local.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::OnceLock;
 use serde_json::Value;
 use tauri::AppHandle;
 
@@ -38,7 +40,8 @@ async fn fetch_user_flags(st: &SyncState, uid: &str, tok: &str) -> Result<(bool,
     Ok((parse_whitelist(&v), parse_forever(&v)))
 }
 
-#[derive(Serialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default)]
 pub struct AccountState {
     /// "guest" | "limbo" | "pro"
     pub mode: String,
@@ -57,11 +60,50 @@ fn guest(deleted: bool) -> AccountState {
     AccountState { mode: "guest".into(), is_pro: false, whitelisted: false, forever: false, days_left: 0, deleted, email: String::new() }
 }
 
+/// Dónde se guarda el último estado conocido de la cuenta (se fija al arrancar).
+static CACHE_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Guarda el último estado de la cuenta en disco para que la próxima vez que se abra la app se sepa al instante si es Pro.
+/// Solo sirve para pintar la interfaz sin esperar a la red: lo que de verdad manda (reglas de Firestore) lo decide el servidor.
+fn persist(a: &AccountState) {
+    let Some(p) = CACHE_PATH.get() else { return };
+    if a.mode == "guest" {
+        let _ = std::fs::remove_file(p);
+    } else if let Ok(json) = serde_json::to_vec(a) {
+        let _ = std::fs::write(p, json);
+    }
+}
+
+/// Al arrancar, ANTES de que la interfaz pregunte: si hay una sesión guardada y un estado guardado, se usa ese estado ya.
+/// La comprobación real contra la red llega después y lo corrige si ha cambiado (pago, baja, lista blanca, código).
+pub fn load_cached(app: &AppHandle, st: &SyncState, has_saved_session: bool) {
+    use tauri::Manager;
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let path = dir.join("account.json");
+    let _ = CACHE_PATH.set(path.clone());
+    if !has_saved_session {
+        let _ = std::fs::remove_file(&path);
+        return;
+    }
+    let Some(a) = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice::<AccountState>(&b).ok()) else { return };
+    if a.mode != "limbo" && a.mode != "pro" || a.deleted {
+        return;
+    }
+    st.set_mode(&a.mode, a.is_pro);
+    if !a.email.is_empty() {
+        st.set_email(&a.email);
+    }
+    if let Ok(mut g) = st.account.lock() {
+        *g = Some(a);
+    }
+}
+
 fn store(st: &SyncState, a: &AccountState) {
     st.set_mode(&a.mode, a.is_pro);
     if let Ok(mut g) = st.account.lock() {
         *g = Some(a.clone());
     }
+    persist(a);
 }
 
 fn now_ms() -> i64 {
