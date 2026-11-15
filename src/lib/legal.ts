@@ -4,6 +4,10 @@ export const PRIVACY_URL = `${SITE}/privacy.html`;
 export const TERMS_URL = `${SITE}/terms.html`;
 export const REFUND_URL = `${SITE}/refunds.html`;
 export const DELETE_URL = `${SITE}/delete.html`;
+export const LEGAL_URL = `${SITE}/legal.html`;
+export const COOKIES_URL = `${SITE}/cookies.html`;
+export const SUPPORT_URL = `${SITE}/support.html`;
+export const WEBSITE_URL = "https://cesargarridor.github.io/caesar/";
 
 /** Versión vigente de los Términos y la Política de privacidad. Súbela cuando cambien: la app volverá a pedir aceptación. */
 export const TERMS_VERSION = "2026-11-13";

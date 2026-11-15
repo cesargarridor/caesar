@@ -6,6 +6,7 @@ import CatLogo from "./CatLogo";
 import { setJsonCopyMode, useJsonCopyMode, type JsonCopyMode } from "../lib/jsonCopy";
 import ShortcutsEditor from "./ShortcutsEditor";
 import SyncSettings from "./SyncSettings";
+import SettingsPrivacy from "./SettingsPrivacy";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
 import { BASE_METHODS, EXTRA_METHODS, setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
 import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
@@ -431,7 +432,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
       </Block>
     </>
   );
-  const [section, setSection] = useState<"ui" | "edit" | "updates" | "lang" | "cat" | "sync">(initialSection ?? "ui");
+  const [section, setSection] = useState<"ui" | "edit" | "updates" | "lang" | "cat" | "sync" | "privacy">(initialSection ?? "ui");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -455,13 +456,13 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
             ? t("Todo lo visual de la aplicación en un solo sitio: tema, fuente, tamaños de letra y cómo se ve la respuesta. Los cambios se aplican al instante.")
             : section === "lang"
                   ? t("Elige el idioma de la interfaz. Se aplica al instante.")
-                  : section === "sync" ? t("Tu cuenta, tu plan y la sincronización entre equipos. Todo se cifra en tu equipo antes de subirse; la nube nunca puede leerlo.") : section === "cat"
+                  : section === "privacy" ? t("Qué datos recoge Caesar, cómo se protege la sincronización y bajo qué licencia se distribuye.") : section === "sync" ? t("Tu cuenta, tu plan y la sincronización entre equipos. Todo se cifra en tu equipo antes de subirse; la nube nunca puede leerlo.") : section === "cat"
                     ? t("Animaciones: el gatito del logo y la red de nodos de la pantalla de carga. Desactivarlas ahorra memoria y CPU.")
                   : t("Las versiones nuevas llegan firmadas desde GitHub; Caesar comprueba la firma antes de instalarlas.")}
         </p>
         <div className="flex min-h-0 flex-1 gap-6">
         <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-fg/10 pr-4" aria-label={t("Ajustes")}>
-          {([["ui", "Personalización de interfaz"], ["edit", "Edición y atajos"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Cuenta y suscripción"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
+          {([["ui", "Personalización de interfaz"], ["edit", "Edición y atajos"], ["lang", "Idioma"], ["cat", "Animación"], ["sync", "Cuenta y suscripción"], ["privacy", "Privacidad y licencia"], ["updates", "Actualizaciones"]] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setSection(id)}
@@ -476,7 +477,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {section === "edit" ? (
           <EditControls autosave={autosave} onAutosave={onAutosave} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
-        ) : section === "sync" ? (<SyncSettings sharedCount={sharedCount} onBeforeSignOut={onBeforeSignOut} onSignedOut={onSignedOut} />) : section === "cat" ? (
+        ) : section === "privacy" ? (<SettingsPrivacy version={updates.version} />) : section === "sync" ? (<SyncSettings sharedCount={sharedCount} onBeforeSignOut={onBeforeSignOut} onSignedOut={onSignedOut} />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
           <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-3 overflow-y-auto px-1 py-1 md:grid-cols-3">
