@@ -144,8 +144,11 @@ pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<
 }
 
 /// Sube los cambios locales de una colección de equipo. Devuelve la marca de tiempo escrita.
+/// `seen` = la versión de la nube sobre la que se editó (`seen`). Si alguien subió algo más nuevo, falla con "CONFLICT"
+/// y no se escribe nada; `force` salta esa comprobación (el usuario eligió machacar lo del equipo).
+/// La escritura va condicionada a la hora de actualización leída, así que dos subidas simultáneas no se pisan.
 #[tauri::command]
-pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: String) -> Result<i64, String> {
+pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: String, seen: i64, force: bool) -> Result<i64, String> {
     crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
@@ -155,17 +158,34 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
     if blob.len() > MAX_BLOB {
         return Err("La colección supera el límite de la nube gratuita (~650 KB).".into());
     }
-    let stamp = now_ms();
+    let mut precondition = "currentDocument.exists=true".to_string();
+    if !force {
+        // Solo la fecha: una lectura barata antes de escribir.
+        let (hs, hv) = send(&st, st.client.get(format!("{}/{id}?mask.fieldPaths=updatedAt", base(&c.project_id))).bearer_auth(&tok)).await?;
+        match hs {
+            200 => {
+                let server: i64 = hv["fields"]["updatedAt"]["integerValue"].as_str().and_then(|x| x.parse().ok()).unwrap_or(0);
+                if server > seen {
+                    return Err("CONFLICT".into());
+                }
+                if let Some(ut) = hv["updateTime"].as_str() {
+                    precondition = format!("currentDocument.updateTime={ut}");
+                }
+            }
+            404 => return Err("NOT_FOUND".into()),
+            s => return Err(http_err(s, "leer la colección de equipo")),
+        }
+    }
+    let stamp = now_ms().max(seen + 1);
     let body = json!({ "fields": { "blob": { "stringValue": blob }, "updatedAt": { "integerValue": stamp.to_string() } } });
     // La máscara deja intacto el campo owner.
-    let url = format!(
-        "{}/{id}?updateMask.fieldPaths=blob&updateMask.fieldPaths=updatedAt&currentDocument.exists=true",
-        base(&c.project_id)
-    );
-    let (status, _) = send(&st, st.client.patch(url).bearer_auth(tok).header("content-type", "application/json").body(serde_json::to_vec(&body).map_err(|e| e.to_string())?)).await?;
+    let url = format!("{}/{id}?updateMask.fieldPaths=blob&updateMask.fieldPaths=updatedAt&{precondition}", base(&c.project_id));
+    let (status, v) = send(&st, st.client.patch(url).bearer_auth(tok).header("content-type", "application/json").body(serde_json::to_vec(&body).map_err(|e| e.to_string())?)).await?;
     match status {
         200 => Ok(stamp),
-        404 | 400 => Err("NOT_FOUND".into()),
+        404 => Err("NOT_FOUND".into()),
+        400 | 409 if v["error"]["status"].as_str() == Some("FAILED_PRECONDITION") || v["error"]["status"].as_str() == Some("ABORTED") => Err("CONFLICT".into()),
+        400 => Err("NOT_FOUND".into()),
         s => Err(http_err(s, "guardar en la colección de equipo")),
     }
 }

@@ -62,6 +62,7 @@ import {
   removeAt, renameAt, suggestName, updateAt,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { ConflictBanner } from "./components/ConflictBanner";
 import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut, triggerFind } from "./lib/find";
 import { allCommands, getCombos, getToolbar, installKeymap, prettyCombo, stepsOf } from "./lib/keymap";
@@ -1362,6 +1363,19 @@ export default function App() {
           onCommand={(id) => runCommandRef.current(id)}
         />
         )}
+        <ConflictBanner
+          items={[
+            ...team.conflicts.flatMap((code) => {
+              const n = collections.find((c) => c.type === "folder" && c.team?.code === code);
+              return n
+                ? [{ key: code, name: n.name, onKeepCloud: () => void team.resolveKeepCloud(code), onForce: () => void team.resolveForce(code) }]
+                : [];
+            }),
+            ...(wsTeam.conflict
+              ? [{ key: "ws", name: wsList.find((w) => w.id === wsId)?.name ?? "", onKeepCloud: () => void wsTeam.resolveKeepCloud(), onForce: () => void wsTeam.resolveForce() }]
+              : []),
+          ]}
+        />
         {notice && (
           <div
             className={`absolute right-4 top-24 z-50 flex max-w-md items-center gap-2 break-all rounded-2xl bg-kelp px-4 py-2.5 text-xs shadow-lg ${

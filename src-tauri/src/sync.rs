@@ -26,7 +26,7 @@ const CONFIG: &str = include_str!("../sync_config.json");
 const SERVICE: &str = "Caesar";
 const ACCOUNT: &str = "sync-refresh-token";
 /// Cada cuánto despierta el trabajador.
-const TICK: Duration = Duration::from_secs(30);
+const TICK: Duration = Duration::from_secs(2);
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
 /// Espacios de trabajo permitidos sin plan Pro (con Pro, ilimitados). Debe coincidir con `FREE_WORKSPACES` de la interfaz.
@@ -602,7 +602,7 @@ pub fn start_worker(app: AppHandle) {
             }
             // Si hay una sincronización manual en curso, este despertar se salta.
             let Ok(_guard) = st.sync_lock.try_lock() else { continue };
-            let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 20 == 0) {
+            let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 300 == 0) {
                 // Baja la bandera ANTES de subir: si el usuario edita durante la subida, vuelve a levantarse.
                 st.dirty.store(false, Ordering::SeqCst);
                 let r = push(&app, &st).await;
@@ -1305,7 +1305,7 @@ pub fn sync_cancel(st: tauri::State<'_, SyncState>) {
 static LAST_FOCUS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 
 /// El usuario vuelve a la ventana (p. ej. tras pagar en el navegador): una sola comprobación del plan y de cambios remotos.
-/// Con la cuenta sin Pro se permite cada 10 s (puede estar esperando el pago); con Pro, cada 5 min. Sin sesión no hace nada.
+/// Con la cuenta sin Pro se permite cada 10 s (puede estar esperando el pago); con Pro, cada 15 s. Sin sesión no hace nada.
 pub fn on_focus(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -1314,7 +1314,7 @@ pub fn on_focus(app: &AppHandle) {
             return;
         }
         let now = now_ms();
-        let gap = if st.is_pro.load(Ordering::SeqCst) { 5 * 60 * 1000 } else { 10 * 1000 };
+        let gap = if st.is_pro.load(Ordering::SeqCst) { 15 * 1000 } else { 10 * 1000 };
         if now - LAST_FOCUS.load(Ordering::SeqCst) < gap {
             return;
         }
