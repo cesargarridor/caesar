@@ -70,6 +70,20 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Sincronizando…": ["Syncing…", "Synchronisiere…", "Synchronisation…", "Sincronizzazione…"],
+  "Cancelar sincronización": ["Cancel sync", "Synchronisierung abbrechen", "Annuler la synchronisation", "Annulla sincronizzazione"],
+  "La última sincronización falló.": ["The last sync failed.", "Die letzte Synchronisierung ist fehlgeschlagen.", "La dernière synchronisation a échoué.", "L’ultima sincronizzazione non è riuscita."],
+  "Falta la clave de cifrado en este equipo.": ["The encryption key is missing on this device.", "Auf diesem Gerät fehlt der Verschlüsselungsschlüssel.", "La clé de chiffrement manque sur cet appareil.", "Su questo dispositivo manca la chiave di cifratura."],
+  "Falta la clave de cifrado en este equipo": ["The encryption key is missing on this device", "Auf diesem Gerät fehlt der Verschlüsselungsschlüssel", "La clé de chiffrement manque sur cet appareil", "Su questo dispositivo manca la chiave di cifratura"],
+  "La clave de cifrado ha cambiado": ["The encryption key has changed", "Der Verschlüsselungsschlüssel hat sich geändert", "La clé de chiffrement a changé", "La chiave di cifratura è cambiata"],
+  "Pégala abajo, en «Clave de cifrado». Hasta entonces este equipo no sincroniza.": ["Paste it below, under “Encryption key”. Until then this device won’t sync.", "Füge ihn unten unter „Verschlüsselungsschlüssel“ ein. Bis dahin synchronisiert dieses Gerät nicht.", "Collez-la ci-dessous, dans « Clé de chiffrement ». D’ici là, cet appareil ne se synchronise pas.", "Incollala qui sotto, in «Chiave di cifratura». Fino ad allora questo dispositivo non sincronizza."],
+  "No se pudo comprobar la clave de cifrado": ["Could not check the encryption key", "Der Verschlüsselungsschlüssel konnte nicht geprüft werden", "Impossible de vérifier la clé de chiffrement", "Impossibile verificare la chiave di cifratura"],
+  "Empezando…": ["Starting…", "Starte…", "Démarrage…", "Avvio…"],
+  "Preparando los datos…": ["Preparing data…", "Daten werden vorbereitet…", "Préparation des données…", "Preparazione dei dati…"],
+  "Comprobando la clave…": ["Checking the key…", "Schlüssel wird geprüft…", "Vérification de la clé…", "Verifica della chiave…"],
+  "Buscando cambios en la nube…": ["Looking for changes in the cloud…", "Suche nach Änderungen in der Cloud…", "Recherche de modifications dans le cloud…", "Ricerca di modifiche nel cloud…"],
+  "Descargando datos…": ["Downloading data…", "Daten werden heruntergeladen…", "Téléchargement des données…", "Download dei dati…"],
+  "Descifrando y combinando…": ["Decrypting and merging…", "Entschlüsseln und Zusammenführen…", "Déchiffrement et fusion…", "Decifrazione e unione…"],
   "He leído y acepto los": ["I have read and accept the", "Ich habe die", "J’ai lu et j’accepte les", "Ho letto e accetto i"],
   "y la": ["and the", "und die", "et la", "e l’"],
   "Tengo 14 años o más.": ["I am 14 or older.", "Ich bin 14 Jahre oder älter.", "J’ai 14 ans ou plus.", "Ho 14 anni o più."],

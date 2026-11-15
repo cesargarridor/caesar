@@ -38,6 +38,8 @@ export const acceptTerms = () => {
 /** Para qué cuenta y versión ya se registró la aceptación en el servidor. */
 export const termsSentFor = () => { try { return localStorage.getItem(SENT_KEY); } catch { return null; } };
 export const markTermsSent = (email: string) => { try { localStorage.setItem(SENT_KEY, `${email}|${TERMS_VERSION}`); } catch { /* nada */ } };
+/** Olvida que los términos ya se registraron en el servidor (al borrar la cuenta, para registrarlos en la cuenta nueva). */
+export const clearTermsSent = () => { try { localStorage.removeItem(SENT_KEY); } catch { /* nada */ } };
 export const termsSentKey = (email: string) => `${email}|${TERMS_VERSION}`;
 
 const ONBOARDED_KEY = "caesar.onboarded";

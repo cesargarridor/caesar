@@ -228,3 +228,25 @@ html.pending body{opacity:0}
 .why{border-left:4px solid #f28c2e;background:var(--panel);border-radius:10px;padding:14px 18px;margin:1.4em 0}
 .why p{margin:.4em 0}
 .dlg.win a.hl{outline:2px solid #f28c2e;outline-offset:3px;padding:0 3px}
+
+/* ── Guía de funciones (funciones.html / en/features.html) ── */
+.guide .crumbs{font-size:.88rem;color:var(--muted);margin:0 0 .6em}
+.guide .lead{font-size:1.1rem;color:var(--text2)}
+.guide .meta{color:var(--muted);font-size:.9rem}
+.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:1.6em 0}
+.toc b{display:block;margin-bottom:.4em;color:var(--green)}
+.toc ol{margin:0;padding-left:1.4em;columns:2 15rem;column-gap:2em}
+.toc li{margin:.15em 0;break-inside:avoid}
+.toc a{text-decoration:none}
+figure.gif{margin:1.4em 0;background:var(--deep);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+figure.gif img{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:8px;background:#272822}
+figure.gif figcaption{color:var(--muted);font-size:.88rem;margin-top:.6em}
+kbd{background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:.05em .4em;font-size:.85em;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:1em 0}
+.chips span{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:.9rem;color:var(--text2)}
+.guide pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 16px;overflow-x:auto}
+.guide pre code{background:none;padding:0;color:var(--text)}
+.guide .btn{display:inline-block;background:var(--btn);color:var(--btn-text);padding:8px 18px;border-radius:10px;font-weight:700;text-decoration:none}
+.guide .btn:hover{color:var(--btn-text);filter:brightness(1.08)}
+.guide table{display:block;overflow-x:auto;min-width:0;max-width:100%}
+.guide td,.guide th{vertical-align:top}

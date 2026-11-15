@@ -98,12 +98,31 @@ pub fn load_cached(app: &AppHandle, st: &SyncState, has_saved_session: bool) {
     }
 }
 
+/// Borra el estado guardado en disco (al borrar la cuenta o cerrar sesión).
+pub(crate) fn forget_cached() {
+    if let Some(p) = CACHE_PATH.get() {
+        let _ = std::fs::remove_file(p);
+    }
+}
+
 fn store(st: &SyncState, a: &AccountState) {
     st.set_mode(&a.mode, a.is_pro);
     if let Ok(mut g) = st.account.lock() {
         *g = Some(a.clone());
     }
     persist(a);
+}
+
+static LAST_REFRESH: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// ¿Toca volver a preguntar a Lemon Squeezy (vía Worker)? Reserva el turno si es así.
+fn refresh_due(now: i64) -> bool {
+    let last = LAST_REFRESH.load(std::sync::atomic::Ordering::SeqCst);
+    if now - last < 5 * 60 * 1000 {
+        return false;
+    }
+    LAST_REFRESH.store(now, std::sync::atomic::Ordering::SeqCst);
+    true
 }
 
 fn now_ms() -> i64 {
@@ -159,7 +178,16 @@ pub(crate) async fn evaluate(_app: &AppHandle, st: &SyncState, _allow_delete: bo
         store(st, &a);
         return Ok(a);
     }
-    if sync::billing_status(st).await?.active {
+    let mut billing = sync::billing_status(st).await?;
+    // Sin suscripción activa en Firestore: se pide al Worker que compare con Lemon Squeezy (un aviso perdido o desordenado no debe
+    // dejar a quien pagó sin Pro). Como mucho una vez cada 5 minutos.
+    if !billing.active && refresh_due(now_ms()) {
+        sync::refresh_billing_remote(st).await;
+        if let Ok(b) = sync::billing_status(st).await {
+            billing = b;
+        }
+    }
+    if billing.active {
         let a = pro(false, false);
         store(st, &a);
         return Ok(a);
