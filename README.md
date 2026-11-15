@@ -120,8 +120,7 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 
 ## Sincronización cifrada de extremo a extremo (en desarrollo)
 
-> **Estado:** el cifrado local, la cuenta (Firebase Auth, correo y contraseña), la base de datos (Firestore) y la
-> sincronización en segundo plano están hechos (Ajustes → Cuenta y suscripción). Falta la vinculación con QR en pantalla. Los pagos funcionan con Lemon Squeezy (ver «Planes y suscripción»). Todo funciona en el plan gratuito (Spark) de Firebase, sin tarjeta.
+> **Estado:** el cifrado local, la cuenta y la sincronización en segundo plano están hechos (Ajustes → Cuenta y suscripción). Falta la vinculación con QR en pantalla.
 
 ### Cómo se sincroniza sin gastar cuota
 
@@ -130,10 +129,6 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 3. **Trabajador (Rust, tokio):** cada 30 s mira la bandera; si está levantada cifra el archivo y lo sube en una sola
    petición. Sin cambios no hace ninguna llamada. Cada 5 min comprueba si otro equipo ha subido algo.
    Conflictos: gana la última escritura; antes de aplicar lo remoto se guarda `datos.json.bak`.
-
-Firebase: proyecto `caesar-sync-app`, reglas en [firebase/firestore.rules](firebase/firestore.rules) (cada persona solo
-accede a `users/<su uid>/sync/*`). La `apiKey` de `src-tauri/sync_config.json` es un identificador público, no un secreto.
-Límite: ~650 KB de colecciones (documento de 1 MiB de Firestore).
 
 El objetivo es poder usar las mismas peticiones y colecciones en varios ordenadores sin que el servidor pueda leerlas.
 Todo el cifrado ocurre en Rust, en tu equipo; la interfaz nunca ve la clave.
@@ -195,8 +190,7 @@ borrar los datos, en español e inglés.
 
 ### Pendiente
 
-1. Reglas de Firestore por usuario y TTL para los mensajes de vinculación (comprobar en la consola de Firebase).
-2. Pantallas de vinculación con QR y de recuperación.
+1. Pantallas de vinculación con QR y de recuperación.
 
 ## Desarrollo
 
