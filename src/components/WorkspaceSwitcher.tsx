@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Link2, Pencil, Plus, RefreshCw, Share2, Trash2, Users } from "lucide-react";
+import { Check, ChevronsUpDown, Link2, Lock, Pencil, Plus, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import { t } from "../lib/i18n";
 import { canCreateWorkspace, type WsMeta } from "../lib/workspaces";
 import { useAccount } from "../lib/account";
@@ -104,11 +104,12 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
         <div className="glass absolute left-0 right-0 top-full z-40 mt-1 rounded-xl bg-kelp p-1 shadow-lg">
           <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wide text-slate">{t("Espacios de trabajo")}</p>
           <div className="max-h-56 overflow-y-auto">
-            {list.map((w) => (
-              <button key={w.id} className={item} onClick={() => { if (w.id !== activeId) onSwitch(w.id); close(); }}>
+            {list.map((w, i) => (
+              <button key={w.id} className={item} disabled={!account.is_pro && i > 0} title={!account.is_pro && i > 0 ? proTip : undefined} onClick={() => { if (w.id !== activeId) onSwitch(w.id); close(); }}>
                 {w.team && <Users size={13} className="shrink-0 text-aqua" />}
                 <span className="flex-1 truncate">{w.name}</span>
                 {w.id === activeId && <Check size={14} className="text-aqua" />}
+                {!account.is_pro && i > 0 && <Lock size={13} className="shrink-0 text-slate" aria-hidden />}
               </button>
             ))}
           </div>

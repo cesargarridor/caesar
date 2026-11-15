@@ -113,18 +113,6 @@ fn store(st: &SyncState, a: &AccountState) {
     persist(a);
 }
 
-static LAST_REFRESH: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
-
-/// ¿Toca volver a preguntar a Lemon Squeezy (vía Worker)? Reserva el turno si es así.
-fn refresh_due(now: i64) -> bool {
-    let last = LAST_REFRESH.load(std::sync::atomic::Ordering::SeqCst);
-    if now - last < 5 * 60 * 1000 {
-        return false;
-    }
-    LAST_REFRESH.store(now, std::sync::atomic::Ordering::SeqCst);
-    true
-}
-
 fn now_ms() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
@@ -143,7 +131,20 @@ fn days_left(created_ms: i64, now: i64) -> i64 {
 
 /// Calcula (y guarda) el estado de la cuenta. Sin red devuelve `Err` y se conserva el estado anterior.
 /// Si Firebase dice que la cuenta ya no existe (la borró el Worker) se limpia la sesión y la clave locales y se devuelve invitado con `deleted`.
-pub(crate) async fn evaluate(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -> Result<AccountState, String> {
+pub(crate) async fn evaluate(app: &AppHandle, st: &SyncState, allow_delete: bool) -> Result<AccountState, String> {
+    use tauri::Emitter;
+    let before = st.account.lock().ok().and_then(|g| g.as_ref().map(|a| (a.mode.clone(), a.is_pro)));
+    let r = evaluate_inner(app, st, allow_delete).await;
+    if let Ok(a) = &r {
+        // Aviso a la interfaz solo si el plan ha cambiado (pago, baja, cuenta borrada…): así no hace falta preguntar nada por intervalos.
+        if before.as_ref().map(|(m, p)| (m.as_str(), *p)) != Some((a.mode.as_str(), a.is_pro)) {
+            let _ = app.emit("account-changed", ());
+        }
+    }
+    r
+}
+
+async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -> Result<AccountState, String> {
     if !st.has_session() {
         let g = guest(false);
         store(st, &g);
@@ -178,16 +179,7 @@ pub(crate) async fn evaluate(_app: &AppHandle, st: &SyncState, _allow_delete: bo
         store(st, &a);
         return Ok(a);
     }
-    let mut billing = sync::billing_status(st).await?;
-    // Sin suscripción activa en Firestore: se pide al Worker que compare con Lemon Squeezy (un aviso perdido o desordenado no debe
-    // dejar a quien pagó sin Pro). Como mucho una vez cada 5 minutos.
-    if !billing.active && refresh_due(now_ms()) {
-        sync::refresh_billing_remote(st).await;
-        if let Ok(b) = sync::billing_status(st).await {
-            billing = b;
-        }
-    }
-    if billing.active {
+    if sync::billing_status(st).await?.active {
         let a = pro(false, false);
         store(st, &a);
         return Ok(a);

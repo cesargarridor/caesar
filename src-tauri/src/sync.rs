@@ -27,8 +27,6 @@ const SERVICE: &str = "Caesar";
 const ACCOUNT: &str = "sync-refresh-token";
 /// Cada cuánto despierta el trabajador.
 const TICK: Duration = Duration::from_secs(30);
-/// Cada cuántos despertares baja cambios remotos (10 × 30 s = 5 min).
-const PULL_EVERY: u32 = 10;
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
 
@@ -592,12 +590,12 @@ pub fn start_worker(app: AppHandle) {
             if !signed {
                 continue;
             }
-            // Cada 5 min se vuelve a comprobar el plan (un pago nuevo o una baja cambian el modo). Sin borrar nada.
-            if n % PULL_EVERY == 0 {
-                let _ = crate::account::evaluate(&app, &st, false).await;
-            }
-            // Barrera: sin cuenta Pro (invitado o limbo) no se hace ninguna petición a Firestore.
+            // Sin sondeo: el plan y los cambios de otros equipos se miran al abrir, al iniciar sesión, al volver a la ventana
+            // (ver `on_focus`) y al pulsar «Sincronizar ahora». Este despertar solo sube lo pendiente (no hay red si no hay cambios).
             if !st.is_pro.load(Ordering::SeqCst) {
+                continue;
+            }
+            if !st.dirty.load(Ordering::SeqCst) {
                 continue;
             }
             // Si hay una sincronización manual en curso, este despertar se salta.
@@ -610,8 +608,6 @@ pub fn start_worker(app: AppHandle) {
                     st.dirty.store(true, Ordering::SeqCst);
                 }
                 r
-            } else if n % PULL_EVERY == 0 {
-                pull(&app, &st).await
             } else {
                 Ok(())
             };
@@ -1162,8 +1158,10 @@ async fn close_remote(st: &SyncState, c: &Cfg, uid: &str, tok: &str) -> Result<(
 
 /// Borra la cuenta: primero los datos de la nube y después el usuario de Firebase. Los datos locales no se tocan.
 #[tauri::command]
-pub async fn sync_delete_account(st: tauri::State<'_, SyncState>) -> Result<(), String> {
-    delete_account(&st).await
+pub async fn sync_delete_account(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    delete_account(&st).await?;
+    let _ = app.emit("account-changed", ());
+    Ok(())
 }
 
 pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
@@ -1184,25 +1182,16 @@ pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
             return Err(format!("No se pudieron borrar los datos de la nube ({}).", res.status().as_u16()));
         }
     }
+    // Borrar el usuario de Firebase: primero lo normal. Si Firebase pide un inicio de sesión reciente (la sesión es antigua), el borrado
+    // lo hace el Worker con la cuenta de servicio, tras comprobar que el token es del dueño. Así nunca hay que «cerrar sesión y repetir».
     let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:delete?key={}", c.api_key);
-    let mut res = post_json(st, &url, json!({ "idToken": tok })).await;
-    if matches!(&res, Err(e) if e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN")) {
-        // Un intento más con el token renovado.
-        if let Ok(mut g) = st.session.lock() {
-            if let Some(s) = g.as_mut() {
-                s.expires = Instant::now();
-            }
-        }
-        if let Ok((_, fresh)) = valid_token(st).await {
-            res = post_json(st, &url, json!({ "idToken": fresh })).await;
-        }
-    }
+    let res = post_json(st, &url, json!({ "idToken": tok })).await;
     if let Err(e) = res {
-        return Err(if e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN") {
-            "Por seguridad, cierra sesión, vuelve a entrar y repite el borrado.".to_string()
-        } else {
-            e
-        });
+        let too_old = e.contains("CREDENTIAL_TOO_OLD") || e.contains("LOGIN_AGAIN");
+        if !too_old {
+            return Err(e);
+        }
+        delete_user_via_worker(st, &c).await?;
     }
     clear_refresh();
     // La clave de cifrado era de esta cuenta: no debe colarse en la siguiente que se cree en este equipo.
@@ -1239,6 +1228,7 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
         *g = 0;
     }
     set_error(&st, None);
+    let _ = app.emit("account-changed", ());
     Ok(())
 }
 
@@ -1310,27 +1300,51 @@ pub fn sync_cancel(st: tauri::State<'_, SyncState>) {
     }
 }
 
-/// Pide al Worker que compare con Lemon Squeezy y deje bien el estado de la suscripción (por si un aviso se perdió o llegó mal).
-/// Sin Worker o sin sesión no hace nada. Los errores no se propagan: es una ayuda, no un requisito.
-pub(crate) async fn refresh_billing_remote(st: &SyncState) {
-    let Some(c) = cfg() else { return };
-    if c.worker_url.is_empty() || !st.has_session() {
-        return;
+static LAST_FOCUS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// El usuario vuelve a la ventana (p. ej. tras pagar en el navegador): una sola comprobación del plan y de cambios remotos.
+/// Con la cuenta sin Pro se permite cada 10 s (puede estar esperando el pago); con Pro, cada 5 min. Sin sesión no hace nada.
+pub fn on_focus(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let st = app.state::<SyncState>();
+        if !st.has_session() {
+            return;
+        }
+        let now = now_ms();
+        let gap = if st.is_pro.load(Ordering::SeqCst) { 5 * 60 * 1000 } else { 10 * 1000 };
+        if now - LAST_FOCUS.load(Ordering::SeqCst) < gap {
+            return;
+        }
+        LAST_FOCUS.store(now, Ordering::SeqCst);
+        let _guard = match st.sync_lock.try_lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        let _ = crate::account::evaluate(&app, &st, false).await;
+        if st.is_pro.load(Ordering::SeqCst) {
+            let r = pull(&app, &st).await;
+            set_error(&st, r.err());
+        }
+        st.set_phase(None);
+    });
+}
+
+/// Pide al Worker (`/account/delete`) que borre el usuario de Firebase Auth.
+async fn delete_user_via_worker(st: &SyncState, c: &Cfg) -> Result<(), String> {
+    let fail = "No se pudo borrar la cuenta ahora mismo. Inténtalo de nuevo en unos minutos.".to_string();
+    if c.worker_url.is_empty() {
+        return Err(fail);
     }
-    let Ok((_uid, tok)) = valid_token(st).await else { return };
-    let Ok(body) = serde_json::to_vec(&json!({ "idToken": tok })) else { return };
-    let _ = st
+    let (_uid, tok) = valid_token(st).await?;
+    let body = serde_json::to_vec(&json!({ "idToken": tok })).map_err(|e| e.to_string())?;
+    let res = st
         .client
-        .post(format!("{}/billing/refresh", c.worker_url.trim_end_matches('/')))
+        .post(format!("{}/account/delete", c.worker_url.trim_end_matches('/')))
         .header("content-type", "application/json")
         .body(body)
         .send()
-        .await;
-}
-
-/// «Ya he pagado, comprobar»: reconcilia con Lemon Squeezy y lee el estado resultante.
-#[tauri::command]
-pub async fn sync_billing_refresh(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
-    refresh_billing_remote(&st).await;
-    billing_status(&st).await
+        .await
+        .map_err(|_| "Sin conexión.".to_string())?;
+    if res.status().is_success() { Ok(()) } else { Err(fail) }
 }

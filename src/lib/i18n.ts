@@ -70,6 +70,7 @@ export function t(key: string, ...args: (string | number)[]): string {
 type Row = [string, string, string, string];
 
 const D: Record<string, Row> = {
+  "Sin el plan Pro solo puedes usar el espacio de trabajo principal. Tus otros espacios se conservan y vuelven al activar Pro.": ["Without Pro you can only use the main workspace. Your other workspaces are kept and come back when you activate Pro.", "Ohne Pro kannst du nur den Haupt-Arbeitsbereich nutzen. Deine anderen Bereiche bleiben erhalten und kehren mit Pro zurück.", "Sans Pro, vous ne pouvez utiliser que l’espace de travail principal. Vos autres espaces sont conservés et reviennent avec Pro.", "Senza Pro puoi usare solo lo spazio di lavoro principale. Gli altri restano salvati e tornano con Pro."],
   "Sincronizando…": ["Syncing…", "Synchronisiere…", "Synchronisation…", "Sincronizzazione…"],
   "Cancelar sincronización": ["Cancel sync", "Synchronisierung abbrechen", "Annuler la synchronisation", "Annulla sincronizzazione"],
   "La última sincronización falló.": ["The last sync failed.", "Die letzte Synchronisierung ist fehlgeschlagen.", "La dernière synchronisation a échoué.", "L’ultima sincronizzazione non è riuscita."],

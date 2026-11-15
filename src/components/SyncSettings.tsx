@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, KeyRound, LogOut, RefreshCw, X } from "lucide-react";
-import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncBillingRefresh, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import PlanNotice from "./PlanNotice";
 import { acceptedTerms, clearTermsSent } from "../lib/legal";
 import { t } from "../lib/i18n";
+import { onAccountChanged } from "../api";
 import { openCheckout, planError, useAccount } from "../lib/account";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
@@ -55,10 +56,13 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     syncRole().then((r) => { setRole(r); setRoleErr(null); }).catch((e) => setRoleErr(errText(e)));
     return syncStatus().then(setSt).catch(() => {});
   }, [refreshAccount]);
+  // Sin sondeo: se lee al abrir, al volver a la ventana y cuando Rust avisa de que el plan o la sesión cambiaron (más tras cada acción).
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 5000);
-    return () => clearInterval(id);
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    const un = onAccountChanged(() => refresh());
+    return () => { window.removeEventListener("focus", onFocus); void un.then((f) => f()).catch(() => {}); };
   }, [refresh]);
   // Mientras se sincroniza: estado cada segundo (qué paso va y cuánto lleva).
   const working = !!st?.phase;
@@ -108,23 +112,22 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const billingOn = st?.billing ?? false;
   // Si el cobro ya consta como activo pero la cuenta sigue en limbo, se reevalúa el plan contra la red (account_state es solo caché).
   const checkBilling = useCallback(
-    (force = false) =>
-      (force ? syncBillingRefresh() : syncBilling())
+    () =>
+      syncBilling()
         .then((b) => setBill(b))
         .catch(() => {})
         // Reevalúa el plan siempre que no sea Pro: cubre tanto un pago como un alta en la lista blanca.
         .then(async () => {
-          if (force || account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
+          if (account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
         })
         .catch(() => {}),
     [account.mode, setAccount],
   );
+  // Una sola lectura al abrir (y otra al pulsar «Ya he pagado»); el resto lo avisa Rust cuando el plan cambia.
   useEffect(() => {
     if (!signedIn || !billingOn) return;
-    checkBilling();
-    const id = setInterval(() => checkBilling(), 60000);
-    return () => clearInterval(id);
-  }, [signedIn, billingOn, checkBilling]);
+    void checkBilling();
+  }, [signedIn, billingOn, account.mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!st) return <div className="px-1 py-1 text-sm text-slate">…</div>;
   if (!st.configured)
@@ -443,7 +446,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                 >
                   {t("Suscribirme")}
                 </button>
-                <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await checkBilling(true); })}>{t("Ya he pagado, comprobar")}</button>
+                <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await checkBilling(); })}>{t("Ya he pagado, comprobar")}</button>
               </div>
             </div>
           )}
