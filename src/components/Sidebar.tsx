@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, History, Maximize2, MoreHorizontal, Plus, Settings, SlidersHorizontal, Variable } from "lucide-react";
+import { RefreshCw, Download, FileUp, History, Maximize2, MoreHorizontal, Plus, Settings, SlidersHorizontal, Variable } from "lucide-react";
 import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import VarTable from "./VarTable";
 import ProfilesPanel from "./ProfilesPanel";
@@ -46,13 +46,16 @@ interface Props extends TreeActions {
   onOpenHistory: (e: HistoryEntry) => void;
   onNewCollection: () => void;
   onSettings: () => void;
+  /** Sincronizar ahora (solo con Pro); sin aviso aunque el límite de llamadas lo descarte. */
+  onSync?: () => void;
+  syncing?: boolean;
   /** Ancho actual en px y callback al arrastrar el borde derecho. */
   width: number;
   onWidth: (w: number) => void;
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, onSync, syncing, width, onWidth, ...actions
 }: Props) {
   const [dock, setDock] = useState<"history" | "vars" | "profiles" | null>(null);
   useEffect(() => {
@@ -305,6 +308,11 @@ export default function Sidebar({
               <Icon size={16} />
             </button>
           ))}
+          {onSync && (
+            <button onClick={onSync} disabled={syncing} title={t("Sincronizar ahora")} aria-label={t("Sincronizar ahora")} className="rounded-lg p-2 text-silver hover:bg-fg/10 hover:text-mist disabled:opacity-60">
+              <RefreshCw size={16} className={syncing ? "animate-spin text-aqua" : ""} />
+            </button>
+          )}
           <button onClick={onSettings} title={t("Ajustes")} aria-label={t("Ajustes")} className="rounded-lg p-2 text-silver hover:bg-fg/10 hover:text-mist">
             <Settings size={16} />
           </button>
