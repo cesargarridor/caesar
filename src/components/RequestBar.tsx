@@ -1,4 +1,4 @@
-import { Check, Layers, Save, Send, Terminal } from "lucide-react";
+import { Check, Code2, Eye, Layers, Save, Send, Terminal } from "lucide-react";
 import type { ProfilesState } from "../types";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
@@ -21,6 +21,8 @@ interface Props {
   onSend: () => void;
   onSave: () => void;
   onCopyCurl: () => void;
+  onCodegen?: () => void;
+  codegenOpen?: boolean;
   /** Botón que acaba de completar su acción (muestra un check unos segundos). */
   flash?: "save" | "curl" | null;
   /** Botones extra elegidos por el usuario (Ajustes → Edición y atajos). */
@@ -31,6 +33,8 @@ interface Props {
   onProfile: (id: string | null) => void;
   /** Abre el gestor de perfiles en la barra lateral. */
   onManageProfiles: () => void;
+  /** Abre la lista de variables resueltas (ámbito de cada una). */
+  onShowResolved?: () => void;
 }
 
 const ghost =
@@ -39,7 +43,7 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, codegenOpen, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles, onShowResolved }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
   return (
     <div className="flex flex-col gap-2 p-4">
@@ -58,6 +62,11 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
           ))}
           <option value="__manage__">{t("Gestionar perfiles…")}</option>
         </select>
+        {onShowResolved && (
+          <button onClick={onShowResolved} className="text-slate hover:text-aqua" title={t("Ver variables resueltas (globales + colección + perfil)")} aria-label={t("Ver variables resueltas (globales + colección + perfil)")}>
+            <Eye size={15} />
+          </button>
+        )}
       </div>
       <div className="flex gap-2">
       <select
@@ -94,6 +103,11 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
       <button onClick={onCopyCurl} className={flash === "curl" ? done : ghost} title={t("Copiar como cURL")}>
         {flash === "curl" ? <Check size={14} /> : <Terminal size={14} />} {flash === "curl" ? t("Copiado") : "cURL"}
       </button>
+      {onCodegen && (
+        <button onClick={onCodegen} className={codegenOpen ? done : ghost} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
+          <Code2 size={14} />
+        </button>
+      )}
       <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
         {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
       </button>

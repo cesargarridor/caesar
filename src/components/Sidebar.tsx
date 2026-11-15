@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Download, FileUp, Plus, Settings } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileUp, Maximize2, Plus, Settings } from "lucide-react";
 import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
-import KVEditor from "./KVEditor";
-import AuthEditor from "./AuthEditor";
+import VarTable from "./VarTable";
 import ProfilesPanel from "./ProfilesPanel";
 import CatLogo from "./CatLogo";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import type { WsMeta } from "../lib/workspaces";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
 import { canMove, canMoveRelative } from "../lib/tree";
-import type { AuthData, KV, ProfilesState, TreeNode } from "../types";
+import type { KV, ProfilesState, TreeNode } from "../types";
+import type { VarsSection } from "./VarsDialog";
 import { t } from "../lib/i18n";
 
 interface Props extends TreeActions {
@@ -24,13 +24,8 @@ interface Props extends TreeActions {
   onProfiles: (p: ProfilesState) => void;
   /** Sube cada vez que se pide «Gestionar perfiles…» desde el selector: abre esa sección. */
   manageProfilesTick: number;
-  /** Variables de la colección de la pestaña activa (pisan a las globales). */
-  collName: string | null;
-  collVars: KV[];
-  onCollVars: (v: KV[]) => void;
-  /** Autorización de la colección (la usan las peticiones con "Inherit"). */
-  collAuth: AuthData | null;
-  onCollAuth: (a: AuthData) => void;
+  /** Abre el editor grande (globales, perfiles…). Las variables y la autorización de cada colección se editan desde su icono en el árbol. */
+  onOpenVars: (section: VarsSection) => void;
   workspaces: WsMeta[];
   activeWs: string;
   onSwitchWs: (id: string) => void;
@@ -51,15 +46,13 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, collName, collVars, onCollVars, collAuth, onCollAuth, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
   const [showProfiles, setShowProfiles] = useState(false);
   useEffect(() => {
     if (manageProfilesTick > 0) setShowProfiles(true);
   }, [manageProfilesTick]);
-  const [showColl, setShowColl] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [fmt, setFmt] = useState<"json" | "yaml" | "har">("json");
   /** Colecciones de primer nivel (las que se pueden exportar). */
@@ -280,71 +273,40 @@ export default function Sidebar({
         >
           <Settings size={14} /> {t("Ajustes")}
         </button>
-        <button
-          onClick={() => setShowColl((s) => !s)}
-          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-        >
-          {showColl ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          <span className="truncate">{t("Variables de colección")}</span>{" "}
-          <span className="font-light text-slate">({collVars.filter((v) => v.key).length})</span>
-        </button>
-        {showColl && (
-          <div className="max-h-64 overflow-y-auto p-2">
-            {collName === null ? (
-              <p className="px-2 py-2 text-xs text-slate">{t("Abre una petición de una colección para editar sus variables.")}</p>
-            ) : (
-              <>
-                <p className="eyebrow truncate px-1 pb-1.5" title={collName}>{collName}</p>
-                <KVEditor rows={collVars} onChange={onCollVars} keyPlaceholder="nombre" />
-              </>
-            )}
-          </div>
-        )}
-        <button
-          onClick={() => setShowAuth((s) => !s)}
-          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-        >
-          {showAuth ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          <span className="truncate">{t("Autorización de la colección")}</span>{" "}
-          {collAuth && collAuth.type !== "none" && <span className="font-bold text-aqua">•</span>}
-        </button>
-        {showAuth && (
-          <div className="max-h-72 overflow-y-auto p-2">
-            {collAuth === null ? (
-              <p className="px-2 py-2 text-xs text-slate">{t("Abre una petición de una colección para editar su autorización.")}</p>
-            ) : (
-              <>
-                <p className="eyebrow truncate px-1 pb-1.5" title={collName ?? ""}>{collName}</p>
-                <div className="[&_label]:flex-col [&_label]:items-start [&_label]:gap-1 [&_input]:max-w-none [&_select]:max-w-none [&_span.relative]:max-w-none">
-                  <AuthEditor auth={collAuth} onChange={onCollAuth} allowInherit={false} />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-        <button
-          onClick={() => setShowProfiles((s) => !s)}
-          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-        >
-          {showProfiles ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          <span className="truncate">{t("Perfiles de variables")}</span>{" "}
-          <span className="font-light text-slate">({profiles.list.length})</span>
-        </button>
-        {showProfiles && (
-          <div className="max-h-80 overflow-y-auto p-2">
-            <ProfilesPanel profiles={profiles} onChange={onProfiles} />
-          </div>
-        )}
-        <button
-          onClick={() => setShowVars((s) => !s)}
-          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-        >
-          {showVars ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          {t("Variables globales")} <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
-        </button>
+        <div className="flex items-center pr-3">
+          <button
+            onClick={() => setShowVars((s) => !s)}
+            aria-expanded={showVars}
+            className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
+          >
+            {showVars ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="truncate">{t("Variables globales")}</span> <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
+          </button>
+          <button onClick={() => onOpenVars("globals")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}>
+            <Maximize2 size={13} />
+          </button>
+        </div>
         {showVars && (
-          <div className="max-h-64 overflow-y-auto p-2">
-            <KVEditor rows={vars} onChange={onVars} keyPlaceholder="nombre" />
+          <div className="max-h-72 overflow-y-auto p-2">
+            <VarTable compact rows={vars} onChange={onVars} />
+          </div>
+        )}
+        <div className="flex items-center pr-3">
+          <button
+            onClick={() => setShowProfiles((s) => !s)}
+            aria-expanded={showProfiles}
+            className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
+          >
+            {showProfiles ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="truncate">{t("Perfiles de variables")}</span> <span className="font-light text-slate">({profiles.list.length})</span>
+          </button>
+          <button onClick={() => onOpenVars("profiles")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}>
+            <Maximize2 size={13} />
+          </button>
+        </div>
+        {showProfiles && (
+          <div className="max-h-96 overflow-y-auto p-2">
+            <ProfilesPanel profiles={profiles} onChange={onProfiles} />
           </div>
         )}
       </div>

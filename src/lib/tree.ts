@@ -1,5 +1,6 @@
 import type { RequestNode, RequestState, TreeNode } from "../types";
 import { buildUrl } from "./url";
+import { defaultWsConfig } from "./ws";
 
 const idx = (path: string) => path.split("/").map(Number);
 
@@ -60,6 +61,14 @@ export const newRequestNode = (name = "Nueva petición"): RequestNode => ({
   auth: { type: "none" },
 });
 
+/** Petición WebSocket nueva (method "WS"; los datos antiguos sin kind son HTTP). */
+export const newWsNode = (name = "Nueva WebSocket"): RequestNode => ({
+  ...newRequestNode(name),
+  method: "WS",
+  kind: "ws",
+  ws: defaultWsConfig(),
+});
+
 let uidSeq = 0;
 export const newUid = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}${(uidSeq++).toString(36)}`;
 
@@ -67,7 +76,12 @@ export const newFolderNode = (name = "Nueva carpeta"): TreeNode => ({ type: "fol
 
 /** Da un id estable a toda carpeta que no lo tenga (colecciones guardadas antes o importadas). */
 export function ensureIds(nodes: TreeNode[]): TreeNode[] {
-  return nodes.map((n) => (n.type === "folder" ? { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) } : n.id ? n : { ...n, id: crypto.randomUUID() }));
+  return nodes.map((n) => {
+    if (n.type === "folder") return { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) };
+    // Una petición con URL ws(s):// (p. ej. importada de Postman, que no tiene WebSockets) es una WebSocket.
+    const r: RequestNode = !n.kind && /^wss?:\/\//i.test(n.url.trim()) ? { ...n, method: "WS", kind: "ws", ws: defaultWsConfig() } : n;
+    return r.id ? r : { ...r, id: crypto.randomUUID() };
+  });
 }
 
 /** Ruta de una pestaña tras borrar el nodo `deleted` (null si estaba dentro de lo borrado). */
@@ -218,6 +232,7 @@ export function nodeFromRequest(name: string, req: RequestState, prev?: TreeNode
     body: { ...req.body },
     auth: { ...req.auth },
     tests: req.tests ?? "",
+    ...(req.kind === "ws" ? { kind: "ws" as const, ws: req.ws } : {}),
   };
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "caesar"
-version = "0.16.0"
+version = "0.17.0"
 description = "Caesar - cliente API rápido y seguro"
 edition = "2021"
 rust-version = "1.77"
@@ -15,9 +15,15 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 open = "5"
-tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs", "io-util"] }
+tokio = { version = "1", features = ["rt", "macros", "time", "net", "fs", "io-util", "sync"] }
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "multipart", "gzip", "deflate"] }
+
+# WebSockets (ver src/ws.rs): mismo stack TLS que reqwest (rustls + ring + webpki-roots)
+tokio-tungstenite = { version = "0.26", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "0.26"
 
 # Compresión gzip de lo que se sube a la nube (ver src/pack.rs)
 flate2 = "1"
@@ -37,6 +43,9 @@ keyring = { version = "3", features = ["windows-native"] }
 keyring = { version = "3", features = ["apple-native"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
 
 [profile.release]
 codegen-units = 1

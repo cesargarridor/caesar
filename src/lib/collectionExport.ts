@@ -122,7 +122,9 @@ function pmRequest(n: RequestNode) {
   });
   const auth = pmAuth(n.auth);
   return {
-    method: n.method,
+    // Postman v2.1 no tiene WebSockets: se exporta como GET con URL ws(s):// y una nota; Caesar la reconoce al importar.
+    method: n.kind === "ws" ? "GET" : n.method,
+    ...(n.kind === "ws" ? { description: "WebSocket" } : {}),
     header: n.headers.map((h) => ({ key: h.key, value: h.value, type: "text", ...(h.enabled ? {} : { disabled: true }) })),
     ...(body ? { body } : {}),
     ...(auth ? { auth } : {}),
@@ -150,7 +152,7 @@ export function exportCollection(root: TreeNode, globals: KV[]): string {
       schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     },
     item: children.map(pmItem),
-    variable: vars.filter((v) => v.key).map((v) => ({ key: v.key, value: v.value, ...(v.enabled ? {} : { disabled: true }) })),
+    variable: vars.filter((v) => v.key).map((v) => ({ key: v.key, value: v.value, ...(v.secret ? { type: "secret" } : {}), ...(v.enabled ? {} : { disabled: true }) })),
   };
   return JSON.stringify(doc, null, 2);
 }

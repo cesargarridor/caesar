@@ -2,6 +2,7 @@
 // El formato JSON v2.1 lo procesa Rust al importar (parse_collection_content) y collectionExport.ts al exportar.
 import { gqlRaw } from "./graphql";
 import YAML from "yaml";
+import { parsePostmanEnv, type PostmanEnv } from "./vars";
 import type { AuthData, BodyData, ImportedCollection, KV, RequestNode, TreeNode } from "../types";
 
 export type ExportFormat = "json" | "yaml" | "har";
@@ -22,7 +23,9 @@ const toEnvVars = (s: string) => s.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (m, k: st
 
 export type Detected =
   | { kind: "native" }
-  | { kind: "ready"; data: ImportedCollection };
+  | { kind: "ready"; data: ImportedCollection }
+  /** Entorno de Postman -> perfil de variables; globales de Postman -> variables globales. */
+  | { kind: "env"; env: PostmanEnv };
 
 /** Lee JSON o YAML y reconoce el formato. El JSON v2.1 se devuelve como "native" para que lo procese Rust. */
 export function detectAndParse(text: string): Detected {
@@ -47,9 +50,8 @@ export function detectAndParse(text: string): Detected {
   }
   if (isObj(doc.info) && Array.isArray(doc.item)) return { kind: "native" };
   // Entorno (o globales) exportado: solo trae variables.
-  if (Array.isArray(doc.values) && typeof doc.name === "string") {
-    return { kind: "ready", data: parseEnvDoc(doc) };
-  }
+  const pmEnv = parsePostmanEnv(doc);
+  if (pmEnv) return { kind: "env", env: pmEnv };
   throw new Error("Formato no reconocido. Se admiten colecciones y entornos en JSON (v2.1), colecciones JSON o YAML (v4 y v5) y HAR.");
 }
 
@@ -193,18 +195,6 @@ function envVars(...datas: unknown[]): KV[] {
   return [...out].map(([k, v]) => kv(k, v));
 }
 
-// ───────────────────────── entorno (variables) ─────────────────────────
-
-function parseEnvDoc(doc: Obj): ImportedCollection {
-  const variables = arr(doc.values)
-    .filter((v) => str(v.key))
-    .map((v) => {
-      const value = [v.value, v.currentValue, v.initialValue].map(str).find((s) => s !== "") ?? "";
-      return kv(str(v.key), value, v.enabled !== false && v.disabled !== true);
-    });
-  return { root: { type: "folder", name: str(doc.name) || "Entorno", children: [] }, variables };
-}
-
 // ───────────────────────── v4 (lista plana "resources") ─────────────────────────
 
 function parseListDoc(doc: Obj): ImportedCollection {
@@ -328,7 +318,8 @@ export function exportHar(root: TreeNode, globals: KV[]): string {
   const own = root.type === "folder" ? root.variables ?? [] : [];
   const have = new Set(own.map((v) => v.key));
   const sub = resolver([...own, ...globals.filter((v) => !have.has(v.key))]);
-  const items = collectRequests(root.type === "folder" ? root.children : [root]);
+  // HAR no tiene WebSockets: se omiten.
+  const items = collectRequests(root.type === "folder" ? root.children : [root]).filter(({ req }) => req.kind !== "ws");
   const now = new Date().toISOString();
 
   const entries = items.map(({ path, req }) => {
@@ -460,7 +451,7 @@ function insNodeOut(n: TreeNode, i: number): Obj {
     url: toEnvVars(n.url),
     name: n.name,
     meta: meta("req"),
-    method: n.method,
+    method: n.kind === "ws" ? "GET" : n.method, // Insomnia: sin tipo WS en este formato, queda como GET con URL ws(s)
     ...(body ? { body } : {}),
     headers: n.headers.map((h) => ({ name: h.key, value: toEnvVars(h.value), ...(h.enabled ? {} : { disabled: true }) })),
     ...(authentication ? { authentication } : {}),

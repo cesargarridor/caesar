@@ -7,6 +7,7 @@ mod pack;
 mod sync;
 mod team;
 mod vault;
+mod ws;
 
 use std::time::{Duration, Instant};
 
@@ -673,6 +674,34 @@ async fn pick_text_file(app: tauri::AppHandle) -> Result<Option<TextFile>, Strin
     Ok(Some(TextFile { name, content }))
 }
 
+/// Como `pick_text_file`, pero permite elegir varios archivos a la vez (p. ej. una colección y su entorno de Postman). Vacío = canceló.
+#[tauri::command]
+async fn pick_text_files(app: tauri::AppHandle) -> Result<Vec<TextFile>, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Colección o entorno (JSON, YAML o HAR)", &["json", "yaml", "yml", "har"])
+        .blocking_pick_files();
+    let Some(files) = picked else {
+        return Ok(vec![]);
+    };
+    let mut out = Vec::new();
+    for file in files.into_iter().take(20) {
+        let path = file.into_path().map_err(|e| format!("Ruta de archivo no válida: {e}"))?;
+        let meta = std::fs::metadata(&path).map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
+        if !meta.is_file() {
+            return Err("La selección no es un archivo".into());
+        }
+        if meta.len() > MAX_COLLECTION_BYTES {
+            return Err("El archivo supera el límite de 50 MB".into());
+        }
+        let content = std::fs::read_to_string(&path).map_err(|e| format!("No se pudo leer el archivo (¿es de texto?): {e}"))?;
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        out.push(TextFile { name, content });
+    }
+    Ok(out)
+}
+
 /// Convierte el texto de una colección JSON v2.1 (la interfaz ya detectó el formato).
 #[tauri::command]
 fn parse_collection_content(content: String) -> Result<ImportedCollection, String> {
@@ -1318,6 +1347,7 @@ fn main() {
         .manage(GrantedFiles::default())
         .manage(vault::VaultState::default())
         .manage(sync::SyncState::default())
+        .manage(ws::WsState::default())
         .setup(|app| {
             sync::start_worker(app.handle().clone());
             Ok(())
@@ -1325,6 +1355,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             import_collection_file,
             pick_text_file,
+            pick_text_files,
             parse_collection_content,
             execute_request,
             open_url,
@@ -1376,7 +1407,10 @@ fn main() {
             keyrole::sync_regenerate_key,
             keyrole::sync_enter_key,
             keyrole::sync_make_master,
-            team::team_unshare
+            team::team_unshare,
+            ws::ws_connect,
+            ws::ws_send,
+            ws::ws_close
         ])
         .run(tauri::generate_context!());
 
