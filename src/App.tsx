@@ -15,6 +15,7 @@ import { isOnboarded, termsAccepted } from "./lib/legal";
 import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
+import ProfileBar from "./components/ProfileBar";
 import EmptyTabs from "./components/EmptyTabs";
 import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
@@ -1198,7 +1199,12 @@ export default function App() {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="stars" style={{ boxShadow: STARS }} aria-hidden />
         <div className="fs-scale fs-request flex min-h-0 flex-1 flex-col">
-        <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onCloseMany={requestCloseMany} />
+        <div className="flex items-end">
+          <div className="min-w-0 flex-1">
+            <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onCloseMany={requestCloseMany} />
+          </div>
+          <ProfileBar profiles={profiles} onProfile={(active) => setProfiles((p) => ({ ...p, active }))} onManage={() => setManageTick((n) => n + 1)} onShowResolved={() => setVarsDlg({ section: "resolved" })} />
+        </div>
         {runnerPath && runnerNode?.type === "folder" && (
           <RunnerDialog
             folder={runnerNode}
@@ -1318,15 +1324,10 @@ export default function App() {
           />
         ) : (
         <RequestBar
-          onAi={() => setShowAi(true)}
           onShareLink={copyShareLink}
           method={req.method}
           methods={[...BASE_METHODS, ...extraMethods]}
           onMore={() => { setSettingsSection("edit"); setShowSettings(true); }}
-          profiles={profiles}
-          onProfile={(active) => setProfiles((p) => ({ ...p, active }))}
-          onManageProfiles={() => setManageTick((n) => n + 1)}
-          onShowResolved={() => setVarsDlg({ section: "resolved" })}
           url={fullUrl}
           sending={sending}
           onMethod={(method) => patch({ method })}
@@ -1352,7 +1353,7 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} />}
+        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} onAi={() => setShowAi(true)} />}
         </div>
         {!activeOrNull ? null : req.kind === "ws" ? (
           <WsMessages key={active.id} id={active.id} />

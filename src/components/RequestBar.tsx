@@ -1,5 +1,4 @@
-import { Check, Code2, Eye, Layers, Link2, Save, Send, Sparkles, Terminal } from "lucide-react";
-import type { ProfilesState } from "../types";
+import { Check, Code2, Link2, Save, Send, Terminal } from "lucide-react";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import VarInput from "./VarInput";
@@ -23,8 +22,7 @@ interface Props {
   onCopyCurl: () => void;
   onCodegen?: () => void;
   /** Abre el asistente de IA (con tu propia clave). */
-  onAi?: () => void;
-  /** Copia un enlace caesar:// con esta petición (sin nube). */
+    /** Copia un enlace caesar:// con esta petición (sin nube). */
   onShareLink?: () => void;
   codegenOpen?: boolean;
   /** Botón que acaba de completar su acción (muestra un check unos segundos). */
@@ -32,13 +30,6 @@ interface Props {
   /** Botones extra elegidos por el usuario (Ajustes → Edición y atajos). */
   extra?: { id: string; label: string }[];
   onCommand?: (id: string) => void;
-  /** Perfiles de variables del espacio y el activo; el selector queda justo encima de «Enviar». */
-  profiles: ProfilesState;
-  onProfile: (id: string | null) => void;
-  /** Abre el gestor de perfiles en la barra lateral. */
-  onManageProfiles: () => void;
-  /** Abre la lista de variables resueltas (ámbito de cada una). */
-  onShowResolved?: () => void;
 }
 
 const ghost =
@@ -47,90 +38,64 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, onAi, onShareLink, codegenOpen, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles, onShowResolved }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
+  const icon = "flex items-center rounded-[10px] px-3 py-2 text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40";
   return (
     <div className="flex flex-col gap-2 p-4">
-      <div className="flex items-center justify-end gap-2 text-xs text-slate">
-        <Layers size={13} />
-        <span className="uppercase tracking-[0.025em]">{t("Perfil de variables")}</span>
+      <div className="flex gap-2">
         <select
-          value={profiles.active ?? ""}
-          onChange={(e) => (e.target.value === "__manage__" ? onManageProfiles() : onProfile(e.target.value || null))}
-          title={t("Perfil de variables que se usa al enviar")}
-          className="max-w-[14rem] rounded-[10px] bg-kelp px-3 py-1.5 text-xs font-semibold text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+          value={method}
+          onChange={(e) => (e.target.value === "__more__" ? onMore() : onMethod(e.target.value))}
+          className={`rounded-[10px] bg-kelp px-4 py-2 text-sm font-semibold outline-none ring-1 ring-fg/10 focus:ring-aqua ${METHOD_COLORS[method] ?? ""}`}
         >
-          <option value="">{t("Sin perfil")}</option>
-          {profiles.list.map((p) => (
-            <option key={p.id} value={p.id}>{p.name || t("Sin nombre")}</option>
+          {options.map((m) => (
+            <option key={m} value={m}>{m}</option>
           ))}
-          <option value="__manage__">{t("Gestionar perfiles…")}</option>
+          <option value="__more__">{t("+ Más métodos…")}</option>
         </select>
-        {onShowResolved && (
-          <button onClick={onShowResolved} className="text-slate hover:text-aqua" title={t("Ver variables resueltas (globales + colección + perfil)")} aria-label={t("Ver variables resueltas (globales + colección + perfil)")}>
-            <Eye size={15} />
-          </button>
-        )}
-        <span className="mx-1 h-4 w-px bg-fg/15" aria-hidden />
-        <div className="flex items-center gap-2 normal-case">
-          {extra.map((b) => (
-            <button key={b.id} onClick={() => onCommand?.(b.id)} className={`${ghost} max-w-[11rem] truncate normal-case`} title={b.label}>
-              <span className="truncate">{b.label}</span>
-            </button>
-          ))}
-          {onAi && (
-            <button onClick={onAi} className={ghost} title={t("Asistente de IA (con tu propia clave)")} aria-label={t("Asistente de IA")}>
-              <Sparkles size={14} />
-            </button>
-          )}
-          {onCodegen && (
-            <button onClick={onCodegen} className={codegenOpen ? done : ghost} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
-              <Code2 size={14} />
-            </button>
-          )}
-          <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
-            {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
+        <div className="relative flex min-w-0 flex-1">
+          <VarInput
+            id="caesar-url"
+            value={url}
+            onChange={(e) => (looksLikeCurl(e.target.value) ? onCurl(e.target.value) : onUrlEdit(e.target.value))}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData("text");
+              if (looksLikeCurl(text)) {
+                e.preventDefault();
+                onCurl(text); // el pegado conserva los saltos de línea del cURL original
+              }
+            }}
+            onKeyDown={(e) => e.key === "Enter" && !e.ctrlKey && !e.metaKey && onSend()}
+            placeholder={t("Escribe una URL o pega un comando cURL")}
+            spellCheck={false}
+            className="w-full flex-1 rounded-[10px] bg-kelp py-2 pl-5 pr-11 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
+          />
+          <button onClick={onCopyCurl} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate/70 hover:text-aqua" title={t("Copiar como cURL")} aria-label={t("Copiar como cURL")}>
+            <Terminal size={14} />
           </button>
         </div>
-      </div>
-      <div className="flex gap-2">
-      <select
-        value={method}
-        onChange={(e) => (e.target.value === "__more__" ? onMore() : onMethod(e.target.value))}
-        className={`rounded-[10px] bg-kelp px-4 py-2 text-sm font-semibold outline-none ring-1 ring-fg/10 focus:ring-aqua ${METHOD_COLORS[method] ?? ""}`}
-      >
-        {options.map((m) => (
-          <option key={m} value={m}>{m}</option>
+        {extra.map((b) => (
+          <button key={b.id} onClick={() => onCommand?.(b.id)} className={`${ghost} max-w-[11rem] truncate normal-case`} title={b.label}>
+            <span className="truncate">{b.label}</span>
+          </button>
         ))}
-        <option value="__more__">{t("+ Más métodos…")}</option>
-      </select>
-      <VarInput
-        id="caesar-url"
-        value={url}
-        onChange={(e) => (looksLikeCurl(e.target.value) ? onCurl(e.target.value) : onUrlEdit(e.target.value))}
-        onPaste={(e) => {
-          const text = e.clipboardData.getData("text");
-          if (looksLikeCurl(text)) {
-            e.preventDefault();
-            onCurl(text); // el pegado conserva los saltos de línea del cURL original
-          }
-        }}
-        onKeyDown={(e) => e.key === "Enter" && !e.ctrlKey && !e.metaKey && onSend()}
-        placeholder={t("Escribe una URL o pega un comando cURL")}
-        spellCheck={false}
-        className="flex-1 rounded-[10px] bg-kelp px-5 py-2 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
-      />
-      <button onClick={onCopyCurl} className={ghost} title={t("Copiar como cURL")}>
-        <Terminal size={14} /> cURL
-      </button>
-      {onShareLink && (
-        <button onClick={onShareLink} className={ghost} title={t("Copiar enlace para compartir")} aria-label={t("Copiar enlace")}>
-          <Link2 size={14} />
+        {onCodegen && (
+          <button onClick={onCodegen} className={codegenOpen ? done : icon} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
+            <Code2 size={14} />
+          </button>
+        )}
+        {onShareLink && (
+          <button onClick={onShareLink} className={icon} title={t("Copiar enlace para compartir")} aria-label={t("Copiar enlace")}>
+            <Link2 size={14} />
+          </button>
+        )}
+        <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
+          {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
         </button>
-      )}
-      <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
-        <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
-      </button>
+        <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
+          <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
+        </button>
       </div>
     </div>
   );

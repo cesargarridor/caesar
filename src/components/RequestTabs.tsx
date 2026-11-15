@@ -15,6 +15,8 @@ interface Props {
   inherited?: AuthData | null;
   /** Variables efectivas ({{x}}), para cargar el esquema GraphQL. */
   vars?: KV[];
+  /** Abre el asistente de IA (se ofrece dentro de Body). */
+  onAi?: () => void;
 }
 
 const COMMON_HEADERS = [
@@ -39,7 +41,7 @@ let lastTab: Tab = (() => {
   }
 })();
 
-export default function RequestTabs({ req, patch, inherited, vars }: Props) {
+export default function RequestTabs({ req, patch, inherited, vars, onAi }: Props) {
   const [tab, setTabState] = useState<Tab>(lastTab);
   const setTab = (t: Tab) => {
     lastTab = t;
@@ -87,7 +89,7 @@ export default function RequestTabs({ req, patch, inherited, vars }: Props) {
           />
         )}
         {tab === "auth" && <AuthEditor auth={req.auth} onChange={(auth) => patch({ auth })} inherited={inherited} />}
-        {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} req={req} vars={vars} inherited={inherited} onMethod={(method) => patch({ method })} />}
+        {tab === "body" && <BodyEditor body={req.body} onChange={(body) => patch({ body })} req={req} vars={vars} inherited={inherited} onMethod={(method) => patch({ method })} onAi={onAi} />}
         {tab === "tests" && (
           <div className="flex h-full min-h-64 flex-col gap-2">
             <p className="text-xs text-slate">
