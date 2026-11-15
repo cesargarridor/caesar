@@ -458,6 +458,9 @@ const D: Record<string, Row> = {
   "Nueva petición": ["New request", "Neue Anfrage", "Nouvelle requête", "Nuova richiesta"],
   "Nueva carpeta": ["New folder", "Neuer Ordner", "Nouveau dossier", "Nuova cartella"],
   "Más acciones": ["More actions", "Weitere Aktionen", "Plus d'actions", "Altre azioni"],
+  "Mover a…": ["Move to…", "Verschieben nach…", "Déplacer vers…", "Sposta in…"],
+  "Aquí está ahora": ["Currently here", "Aktueller Ort", "Emplacement actuel", "Posizione attuale"],
+  "Elige la carpeta o colección de destino.": ["Choose the destination folder or collection.", "Wähle den Zielordner oder die Zielsammlung.", "Choisissez le dossier ou la collection de destination.", "Scegli la cartella o raccolta di destinazione."],
   "Renombrar": ["Rename", "Umbenennen", "Renommer", "Rinomina"],
   "Vacío": ["Empty", "Leer", "Vide", "Vuoto"],
 
