@@ -5,6 +5,7 @@ mod deeplink;
 mod ai;
 mod history;
 mod keyrole;
+mod limit;
 mod merge;
 mod oauth;
 mod mock;
