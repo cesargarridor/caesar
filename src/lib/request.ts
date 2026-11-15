@@ -2,6 +2,7 @@ import type { AuthData, KV, RequestNode, RequestState, TreeNode } from "../types
 import { buildUrl, encodeParam } from "./url";
 import { defaultSettings, emptyAuth } from "./curl";
 import { gqlRaw } from "./graphql";
+import { normWsConfig } from "./ws";
 
 /** Reemplaza {{variable}} usando las variables definidas; las desconocidas se dejan tal cual. */
 export function substitute(s: string, vars: KV[]): string {
@@ -111,7 +112,7 @@ export function requestFromNode(n: RequestNode): RequestState {
 
   const mode = ["none", "json", "text", "formdata", "urlencoded", "graphql"].includes(n.body.mode) ? n.body.mode : "none";
   return {
-    method: n.method,
+    method: n.kind === "ws" ? "WS" : n.method,
     url: base,
     params,
     headers: n.headers,
@@ -127,5 +128,6 @@ export function requestFromNode(n: RequestNode): RequestState {
     },
     settings: defaultSettings(),
     tests: n.tests ?? "",
+    ...(n.kind === "ws" ? { kind: "ws" as const, ws: normWsConfig(n.ws) } : {}),
   };
 }

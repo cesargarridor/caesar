@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, Trash2, Users } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Plug, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
@@ -13,6 +13,7 @@ export const METHOD_COLORS: Record<string, string> = {
   DELETE: "text-[#ff6b6b]",
   HEAD: "text-[#3ccfae]",
   OPTIONS: "text-[#b9a2ff]",
+  WS: "text-[#5ab0ff]",
 };
 
 export interface TreeActions {
@@ -22,6 +23,8 @@ export interface TreeActions {
   onRename: (path: string, name: string) => void;
   onCancelRename: () => void;
   onAddRequest: (path: string) => void;
+  /** Nueva petición WebSocket dentro de la carpeta. */
+  onAddSocket: (path: string) => void;
   onAddFolder: (path: string) => void;
   onDelete: (path: string) => void;
   onExport: (path: string, format?: "json" | "yaml" | "har") => void;
@@ -37,6 +40,8 @@ export interface TreeActions {
   isOpen: (uid?: string) => boolean;
   onToggleOpen: (uid?: string) => void;
   onOpenFolder: (uid?: string) => void;
+  /** Abre el editor de variables y autorización de la colección (carpeta raíz). */
+  onCollSettings: (path: string) => void;
 }
 
 export interface DragState {
@@ -103,6 +108,7 @@ function IconBtn({ title, onClick, children, danger, disabled }: { title: string
   return (
     <button
       title={title}
+      aria-label={title}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -178,6 +184,11 @@ export default function SidebarTree(props: Props) {
               {node.name}
             </span>
           )}
+          {!isRenaming && depth === 0 && (
+            <IconBtn title={t("Variables y autorización de la colección")} onClick={() => props.onCollSettings(path)}>
+              <SlidersHorizontal size={14} />
+            </IconBtn>
+          )}
           {!isRenaming && depth === 0 && node.team && (
             <IconBtn title={t("Actualizar colección de equipo")} onClick={() => props.onTeamRefresh(node.team!.code)}>
               <RefreshCw size={14} className={props.refreshingTeams.includes(node.team.code) ? "animate-spin text-aqua" : ""} />
@@ -188,6 +199,7 @@ export default function SidebarTree(props: Props) {
               {!confirm && (
                 <>
                   <IconBtn title={t("Nueva petición")} onClick={() => { props.onOpenFolder(node.uid); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
+                  <IconBtn title={t("Nueva petición WebSocket")} onClick={() => { props.onOpenFolder(node.uid); props.onAddSocket(path); }}><Plug size={14} /></IconBtn>
                   <IconBtn title={t("Nueva carpeta")} onClick={() => { props.onOpenFolder(node.uid); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
                   <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
                   {depth === 0 && (node.team
