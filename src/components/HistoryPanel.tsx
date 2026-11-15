@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, History, Trash2, X } from "lucide-react";
 import { historyClear, historyList, type HistoryEntry } from "../api";
 import { t } from "../lib/i18n";
+import { METHOD_COLORS } from "./SidebarTree";
 
 /** Aviso interno: la interfaz lo lanza tras apuntar una petición en el historial para que el panel se relea. */
 export const HISTORY_EVENT = "caesar-history";
 
-const COLORS: Record<string, string> = { GET: "text-[#4ad295]", POST: "text-[#ffb454]", PUT: "text-[#5ab0ff]", PATCH: "text-[#c792ea]", DELETE: "text-[#ff6b7a]" };
 
 function ago(ms: number): string {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
@@ -61,7 +61,7 @@ export default function HistoryPanel({ onOpen, bare }: { onOpen: (e: HistoryEntr
             list.map((e) => (
               <div key={e.id} className="group flex items-center gap-1 rounded-lg hover:bg-fg/10">
                 <button onClick={() => onOpen(e)} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left" title={e.url}>
-                  <span className={`w-12 shrink-0 text-[10px] font-semibold ${COLORS[e.method] ?? "text-silver"}`}>{e.method}</span>
+                  <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[e.method] ?? "text-silver"}`}>{e.method}</span>
                   <span className="min-w-0 flex-1 truncate text-xs text-silver">{e.url.replace(/^https?:\/\//, "")}</span>
                   <span className="shrink-0 text-[10px] text-slate">{e.status ? `${e.status} · ` : ""}{ago(e.at)}</span>
                 </button>

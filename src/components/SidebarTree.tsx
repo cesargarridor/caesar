@@ -6,16 +6,16 @@ import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
 
-// Colores de método FIJOS: no cambian con el tema.
+// Colores de método: mismo tono en todos los temas, ajustado en applyTheme para que siempre se lean (4.5:1).
 export const METHOD_COLORS: Record<string, string> = {
-  GET: "text-[#3ccfae]",
-  POST: "text-[#ffb829]",
-  PUT: "text-[#b9a2ff]",
-  PATCH: "text-[#ffb829]",
-  DELETE: "text-[#ff6b6b]",
-  HEAD: "text-[#3ccfae]",
-  OPTIONS: "text-[#b9a2ff]",
-  WS: "text-[#5ab0ff]",
+  GET: "text-[var(--t-m-get)]",
+  POST: "text-[var(--t-m-post)]",
+  PUT: "text-[var(--t-m-put)]",
+  PATCH: "text-[var(--t-m-post)]",
+  DELETE: "text-[var(--t-m-del)]",
+  HEAD: "text-[var(--t-m-get)]",
+  OPTIONS: "text-[var(--t-m-put)]",
+  WS: "text-[var(--t-m-ws)]",
 };
 
 export interface TreeActions {
