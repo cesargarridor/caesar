@@ -26,12 +26,17 @@ export function hashJson(s: string): string {
 const teamOf = (n: TreeNode) => (n.type === "folder" ? n.team : undefined);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Mínimo entre dos comprobaciones automáticas al volver a la ventana (cada una cuesta una lectura por colección). */
+export const FOCUS_GAP_MS = 15_000;
+
 /**
- * Colecciones de equipo, sin conexión permanente ni consultas periódicas:
- *  · SUBIR: tras guardar un cambio (2,5 s sin tocar nada) se sube en segundo plano. Si la colección no cambió, no se hace nada.
- *  · BAJAR: solo cuando el usuario pulsa «Actualizar» (la rueda de la colección). Primero se pregunta solo la fecha
- *    (unos bytes); la colección se descarga únicamente si hay una versión más nueva.
- * La edición es siempre local e instantánea; la red la hace Rust. Conflictos: gana la última escritura.
+ * Colecciones de equipo, sin conexión permanente ni sondeo:
+ *  · SUBIR: tras guardar un cambio (2 s sin tocar nada) se sube en segundo plano. Si la colección no cambió, no se hace nada.
+ *  · BAJAR: al volver a la ventana (con un mínimo de 15 s entre comprobaciones) y cuando el usuario pulsa «Actualizar».
+ *    Primero se pregunta solo la fecha (unos bytes); la colección se descarga únicamente si hay una versión más nueva.
+ *  · CONFLICTOS: cada subida lleva la versión de la nube sobre la que se editó; si alguien subió algo más nuevo, Rust
+ *    no escribe nada y aquí se marca el conflicto para que el usuario elija (ver `resolveKeepCloud` y `resolveForce`).
+ * La edición es siempre local e instantánea; la red la hace Rust.
  */
 export function useTeamSync(
   collections: TreeNode[],
@@ -46,6 +51,13 @@ export function useTeamSync(
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
   const [refreshing, setRefreshing] = useState<string[]>([]);
+  /** Códigos de las colecciones cuya subida se frenó porque la nube tiene cambios más nuevos. */
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const conflictRef = useRef<string[]>([]);
+  conflictRef.current = conflicts;
+  const setConflict = (code: string, on: boolean) =>
+    setConflicts((c) => (on ? (c.includes(code) ? c : [...c, code]) : c.filter((x) => x !== code)));
+  const lastFocus = useRef(0);
 
   /** Aplica la versión de la nube a la colección local. */
   const apply = (code: string, json: string, updatedAt: number, owner: boolean) => {
@@ -71,9 +83,10 @@ export function useTeamSync(
     const json = teamJson(n);
     const h = hashJson(json);
     const known = synced.current.get(code) ?? team.h;
+    if (conflictRef.current.includes(code)) return false; // en conflicto: no se toca nada hasta que el usuario elija
 
     const doPush = async () => {
-      const stamp = await teamPush(code, json);
+      const stamp = await teamPush(code, json, team.seen, false);
       synced.current.set(code, h);
       setCollections((cur) =>
         cur.map((c) => {
@@ -104,7 +117,7 @@ export function useTeamSync(
   };
 
   /** Recorre las colecciones de equipo (todas, o solo la de `only`). */
-  const run = async (pull: boolean, only?: string): Promise<"changed" | "same" | "failed"> => {
+  const run = async (pull: boolean, only?: string, silent = false): Promise<"changed" | "same" | "failed"> => {
     while (busy.current) await sleep(150);
     busy.current = true;
     let changed = false;
@@ -120,7 +133,10 @@ export function useTeamSync(
         } catch (e) {
           failed = true;
           const msg = typeof e === "string" ? e : e instanceof Error ? e.message : "";
-          if (msg === "NOT_FOUND") {
+          if (msg === "CONFLICT") {
+            setConflict(code, true);
+            failed = false;
+          } else if (msg === "NOT_FOUND") {
             // El dueño dejó de compartirla o eliminó su cuenta: se conserva la copia local, ya sin vínculo.
             setCollections((cur) =>
               cur.map((c) => {
@@ -132,7 +148,7 @@ export function useTeamSync(
             );
             synced.current.delete(code);
             notifyRef.current("err", t("«{0}» ya no se comparte (su dueño la eliminó). Conservas tu copia local.", n.name));
-          } else if (pull) {
+          } else if (pull && !silent) {
             notifyRef.current("err", msg || t("Error desconocido")); // el usuario lo pidió: se le dice qué falló
           } else if (!warned.current.has(code)) {
             warned.current.add(code); // en segundo plano: un aviso por fallo
@@ -154,12 +170,52 @@ export function useTeamSync(
       return;
     }
     if (!collections.some((n) => teamOf(n))) return;
-    const id = setTimeout(() => void run(false), 2500);
+    const id = setTimeout(() => void run(false), 2000);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collections]);
 
+  // Al volver a la ventana: una comprobación de fechas por colección (nunca sondeo con la ventana en segundo plano).
+  useEffect(() => {
+    const onFocus = () => {
+      const now = Date.now();
+      if (now - lastFocus.current < FOCUS_GAP_MS) return;
+      if (!ref.current.some((n) => teamOf(n))) return;
+      lastFocus.current = now;
+      void run(true, undefined, true);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return {
+    conflicts,
+    /** «Sobrescribir mis cambios»: descarta lo local y baja la versión de la nube. */
+    resolveKeepCloud: async (code: string) => {
+      try {
+        const doc = await teamPull(code, 0);
+        if (doc) apply(code, doc.json, doc.updatedAt, doc.owner);
+        setConflict(code, false);
+      } catch (e) {
+        notifyRef.current("err", typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+      }
+    },
+    /** «Forzar subida»: escribe lo local en la nube aunque pise lo del compañero. */
+    resolveForce: async (code: string) => {
+      const n = ref.current.find((x) => teamOf(x)?.code === code);
+      if (!n || n.type !== "folder") return setConflict(code, false);
+      try {
+        const json = teamJson(n);
+        const stamp = await teamPush(code, json, teamOf(n)?.seen ?? 0, true);
+        const h = hashJson(json);
+        synced.current.set(code, h);
+        setCollections((cur) => cur.map((c) => (teamOf(c)?.code === code ? ({ ...c, team: { ...teamOf(c)!, seen: stamp, h } } as TreeNode) : c)));
+        setConflict(code, false);
+      } catch (e) {
+        notifyRef.current("err", typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+      }
+    },
     /** Marca un JSON como ya sincronizado (al compartir o unirse). */
     markSynced: (code: string, json: string) => synced.current.set(code, hashJson(json)),
     forget: (code: string) => synced.current.delete(code),
