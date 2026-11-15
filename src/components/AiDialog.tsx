@@ -5,6 +5,11 @@ import type { RequestState, ResponseData } from "../types";
 import { t } from "../lib/i18n";
 
 const DEFAULT_MODEL: Record<AiProvider, string> = { openai: "gpt-4o-mini", anthropic: "claude-haiku-5-5" };
+const MODELS: Record<AiProvider, string[]> = {
+  openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "o4-mini"],
+  anthropic: ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-2"],
+};
+const CUSTOM = "__custom__";
 const LS = { provider: "caesar.ai.provider", model: (p: AiProvider) => `caesar.ai.model.${p}` };
 const read = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
@@ -38,13 +43,14 @@ export default function AiDialog({ req, response, onApplyTests, onClose }: Props
   const [model, setModel] = useState(() => read(LS.model(provider), DEFAULT_MODEL[provider]));
   const [has, setHas] = useState<{ openai: boolean; anthropic: boolean }>({ openai: false, anthropic: false });
   const [key, setKey] = useState("");
+  const [custom, setCustom] = useState(() => !MODELS[provider].includes(model));
   const [prompt, setPrompt] = useState("");
   const [out, setOut] = useState<{ text: string; tests: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => { aiStatus().then(setHas).catch(() => {}); }, []);
-  useEffect(() => { setModel(read(LS.model(provider), DEFAULT_MODEL[provider])); write(LS.provider, provider); }, [provider]);
+  useEffect(() => { const m = read(LS.model(provider), DEFAULT_MODEL[provider]); setModel(m); setCustom(!MODELS[provider].includes(m)); write(LS.provider, provider); }, [provider]);
   const msg = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
 
   const saveKey = async () => {
@@ -75,7 +81,12 @@ export default function AiDialog({ req, response, onApplyTests, onClose }: Props
           {(["openai", "anthropic"] as const).map((p) => (
             <button key={p} onClick={() => setProvider(p)} className={`${ghost} ${provider === p ? "ring-aqua text-aqua" : ""}`}>{p === "openai" ? "OpenAI" : "Anthropic"}{has[p] ? " ✓" : ""}</button>
           ))}
-          <input className={`${input} max-w-[14rem]`} value={model} onChange={(e) => setModel(e.target.value)} aria-label={t("Modelo")} spellCheck={false} />
+          <select className={`${input} max-w-[14rem]`} value={custom ? CUSTOM : model} aria-label={t("Modelo")}
+            onChange={(e) => { if (e.target.value === CUSTOM) { setCustom(true); } else { setCustom(false); setModel(e.target.value); } }}>
+            {MODELS[provider].map((m) => <option key={m} value={m}>{m}</option>)}
+            <option value={CUSTOM}>{t("Otro modelo…")}</option>
+          </select>
+          {custom && <input className={`${input} max-w-[14rem]`} value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("Nombre del modelo")} aria-label={t("Nombre del modelo")} spellCheck={false} />}
         </div>
 
         {!ready ? (
