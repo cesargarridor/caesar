@@ -1,10 +1,41 @@
 name: caesar
 base: core22
 version: '0.15.0'   # el CI lo sustituye por la versión del tag
-summary: Caesar - cliente API rápido y seguro
+title: Caesar
+summary: Fast, local-first API client. HTTP, GraphQL, WebSocket, mocks.
+website: https://cesargarridor.github.io/caesar/
+source-code: https://github.com/cesargarridor/caesar
+issues: https://github.com/cesargarridor/caesar/issues
 description: |
-  Caesar es un cliente de APIs rápido y seguro: peticiones HTTP, perfiles de
-  variables, sincronización y más.
+  Caesar is a fast, secure and local-first desktop API client: a lightweight
+  alternative to Postman and Insomnia. Your requests, collections and tokens
+  stay on your computer.
+
+  What you can do with Caesar:
+  - Send HTTP requests (REST) with params, headers, JSON, form and raw bodies.
+  - Paste a cURL command and get the request ready; export any request back
+    to cURL or generate code for several languages.
+  - Authentication: Bearer, Basic, API key, OAuth and request signing.
+  - GraphQL and WebSocket clients built in.
+  - Organize everything in collections and folders, with tabs and quick search.
+  - Variables and profiles (dev, staging, production) to switch environments
+    in one click.
+  - Write tests and scripts for your requests and see the results at once.
+  - Collection runner with CSV data, and a local mock server.
+  - Import from Postman and OpenAPI; export your collections any time.
+  - Request history, JSON viewer with copy, and shareable caesar:// links.
+  - Optional AI assistant: bring your own key, nothing is sent without it.
+  - Command line tool for scripts and CI.
+  - Light and dark themes, keyboard shortcuts, and a UI available in several
+    languages.
+
+  Caesar Sync (optional subscription) syncs your requests and collections
+  across your computers with end-to-end encryption (AES-256-GCM). The key
+  never leaves your device's keychain, so nobody else can read your tokens.
+  To use the keychain, connect it once with:
+  sudo snap connect caesar:password-manager-service
+
+  Caesar works fully offline and needs no account to send requests.
 grade: stable
 confinement: strict
 architectures:
