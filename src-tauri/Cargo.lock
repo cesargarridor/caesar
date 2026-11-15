@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "caesar"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
