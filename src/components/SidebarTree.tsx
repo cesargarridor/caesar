@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Plug, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderPlus, Library, Pencil, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
@@ -30,6 +30,10 @@ export interface TreeActions {
   onExport: (path: string, format?: "json" | "yaml" | "har") => void;
   /** Compartir una colección con un equipo / ver su código. */
   onShare: (path: string) => void;
+  /** Collection Runner (Pro): ejecutar la carpeta con un CSV. */
+  onRun: (path: string) => void;
+  /** Servidor Mock local con las peticiones de la carpeta. */
+  onMock: (path: string) => void;
   onTeamInfo: (path: string) => void;
   /** Rueda de actualizar: baja la colección de equipo solo si hay una versión más nueva. */
   onTeamRefresh: (code: string) => void;
@@ -201,6 +205,8 @@ export default function SidebarTree(props: Props) {
                   <IconBtn title={t("Nueva petición")} onClick={() => { props.onOpenFolder(node.uid); props.onAddRequest(path); }}><FilePlus2 size={14} /></IconBtn>
                   <IconBtn title={t("Nueva petición WebSocket")} onClick={() => { props.onOpenFolder(node.uid); props.onAddSocket(path); }}><Plug size={14} /></IconBtn>
                   <IconBtn title={t("Nueva carpeta")} onClick={() => { props.onOpenFolder(node.uid); props.onAddFolder(path); }}><FolderPlus size={14} /></IconBtn>
+                  <IconBtn title={t("Servidor Mock (gratis)")} onClick={() => props.onMock(path)}><Server size={13} /></IconBtn>
+                  <IconBtn title={guest ? t("Collection Runner con CSV (requiere el plan Pro)") : t("Collection Runner con CSV")} onClick={() => props.onRun(path)}><Play size={13} /></IconBtn>
                   <IconBtn title={t("Renombrar")} onClick={() => props.onStartRename(path)}><Pencil size={13} /></IconBtn>
                   {depth === 0 && (node.team
                     ? <IconBtn title={t("Equipo: código y opciones")} onClick={() => props.onTeamInfo(path)}><Users size={14} /></IconBtn>

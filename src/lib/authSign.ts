@@ -5,6 +5,7 @@
 import type { AuthData, BodyData, KV, ResponseData, Settings } from "../types";
 import { concat, fromBase64, hmacMd5, hmacSha, md4, md5, randomBytes, sha, toBase64, toHex, utf8 } from "./hash";
 import { substitute } from "./request";
+import { oauthAuthorize } from "../api";
 
 export interface ExecArgs {
   method: string;
@@ -235,17 +236,55 @@ async function oauth2(a: ExecArgs, auth: AuthData, sub: (s?: string) => string, 
   const grant = x.grantType || "manual";
   let token = sub(x.accessToken);
 
+  const interactive = grant === "authorization_code" || grant === "implicit";
   if (grant !== "manual") {
     const url = sub(x.accessTokenUrl);
-    if (!url) throw authErr("OAuth 2.0: falta la URL para pedir el token (Access Token URL).");
-    const cfg = { url, grant, id: sub(x.clientId), secret: sub(x.clientSecret), scope: sub(x.scope), user: sub(auth.username), pass: sub(auth.password), cin: x.credentialsIn };
+    if (!url && grant !== "implicit") throw authErr("OAuth 2.0: falta la URL para pedir el token (Access Token URL).");
+    const cfg = { url, grant, id: sub(x.clientId), secret: sub(x.clientSecret), scope: sub(x.scope), user: sub(auth.username), pass: sub(auth.password), cin: x.credentialsIn, authUrl: sub(x.authUrl), redirect: sub(x.redirectUri) };
     const ck = JSON.stringify(cfg);
     const hit = tokenCache.get(ck);
     if (hit && hit.exp > Date.now() + 5000) {
       token = hit.token;
     } else {
-      const form: KV[] = [{ key: "grant_type", value: grant === "password" ? "password" : "client_credentials", enabled: true }];
-      if (cfg.scope) form.push({ key: "scope", value: cfg.scope, enabled: true });
+      // Inicio de sesión en una ventana embebida (código + PKCE, o implícito): Rust intercepta la redirección y nos da el código/token.
+      let pkce: { code: string; verifier: string; redirect: string } | null = null;
+      if (interactive) {
+        if (!cfg.authUrl) throw authErr("OAuth 2.0: falta la Authorization URL.");
+        const redirect = cfg.redirect || "http://localhost/callback";
+        const state = randomUrlSafe(16);
+        const au = new URL(cfg.authUrl);
+        au.searchParams.set("response_type", grant === "implicit" ? "token" : "code");
+        au.searchParams.set("client_id", cfg.id);
+        au.searchParams.set("redirect_uri", redirect);
+        if (cfg.scope) au.searchParams.set("scope", cfg.scope);
+        au.searchParams.set("state", state);
+        let verifier = "";
+        if (grant === "authorization_code") {
+          verifier = randomUrlSafe(48);
+          const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+          au.searchParams.set("code_challenge", toBase64Url(new Uint8Array(digest)));
+          au.searchParams.set("code_challenge_method", "S256");
+        }
+        let res;
+        try {
+          res = await oauthAuthorize(au.toString(), redirect);
+        } catch (e) {
+          throw authErr(`OAuth 2.0: ${typeof e === "string" ? e : e instanceof Error ? e.message : "no se completó el inicio de sesión"}`);
+        }
+        if (res.error) throw authErr(`OAuth 2.0: ${res.error_description || res.error}`);
+        if (res.state && res.state !== state) throw authErr("OAuth 2.0: la respuesta no coincide con la petición (state). Inténtalo de nuevo.");
+        if (grant === "implicit") {
+          if (!res.access_token) throw authErr("OAuth 2.0: el proveedor no devolvió un access_token.");
+          const secs = Number(res.expires_in);
+          tokenCache.set(ck, { token: res.access_token, exp: Date.now() + (Number.isFinite(secs) && secs > 0 ? secs * 1000 : 60_000) });
+          return finishOauth(a, x, res.access_token, sub);
+        }
+        if (!res.code) throw authErr("OAuth 2.0: el proveedor no devolvió un código de autorización.");
+        pkce = { code: res.code, verifier, redirect };
+      }
+      const form: KV[] = [{ key: "grant_type", value: pkce ? "authorization_code" : grant === "password" ? "password" : "client_credentials", enabled: true }];
+      if (pkce) form.push({ key: "code", value: pkce.code, enabled: true }, { key: "redirect_uri", value: pkce.redirect, enabled: true }, { key: "code_verifier", value: pkce.verifier, enabled: true });
+      if (cfg.scope && !pkce) form.push({ key: "scope", value: cfg.scope, enabled: true });
       if (grant === "password") {
         form.push({ key: "username", value: cfg.user, enabled: true }, { key: "password", value: cfg.pass, enabled: true });
       }
@@ -253,7 +292,8 @@ async function oauth2(a: ExecArgs, auth: AuthData, sub: (s?: string) => string, 
       if (cfg.cin === "basic") {
         headers = setHeader(headers, "Authorization", `Basic ${toBase64(utf8(`${cfg.id}:${cfg.secret}`))}`);
       } else {
-        form.push({ key: "client_id", value: cfg.id, enabled: true }, { key: "client_secret", value: cfg.secret, enabled: true });
+        form.push({ key: "client_id", value: cfg.id, enabled: true });
+        if (cfg.secret || !pkce) form.push({ key: "client_secret", value: cfg.secret, enabled: true }); // con PKCE el secreto es opcional
       }
       const r = await exec({
         method: "POST",
@@ -278,7 +318,11 @@ async function oauth2(a: ExecArgs, auth: AuthData, sub: (s?: string) => string, 
     }
   }
   if (!token) throw authErr("OAuth 2.0: no hay Access Token.");
+  return finishOauth(a, x, token, sub);
+}
 
+/** Pone el token en la petición (cabecera o query) según el ajuste. */
+function finishOauth(a: ExecArgs, x: Record<string, string>, token: string, sub: (s?: string) => string): ExecArgs {
   if (x.addTokenTo === "query") {
     const u = new URL(a.url);
     u.searchParams.set("access_token", token);
@@ -287,6 +331,13 @@ async function oauth2(a: ExecArgs, auth: AuthData, sub: (s?: string) => string, 
   const prefix = sub(x.headerPrefix ?? "Bearer").trim();
   return { ...a, headers: setHeader(a.headers, "Authorization", prefix ? `${prefix} ${token}` : token) };
 }
+
+const toBase64Url = (b: Uint8Array) => {
+  let bin = "";
+  b.forEach((c) => (bin += String.fromCharCode(c)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+const randomUrlSafe = (n: number) => toBase64Url(crypto.getRandomValues(new Uint8Array(n)));
 
 // ───────────── Digest ─────────────
 

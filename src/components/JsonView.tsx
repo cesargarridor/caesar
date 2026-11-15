@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy,
 import FindBar from "./FindBar";
 import { findAll, MAX_MATCHES, wrapIndex } from "../lib/find";
 import { t } from "../lib/i18n";
+import { pathOfLine, useJsonCopyMode } from "../lib/jsonCopy";
 
 interface Props {
   text: string;
@@ -191,6 +192,24 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
   }, [text, json, big, hideEmpty]);
 
   const [copied, setCopied] = useState<number | null>(null);
+  const copyMode = useJsonCopyMode();
+  /** Fila marcada con un clic: Ctrl/Cmd+C copia su nodo. */
+  const [sel, setSel] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; i: number } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    window.addEventListener("mousedown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [menu]);
+  useEffect(() => { setSel(null); setMenu(null); }, [text]);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   useEffect(() => setCollapsed(new Set()), [text]);
 
@@ -338,6 +357,32 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
     }
   };
 
+  /** Valor de una fila: el escalar sin comillas; para un objeto/array, su JSON con el mismo formato. null = nada que copiar. */
+  const nodeValue = (i: number): string | null => {
+    const scalar = valueOf(model.toks[i].toks);
+    if (scalar !== null) return scalar;
+    const end = model.ends.get(i);
+    if (end === undefined) return null;
+    const slice = model.lines.slice(i, end + 1);
+    const pad = (slice[0].match(/^\s*/) ?? [""])[0].length;
+    const body = slice.map((l) => l.slice(pad));
+    // Quita la clave del principio ("data": {) y la coma final.
+    body[0] = body[0].replace(/^"(?:[^"\\]|\\.)*"\s*:\s*/, "");
+    body[body.length - 1] = body[body.length - 1].replace(/,\s*$/, "");
+    return body.join("\n");
+  };
+  const copyNode = (i: number, what: "value" | "path") => {
+    const v = what === "path" ? pathOfLine(model.lines, i) : nodeValue(i);
+    if (v !== null) void copyValue(i, v);
+  };
+  /** Ctrl/Cmd+C sobre el nodo marcado (si no hay texto seleccionado a mano) copia según el ajuste. */
+  const copyKey = (e: React.KeyboardEvent) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "c" || sel === null) return;
+    if (!(window.getSelection()?.isCollapsed ?? true)) return; // hay texto seleccionado: copia normal del sistema
+    e.preventDefault();
+    copyNode(sel, copyMode);
+  };
+
   const { lines, ends, toks, hidden: hiddenLines } = model;
   const rows: ReactNode[] = [];
   for (let n = 0; n < lines.length; ) {
@@ -358,7 +403,12 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
     }
 
     rows.push(
-      <div key={i} className="group relative flex hover:bg-fg/5">
+      <div
+        key={i}
+        onClick={() => setSel(i)}
+        onContextMenu={(e) => { e.preventDefault(); setSel(i); setMenu({ x: e.clientX, y: e.clientY, i }); }}
+        className={`group relative flex hover:bg-fg/5 ${sel === i ? "bg-fg/10" : ""}`}
+      >
         <span className="w-12 shrink-0 select-none pr-3 text-right text-[0.85em] leading-[inherit] text-slate/70">{i + 1}</span>
         <span className="flex w-5 shrink-0 items-center justify-center">
           {foldable && (
@@ -380,14 +430,14 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
               return node;
             });
           })()}
-          {!isFolded && (() => {
-            const v = valueOf(lt);
-            if (v === null) return null;
+          {(() => {
+            if (hiddenLines.has(i) || /^\s*[}\]]/.test(lines[i])) return null;
+            if (valueOf(lt) === null && !foldable) return null;
             const done = copied === i;
             return (
               <button
-                onClick={() => copyValue(i, v)}
-                title={done ? t("Copiado") : t("Copiar solo el valor")}
+                onClick={(e) => { e.stopPropagation(); copyNode(i, copyMode); }}
+                title={done ? t("Copiado") : copyMode === "path" ? t("Copiar la ruta (clic derecho: más opciones)") : t("Copiar el valor (clic derecho: más opciones)")}
                 className={`ml-2 inline-flex h-5 w-5 items-center justify-center rounded align-middle hover:bg-fg/10 ${
                   done ? "text-leaf opacity-100" : "text-slate opacity-0 hover:text-mist group-hover:opacity-100"
                 }`}
@@ -421,7 +471,7 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
       ref={box}
       data-find-scope="response"
       tabIndex={-1}
-      onKeyDown={wrapKeys}
+      onKeyDown={(e) => { wrapKeys(e); copyKey(e); }}
       style={{ fontSize: "var(--fs-resp, 13px)", lineHeight: "calc(var(--fs-resp, 13px) * 1.846)" }}
       className="font-mono outline-none"
     >
@@ -449,6 +499,27 @@ export default function JsonView({ text, json, onOpen, hideEmpty = false }: Prop
         {findBar && <span className="ml-auto font-sans text-xs">{findBar}</span>}
       </div>
       <div className="px-2 pb-4">{rows}</div>
+      {menu && (
+        <div
+          role="menu"
+          style={{ position: "fixed", left: Math.min(menu.x, window.innerWidth - 230), top: Math.min(menu.y, window.innerHeight - 90) }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="glass z-50 min-w-[13rem] rounded-xl bg-kelp p-1 font-sans text-sm shadow-lg ring-1 ring-fg/15"
+        >
+          {(["value", "path"] as const).map((w) => (
+            <button
+              key={w}
+              role="menuitem"
+              disabled={w === "value" && nodeValue(menu.i) === null}
+              onClick={() => { copyNode(menu.i, w); setMenu(null); }}
+              className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2 text-left text-silver hover:bg-fg/10 hover:text-mist disabled:opacity-40"
+            >
+              <span>{w === "value" ? t("Copiar valor") : t("Copiar ruta (JSONPath)")}</span>
+              {copyMode === w && <span className="text-[10px] text-slate">{t("por defecto")}</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

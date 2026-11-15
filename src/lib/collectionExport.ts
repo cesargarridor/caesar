@@ -88,7 +88,7 @@ function pmAuth(a: Partial<AuthData> & { type?: string }): Record<string, unknow
       return {
         type: "oauth2",
         oauth2: [
-          s("grant_type", x.grantType === "password" ? "password_credentials" : x.grantType === "client_credentials" ? "client_credentials" : "authorization_code"),
+          s("grant_type", x.grantType === "password" ? "password_credentials" : x.grantType === "client_credentials" ? "client_credentials" : x.grantType === "implicit" ? "implicit" : "authorization_code"), s("authUrl", x.authUrl), s("redirect_uri", x.redirectUri),
           s("accessToken", x.accessToken), s("accessTokenUrl", x.accessTokenUrl), s("clientId", x.clientId), s("clientSecret", x.clientSecret), s("scope", x.scope),
           s("username", a.username), s("password", a.password), s("headerPrefix", x.headerPrefix || "Bearer"), s("addTokenTo", x.addTokenTo === "query" ? "queryParams" : "header"),
         ],

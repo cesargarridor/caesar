@@ -1,9 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod account;
+mod deeplink;
+mod ai;
+mod history;
 mod keyrole;
 mod merge;
+mod oauth;
+mod mock;
+mod openapi;
 mod pack;
+mod runner;
 mod sync;
 mod team;
 mod vault;
@@ -415,12 +422,23 @@ fn convert_auth(auth: Option<PmAuth>) -> Option<AuthData> {
             let g = match grant.as_str() {
                 "client_credentials" => "client_credentials",
                 "password_credentials" | "password" => "password",
+                "authorization_code" | "authorization_code_with_pkce" => "authorization_code",
+                "implicit" => "implicit",
                 _ => "manual",
             };
             // Sin URL de token no se puede pedir uno: se queda con el token que traiga el archivo.
             let url = kv_get(&a.oauth2, "accessTokenUrl");
-            let g = if g != "manual" && url.is_empty() { "manual" } else { g };
+            let auth_url = kv_get(&a.oauth2, "authUrl");
+            // El flujo con ventana necesita la Authorization URL (y el implícito no pide token por URL).
+            let g = match g {
+                "implicit" if auth_url.is_empty() => "manual",
+                "authorization_code" if auth_url.is_empty() || url.is_empty() => "manual",
+                "client_credentials" | "password" if url.is_empty() => "manual",
+                other => other,
+            };
             put(&mut out, "grantType", g.into());
+            put(&mut out, "authUrl", auth_url);
+            put(&mut out, "redirectUri", kv_get(&a.oauth2, "redirect_uri"));
             put(&mut out, "accessToken", kv_get(&a.oauth2, "accessToken"));
             put(&mut out, "accessTokenUrl", url);
             put(&mut out, "clientId", kv_get(&a.oauth2, "clientId"));
@@ -1342,18 +1360,37 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 
 fn main() {
     let result = tauri::Builder::default()
+        // single-instance debe ir el primero: reenvía los enlaces caesar:// a la ventana ya abierta (Windows/Linux).
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| deeplink::handle(app, args)))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(GrantedFiles::default())
         .manage(vault::VaultState::default())
         .manage(sync::SyncState::default())
         .manage(ws::WsState::default())
+        .manage(mock::MockState::default())
+        .manage(deeplink::DeepLinks::default())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event {
                 { use tauri::Manager; sync::on_focus(window.app_handle()); }
             }
         })
         .setup(|app| {
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let h = app.handle().clone();
+                // Enlace con el que se abrió la app (arranque en frío) y enlaces con la app ya abierta (macOS).
+                if let Ok(Some(urls)) = app.deep_link().get_current() {
+                    deeplink::handle(&h, urls.into_iter().map(|u| u.to_string()));
+                }
+                app.deep_link().on_open_url(move |e| deeplink::handle(&h, e.urls().into_iter().map(|u| u.to_string())));
+                // En desarrollo (Windows/Linux) el esquema no lo registra un instalador: se registra aquí.
+                #[cfg(any(windows, target_os = "linux"))]
+                if cfg!(debug_assertions) {
+                    let _ = app.deep_link().register_all();
+                }
+            }
             sync::start_worker(app.handle().clone());
             Ok(())
         })
@@ -1394,6 +1431,20 @@ fn main() {
             sync::sync_github_finish,
             sync::sync_sign_out,
             sync::sync_now,
+            oauth::oauth_authorize,
+            deeplink::deeplink_take,
+            mock::mock_start,
+            mock::mock_stop,
+            mock::mock_status,
+            ai::ai_status,
+            ai::ai_set_key,
+            ai::ai_clear_key,
+            ai::ai_chat,
+            history::history_add,
+            history::history_list,
+            history::history_clear,
+            openapi::import_openapi,
+            runner::runner_pick_csv,
             sync::sync_cancel,
             sync::sync_billing,
             sync::sync_delete_account,

@@ -95,8 +95,9 @@ export function normProfiles(raw: unknown): ProfilesState {
 export const loadProfiles = (id: string): ProfilesState => normProfiles(read<unknown>(wsKey("envs", id), null));
 export const newProfileId = () => "p" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
 
-/** Sin plan Pro (invitado o cuenta sin pagar): un solo espacio de trabajo. Solo Pro puede tener varios. */
-export const canCreateWorkspace = (isPro: boolean, list: WsMeta[]) => isPro || list.length < 1;
+/** Espacios de trabajo que se pueden usar sin plan Pro (invitado o cuenta sin pagar). Con Pro, ilimitados. */
+export const FREE_WORKSPACES = 2;
+export const canCreateWorkspace = (isPro: boolean, list: WsMeta[]) => isPro || list.length < FREE_WORKSPACES;
 
 // ───── lápidas de nodos borrados (se emiten en el snapshot para que el merge no los resucite) ─────
 const TOMB_KEY = "caesar.tombstones";

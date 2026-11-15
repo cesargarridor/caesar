@@ -1,5 +1,5 @@
 import type { AuthData, BodyData, KV, RequestState } from "../types";
-import { parseQuery, splitUrl } from "./url";
+import { parseQuery, splitUrl } from "./url.ts";
 
 export const emptyAuth = (): AuthData => ({
   type: "none",

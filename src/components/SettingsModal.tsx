@@ -3,6 +3,7 @@ import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
 import { THEMES, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
+import { setJsonCopyMode, useJsonCopyMode, type JsonCopyMode } from "../lib/jsonCopy";
 import ShortcutsEditor from "./ShortcutsEditor";
 import SyncSettings from "./SyncSettings";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
@@ -279,7 +280,35 @@ function EditControls({ autosave, onAutosave, extraMethods, onExtraMethods }: { 
           </span>
         </span>
       </label>
+      <section>
+        <h3 className="mb-1 text-lg text-mist">{t("Copiar desde la respuesta JSON")}</h3>
+        <p className="mb-3 text-xs text-slate">
+          {t("Elige qué copia el icono de copiar de cada línea y Ctrl/Cmd+C sobre la línea marcada (haz clic en ella antes). Con clic derecho en cualquier línea siempre puedes elegir entre «Copiar valor» y «Copiar ruta (JSONPath)». Si seleccionas texto con el ratón, Ctrl/Cmd+C copia ese texto como siempre.")}
+        </p>
+        <JsonCopyControls />
+      </section>
       <ShortcutsEditor />
+    </div>
+  );
+}
+
+function JsonCopyControls() {
+  const mode = useJsonCopyMode();
+  const opts: { id: JsonCopyMode; title: string; hint: string }[] = [
+    { id: "value", title: t("Copiar el valor"), hint: t("Ejemplo: en «id»: 7 copia 7. En un objeto copia su JSON.") },
+    { id: "path", title: t("Copiar la ruta (JSONPath)"), hint: t("Ejemplo: en «id»: 7 copia data.users[2].id. Útil para scripts y tests.") },
+  ];
+  return (
+    <div className="space-y-2">
+      {opts.map((o) => (
+        <label key={o.id} className="flex cursor-pointer items-start gap-3">
+          <input type="radio" name="json-copy" checked={mode === o.id} onChange={() => setJsonCopyMode(o.id)} className="mt-1 accent-[var(--t-accent)]" />
+          <span>
+            <span className="block text-sm text-mist">{o.title}</span>
+            <span className="block text-xs text-slate">{o.hint}</span>
+          </span>
+        </label>
+      ))}
     </div>
   );
 }
