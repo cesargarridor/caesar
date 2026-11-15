@@ -104,6 +104,9 @@ fn http_err(code: u16, what: &str) -> String {
 #[tauri::command]
 pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Result<String, String> {
     crate::sync::require_pro(&st)?;
+    if !crate::limit::allow("team_publish", 1, 60_000) {
+        return Err("Has creado un enlace hace un momento. Espera un minuto y vuelve a intentarlo.".into());
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let code = new_code();
@@ -131,6 +134,9 @@ pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Resu
 #[tauri::command]
 pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<TeamDoc, String> {
     crate::sync::require_pro(&st)?;
+    if !crate::limit::allow("team_join", 6, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
@@ -194,6 +200,9 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
 #[tauri::command]
 pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64) -> Result<Option<TeamDoc>, String> {
     crate::sync::require_pro(&st)?;
+    if !crate::limit::allow(&format!("team_pull:{code}"), 6, 60_000) {
+        return Ok(None);
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;

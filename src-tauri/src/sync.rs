@@ -1256,6 +1256,9 @@ async fn sync_now_inner(app: &AppHandle, st: &SyncState) -> Result<(), String> {
 #[tauri::command]
 pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_now", 2, 60_000) {
+        return Ok(());
+    }
     if st.abort.lock().map(|g| g.is_some()).unwrap_or(false) {
         return Err("Ya hay una sincronización en curso.".into());
     }
