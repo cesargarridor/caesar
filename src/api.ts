@@ -50,6 +50,9 @@ export interface SyncStatus {
   dirty: boolean;
   last_sync: number;
   error: string | null;
+  /** Lo que hace la sincronización ahora mismo (null = reposo) y desde cuándo (ms). */
+  phase: string | null;
+  phase_since: number;
 }
 export const syncStatus = () => invoke<SyncStatus>("sync_status");
 export const localSave = (json: string) => invoke<void>("local_save", { json });
@@ -69,6 +72,10 @@ export const syncCheckoutUrl = () => invoke<string>("sync_checkout_url");
 export const syncDeleteAccount = () => invoke<void>("sync_delete_account");
 export const syncSignOut = () => invoke<void>("sync_sign_out");
 export const syncNow = () => invoke<void>("sync_now");
+/** Cancela la sincronización manual en curso. */
+export const syncCancel = () => invoke<void>("sync_cancel");
+/** Reconcilia la suscripción con Lemon Squeezy y devuelve el estado resultante. */
+export const syncBillingRefresh = () => invoke<Billing>("sync_billing_refresh");
 export const vaultCreate = () => invoke<string>("vault_create");
 export const vaultRestore = (recovery: string) => invoke<void>("vault_restore", { recovery });
 export const vaultRecovery = () => invoke<string>("vault_recovery");

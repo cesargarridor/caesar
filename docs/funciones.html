@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía de Caesar: todas las funciones, con GIFs | Caesar</title>
+<meta name="description" content="Guía completa de Caesar, el cliente API de escritorio local-first y rapidísimo: peticiones, cURL, autenticación, variables y perfiles, tests, GraphQL, WebSockets, generador de código, importar y exportar, atajos, temas y equipos. Con GIFs de cada función.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#272822">
+<link rel="canonical" href="https://cesargarridor.github.io/caesar/funciones.html">
+<link rel="alternate" hreflang="es" href="https://cesargarridor.github.io/caesar/funciones.html">
+<link rel="alternate" hreflang="en" href="https://cesargarridor.github.io/caesar/en/features.html">
+<link rel="alternate" hreflang="x-default" href="https://cesargarridor.github.io/caesar/funciones.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Caesar">
+<meta property="og:title" content="Guía de Caesar: todas las funciones, con GIFs">
+<meta property="og:description" content="Peticiones, cURL, autenticación, variables y perfiles, tests, GraphQL, WebSockets, generador de código, importar y exportar, atajos y equipos, explicado función por función.">
+<meta property="og:url" content="https://cesargarridor.github.io/caesar/funciones.html">
+<meta property="og:image" content="https://cesargarridor.github.io/caesar/og.png">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="./"><img src="logo.png" alt="" width="32" height="32"><span><b>C</b>aesar</span></a>
+<nav class="main" aria-label="Secciones"><a href="index.html#caracteristicas">Características</a><a href="funciones.html" aria-current="page">Funciones</a><a href="download.html">Descargar</a><a href="index.html#faq">FAQ</a><a href="index.html#precios">Precios</a><a href="index.html#licencia">Licencia</a></nav>
+<div class="lang" aria-label="Idioma / Language"><span>ES</span><a href="en/features.html" hreflang="en" lang="en">EN</a></div>
+</div></header>
+<main id="contenido"><div class="wrap guide">
+
+<p class="crumbs"><a href="./">Inicio</a> › Guía de funciones</p>
+<h1>Guía de Caesar: todas las funciones, una a una</h1>
+<p class="lead">Caesar es un cliente API de escritorio hecho para ir rápido: arranca al instante, guarda todo en tu equipo y no te pide una cuenta para empezar. Esta guía recorre cada función con un GIF del resultado real, desde tu primera petición hasta tests, GraphQL, WebSockets y trabajo en equipo.</p>
+<p class="meta">Lectura: unos 15 minutos · Se actualiza con cada versión · <a href="download.html">Descargar Caesar</a></p>
+
+<nav class="toc" aria-label="Índice de la guía"><b>En esta guía</b>
+<ol>
+<li><a href="#que-es">¿Qué es Caesar?</a></li>
+<li><a href="#por-que">Por qué va tan rápido</a></li>
+<li><a href="#instalar">Instalar Caesar</a></li>
+<li><a href="#primera-peticion">Tu primera petición</a></li>
+<li><a href="#params-headers">Parámetros y cabeceras</a></li>
+<li><a href="#cuerpo">Cuerpo de la petición</a></li>
+<li><a href="#respuesta">Leer la respuesta</a></li>
+<li><a href="#curl">Pegar y copiar cURL</a></li>
+<li><a href="#autenticacion">Autenticación</a></li>
+<li><a href="#variables">Variables y perfiles</a></li>
+<li><a href="#tests">Tests y scripts</a></li>
+<li><a href="#encadenar">Encadenar peticiones</a></li>
+<li><a href="#colecciones">Colecciones y carpetas</a></li>
+<li><a href="#importar">Importar y exportar</a></li>
+<li><a href="#codigo">Generador de código</a></li>
+<li><a href="#graphql">GraphQL</a></li>
+<li><a href="#websocket">WebSockets</a></li>
+<li><a href="#pestanas">Pestañas y búsqueda</a></li>
+<li><a href="#espacios">Espacios de trabajo</a></li>
+<li><a href="#atajos">Atajos de teclado</a></li>
+<li><a href="#temas">Temas, fuentes e idiomas</a></li>
+<li><a href="#ajustes-red">Ajustes de red</a></li>
+<li><a href="#equipos">Sincronización y equipos</a></li>
+<li><a href="#planes">Invitado, cuenta y Pro</a></li>
+<li><a href="#privacidad">Privacidad y seguridad</a></li>
+<li><a href="#actualizaciones">Actualizaciones</a></li>
+<li><a href="#buenas-practicas">Buenas prácticas</a></li>
+<li><a href="#problemas">Problemas habituales</a></li>
+<li><a href="#faq">Preguntas frecuentes</a></li>
+</ol></nav>
+
+<section id="que-es"><h2>¿Qué es Caesar?</h2>
+<p>Caesar es un cliente de APIs de escritorio para Windows, macOS y Linux. Sirve para <strong>construir, enviar y probar peticiones HTTP</strong>, GraphQL y WebSocket, organizarlas en colecciones y compartirlas con tu equipo, todo desde una interfaz limpia en la que el color y el teclado te ahorran clics.</p>
+<ul>
+<li><strong>Local-first:</strong> en modo Invitado tus colecciones viven en tu dispositivo. Funciona sin conexión y sin cuenta.</li>
+<li><strong>Rápido de verdad:</strong> está hecho con Rust y Tauri, no con un navegador empaquetado.</li>
+<li><strong>Familiar:</strong> si vienes de Postman o Insomnia, importas tus colecciones y los scripts <code>pm.*</code> siguen funcionando.</li>
+<li><strong>Fair Source (FSL):</strong> el código es público y puedes usarlo gratis. No es de código abierto: está prohibido venderlo.</li>
+</ul>
+<div class="box"><p><strong>¿Para quién es?</strong> Para quien prueba APIs a diario (backend, frontend, QA, móvil) y quiere una herramienta ligera, privada y sin fricción. También para quien necesita compartir colecciones con su equipo sin montar infraestructura.</p></div>
+</section>
+
+<section id="por-que"><h2>Por qué va tan rápido</h2>
+<p>La velocidad de Caesar no es un truco: viene de cómo está construido.</p>
+<div class="cards">
+<div class="card"><b>Rust en lugar de un navegador empaquetado</b><span>Las peticiones las ejecuta un núcleo en Rust y la ventana usa el motor web que ya trae tu sistema. Resultado: arranque inmediato y poco consumo de memoria.</span></div>
+<div class="card"><b>Tus datos están al lado</b><span>Colecciones, variables y pestañas se leen de tu disco, sin esperar a ningún servidor. Abrir Caesar no depende de tu conexión.</span></div>
+<div class="card"><b>Nada que cargar al abrir</b><span>Sin pantalla de inicio de sesión obligatoria, sin telemetría y sin analítica que se ejecute en segundo plano.</span></div>
+<div class="card"><b>Menos clics, más teclado</b><span>Cada comando tiene atajo y puedes cambiarlo. Pegas un cURL y la petición ya está montada.</span></div>
+</div>
+</section>
+
+<section id="instalar"><h2>Instalar Caesar</h2>
+<p>Descarga el instalador de tu sistema desde la <a href="download.html">página de descargas</a>:</p>
+<table><thead><tr><th>Sistema</th><th>Archivo</th></tr></thead><tbody>
+<tr><td>Windows</td><td>Instalador <code>.exe</code> de 64 bits (también <code>.msi</code>)</td></tr>
+<tr><td>macOS (Intel y Apple Silicon)</td><td><code>.dmg</code> universal, firmado y notarizado con Apple</td></tr>
+<tr><td>Linux</td><td><code>.deb</code> (Debian/Ubuntu) o <code>AppImage</code> (cualquier distro)</td></tr>
+</tbody></table>
+<p>La primera vez puede salir un aviso del sistema, sobre todo en Windows (SmartScreen). Es normal en un proyecto nuevo y la <a href="index.html#avisos">guía de avisos</a> te explica qué pulsar. Después, Caesar <a href="#actualizaciones">se actualiza solo</a>.</p>
+<div class="box"><p><strong>Sin línea de comandos.</strong> Caesar es una aplicación de escritorio: no hace falta Node, Docker ni ninguna instalación extra para usarla.</p></div>
+</section>
+
+<section id="primera-peticion"><h2>Tu primera petición</h2>
+<p>Abre Caesar y pulsa <strong>Nueva pestaña</strong> (<kbd>Ctrl</kbd>+<kbd>T</kbd>). Elige el método (GET, POST, PUT, PATCH, DELETE, HEAD u OPTIONS), escribe la URL y pulsa <strong>Enviar</strong> o <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</p>
+<ol>
+<li>Escribe la URL en la barra superior.</li>
+<li>Pulsa <strong>Enviar</strong>. Verás una animación con los pasos de la petición (resolver el nombre, conectar, enviar, recibir).</li>
+<li>Lee la respuesta debajo: estado, tiempo, tamaño y cuerpo.</li>
+<li>Pulsa <kbd>Ctrl</kbd>+<kbd>S</kbd> para guardarla en una colección.</li>
+</ol>
+<figure class="gif"><img src="media/gifs/enviar-peticion.gif" alt="Escribir una URL, pulsar Enviar y ver la respuesta con estado, tiempo y cuerpo formateado" loading="lazy"><figcaption>Una petición de principio a fin: URL, Enviar y respuesta formateada.</figcaption></figure>
+<p>Además de los siete métodos habituales, en <a href="#ajustes-red">Ajustes</a> puedes añadir <strong>métodos extra</strong> (por ejemplo los de WebDAV). Solo se rechazan <code>CONNECT</code> y <code>TRACE</code>.</p>
+</section>
+
+<section id="params-headers"><h2>Parámetros y cabeceras</h2>
+<p>Las pestañas <strong>Parámetros</strong> y <strong>Cabeceras</strong> usan un editor clave/valor: añades filas, las activas o desactivas con la casilla sin borrarlas, y la URL se actualiza sola.</p>
+<figure class="gif"><img src="media/gifs/params-headers.gif" alt="Añadir parámetros de consulta y cabeceras en el editor clave valor y ver la URL actualizarse" loading="lazy"><figcaption>Los parámetros se reflejan en la URL al instante, y las cabeceras se activan o desactivan con una casilla.</figcaption></figure>
+<ul>
+<li>Desmarca una fila para probar sin ella sin perderla.</li>
+<li>Puedes usar <code>{{variables}}</code> en claves y valores (ver <a href="#variables">Variables y perfiles</a>).</li>
+<li>Si pegas una URL con <code>?a=1&amp;b=2</code>, los parámetros aparecen en su tabla.</li>
+</ul>
+</section>
+
+<section id="cuerpo"><h2>Cuerpo de la petición</h2>
+<p>En la pestaña <strong>Cuerpo</strong> eliges el formato que necesite tu API:</p>
+<table><thead><tr><th>Tipo</th><th>Cuándo usarlo</th></tr></thead><tbody>
+<tr><td>JSON</td><td>APIs REST modernas. Editor con comprobación de sintaxis y colores.</td></tr>
+<tr><td>Texto</td><td>XML, texto plano u otro contenido en bruto.</td></tr>
+<tr><td>Form-data</td><td>Formularios con archivos adjuntos (hasta 100 MB por archivo).</td></tr>
+<tr><td>x-www-form-urlencoded</td><td>Formularios clásicos.</td></tr>
+<tr><td>GraphQL</td><td>Editor propio de Query y Variables (ver <a href="#graphql">GraphQL</a>).</td></tr>
+</tbody></table>
+<figure class="gif"><img src="media/gifs/cuerpo.gif" alt="Elegir el cuerpo JSON, escribirlo y enviar; después ver los otros tipos de cuerpo" loading="lazy"><figcaption>Cuerpo JSON y el resto de formatos disponibles.</figcaption></figure>
+<p>Por seguridad, Caesar solo adjunta archivos que <strong>tú has elegido</strong> en el selector del sistema.</p>
+</section>
+
+<section id="respuesta"><h2>Leer la respuesta</h2>
+<p>La respuesta se muestra con el <strong>estado</strong> (con color), el <strong>tiempo</strong> y el <strong>tamaño</strong>, y tres vistas:</p>
+<ul>
+<li><strong>Pretty:</strong> el JSON formateado y con colores. Puedes ocultar los valores vacíos para leer mejor.</li>
+<li><strong>Raw:</strong> el texto tal cual llegó.</li>
+<li><strong>Cronología:</strong> los pasos de la petición con su duración.</li>
+</ul>
+<p>Con el <strong>filtro JSONPath</strong> te quedas solo con la parte que te interesa, por ejemplo <code>$.data[0].id</code>. Y con <kbd>Ctrl</kbd>+<kbd>F</kbd> buscas dentro de la respuesta (ver <a href="#pestanas">Pestañas y búsqueda</a>).</p>
+<div class="box"><p>Las respuestas se leen hasta 10 MB; si una es más grande, Caesar la trunca y te avisa para no bloquear la ventana.</p></div>
+</section>
+
+<section id="curl"><h2>Pegar y copiar cURL</h2>
+<p>Si te pasan un comando <code>curl</code> (de la documentación de una API, de las herramientas del navegador o de un compañero), <strong>pégalo directamente en la barra de URL</strong>. Caesar crea la petición con su método, cabeceras y cuerpo.</p>
+<figure class="gif"><img src="media/gifs/pegar-curl.gif" alt="Pegar un comando curl en la barra de URL y ver la petición creada con método, cabeceras y cuerpo" loading="lazy"><figcaption>Pegas el cURL y la petición queda montada.</figcaption></figure>
+<p>Y al revés: <strong>copia cualquier petición como cURL</strong> para compartirla en un ticket o ejecutarla en una terminal. Hay un comando para ello (sin atajo por defecto, puedes asignarle uno).</p>
+</section>
+
+<section id="autenticacion"><h2>Autenticación</h2>
+<p>En la pestaña <strong>Autorización</strong> eliges cómo identificarte. Caesar admite estos tipos:</p>
+<div class="chips"><span>Sin autenticación</span><span>Heredar</span><span>Bearer</span><span>Basic</span><span>API Key</span><span>Digest</span><span>NTLM</span><span>OAuth 1.0</span><span>OAuth 2.0</span><span>WSSE</span><span>AWS Signature v4</span><span>Akamai EdgeGrid</span></div>
+<figure class="gif"><img src="media/gifs/autenticacion.gif" alt="Abrir la pestaña de autorización, elegir Bearer y rellenar el token" loading="lazy"><figcaption>Elegir un tipo de autenticación y rellenar sus campos.</figcaption></figure>
+<p>La opción <strong>Heredar</strong> es la más cómoda: defines la autenticación una vez en la colección o carpeta y todas las peticiones de dentro la usan. Si cambia el token, lo cambias en un solo sitio.</p>
+<div class="box good"><p><strong>Tip:</strong> guarda el token en una variable (<code>{{token}}</code>) y usa esa variable en la autenticación; así no lo pegas en cada petición.</p></div>
+</section>
+
+<section id="variables"><h2>Variables y perfiles</h2>
+<p>Las variables te dejan escribir <code>{{baseUrl}}</code> en lugar de una URL fija. Hay tres niveles:</p>
+<ul>
+<li><strong>Variables globales:</strong> valen en todas tus colecciones.</li>
+<li><strong>Variables de colección:</strong> solo para esa colección o carpeta.</li>
+<li><strong>Perfiles de variables:</strong> conjuntos con nombre (Desarrollo, Staging, Producción…) que activas con el selector junto a <strong>Enviar</strong>. Es el equivalente a los <em>Environments</em> de Postman.</li>
+</ul>
+<figure class="gif"><img src="media/gifs/variables-perfiles.gif" alt="Usar baseUrl en la URL y cambiar de perfil con el selector para que cambie la URL resuelta" loading="lazy"><figcaption>Cambias de perfil y la misma petición apunta a otro servidor.</figcaption></figure>
+<ul>
+<li>Las variables <code>{{x}}</code> se ven <strong>de otro color</strong> en la URL, cabeceras, parámetros y autenticación, para que no se te escape ninguna.</li>
+<li><kbd>Ctrl</kbd>+clic en una variable abre su valor para verlo y editarlo sin salir de la petición.</li>
+<li><kbd>Ctrl</kbd>+<kbd>Espacio</kbd> abre el selector de variables.</li>
+<li>Puedes marcar variables como <strong>secretas</strong> para que no se vean a simple vista.</li>
+<li>Al importar de Postman, sus entornos pasan a <strong>perfiles</strong> y sus globales a variables globales.</li>
+</ul>
+</section>
+
+<section id="tests"><h2>Tests y scripts</h2>
+<p>La pestaña <strong>Scripts</strong> ejecuta un script (sus resultados salen en la pestaña de la respuesta) cuando llega la respuesta. Usa una sintaxis estilo Postman (<code>pm.*</code>), así que lo que ya sabes sirve:</p>
+<pre><code>pm.test("responde 200", () =&gt; {
+  pm.expect(pm.response.code).to.equal(200);
+});
+
+const datos = pm.response.json();
+pm.test("trae usuarios", () =&gt; {
+  pm.expect(datos.length).to.be.above(0);
+});</code></pre>
+<figure class="gif"><img src="media/gifs/tests.gif" alt="Escribir un script de tests, enviar la petición y ver los resultados en verde y rojo" loading="lazy"><figcaption>Los tests se ejecutan con la respuesta y aparecen en verde o rojo.</figcaption></figure>
+<ul>
+<li><code>pm.test</code> y <code>pm.expect</code> para comprobar estado, cabeceras y cuerpo.</li>
+<li><code>pm.response.json()</code> para leer el cuerpo ya convertido.</li>
+<li><code>pm.environment.set</code>, <code>pm.collectionVariables.set</code> y <code>pm.globals.set</code> para guardar valores.</li>
+</ul>
+<div class="box warn"><p><strong>Seguro por diseño.</strong> Los scripts se ejecutan en un intérprete propio de un subconjunto de JavaScript: sin red, sin acceso al sistema de archivos y sin <code>eval</code>. Por eso un script importado no puede hacer nada fuera de lo suyo.</p></div>
+</section>
+
+<section id="encadenar"><h2>Encadenar peticiones</h2>
+<p>Un caso típico: iniciar sesión y usar el token en las demás peticiones. Con un test en la petición de login:</p>
+<pre><code>const r = pm.response.json();
+pm.environment.set("token", r.access_token);</code></pre>
+<p>A partir de ahí, cualquier petición puede usar <code>{{token}}</code> en su cabecera o en la autenticación Bearer. Ejecutas el login una vez y el resto queda autenticado, sin copiar y pegar.</p>
+</section>
+
+<section id="colecciones"><h2>Colecciones y carpetas</h2>
+<p>Las colecciones son el cuaderno donde guardas tus peticiones. Crea una desde la barra lateral, añade carpetas dentro de carpetas y <strong>arrastra y suelta</strong> para reordenar.</p>
+<figure class="gif"><img src="media/gifs/colecciones.gif" alt="Crear una colección con carpetas y peticiones y reordenarlas arrastrando" loading="lazy"><figcaption>Crear, anidar y reordenar con el ratón.</figcaption></figure>
+<ul>
+<li>Cada colección o carpeta puede tener sus propias <strong>variables</strong> y su <strong>autorización</strong>, heredada por lo que contiene.</li>
+<li>Se guarda sola: Caesar hace autoguardado y conserva tus pestañas y borradores al cerrar.</li>
+<li>Puedes compartir una colección con tu equipo (ver <a href="#equipos">Sincronización y equipos</a>).</li>
+</ul>
+</section>
+
+<section id="importar"><h2>Importar y exportar</h2>
+<p>No empiezas de cero. Caesar importa lo que ya tienes y exporta cuando quieras:</p>
+<table><thead><tr><th>Formato</th><th>Importar</th><th>Exportar</th></tr></thead><tbody>
+<tr><td>Postman (colecciones v2.1 y entornos)</td><td>Sí</td><td>Sí (JSON)</td></tr>
+<tr><td>Insomnia</td><td>Sí</td><td>–</td></tr>
+<tr><td>JSON de Caesar</td><td>Sí</td><td>Sí</td></tr>
+<tr><td>YAML</td><td>Sí</td><td>Sí</td></tr>
+<tr><td>HAR (del navegador)</td><td>Sí</td><td>Sí</td></tr>
+<tr><td>cURL</td><td>Pegando en la barra de URL</td><td>Copiar como cURL</td></tr>
+</tbody></table>
+<figure class="gif"><img src="media/gifs/importar-exportar.gif" alt="Importar una colección desde un archivo y exportarla en JSON, YAML o HAR" loading="lazy"><figcaption>Importar con el selector de archivos y exportar en el formato que elijas.</figcaption></figure>
+<p>Antes de compartir una colección, Caesar puede hacer una copia de seguridad para que no pierdas nada.</p>
+</section>
+
+<section id="codigo"><h2>Generador de código</h2>
+<p>Con el botón <strong>&lt;/&gt;</strong> conviertes la petición activa en código listo para pegar en tu proyecto. Hay <strong>20 lenguajes y librerías</strong>, entre ellos cURL, Python (Requests), JavaScript (Fetch, XHR), Node.js (Axios), Go, Rust, Java, Kotlin, C#, PHP, Ruby, PowerShell, Swift y Dart.</p>
+<figure class="gif"><img src="media/gifs/codigo.gif" alt="Abrir el generador de código y cambiar entre cURL, Python, JavaScript y Go" loading="lazy"><figcaption>La misma petición convertida a distintos lenguajes.</figcaption></figure>
+<p>Puedes ajustar opciones como la sangría, el tiempo de espera o seguir redirecciones, y copiar el resultado con un clic.</p>
+</section>
+
+<section id="graphql"><h2>GraphQL</h2>
+<p>Elige el cuerpo <strong>GraphQL</strong> y Caesar te da un editor de <em>Query</em> y otro de <em>Variables</em>, como en Postman:</p>
+<ul>
+<li><strong>Cargar el esquema</strong> con una introspección.</li>
+<li><strong>Autocompletado</strong> de campos y tipos mientras escribes.</li>
+<li><strong>Explorador del esquema</strong> para navegar por tipos y campos.</li>
+<li><strong>Beautify</strong> para formatear la consulta.</li>
+<li><strong>Generar variables</strong> a partir de la consulta y <strong>selector de operación</strong> cuando hay varias.</li>
+</ul>
+<figure class="gif"><img src="media/gifs/graphql.gif" alt="Escribir una consulta GraphQL con autocompletado, cargar el esquema y enviarla" loading="lazy"><figcaption>Consulta con autocompletado y esquema cargado.</figcaption></figure>
+<p>Las peticiones GraphQL se importan y exportan con Postman.</p>
+</section>
+
+<section id="websocket"><h2>WebSockets</h2>
+<p>Crea una petición WebSocket, conecta y ve la conversación en una <strong>línea de tiempo</strong>: lo que envías y lo que recibes, con hora y tamaño.</p>
+<figure class="gif"><img src="media/gifs/websocket.gif" alt="Conectar a un WebSocket, enviar un mensaje y ver la línea de tiempo de mensajes" loading="lazy"><figcaption>Conectar, enviar y ver los mensajes en la línea de tiempo.</figcaption></figure>
+<ul>
+<li>Escribe la URL con <code>ws://</code> o <code>wss://</code> (si pones <code>http(s)</code>, se convierte).</li>
+<li>Puedes indicar <strong>subprotocolos</strong> separados por comas.</li>
+<li>Envía mensajes de <strong>texto</strong> o <strong>binarios</strong> (en hexadecimal o base64) y revisa los binarios en un volcado hexadecimal.</li>
+<li>Admite <code>{{variables}}</code> en la URL.</li>
+</ul>
+</section>
+
+<section id="pestanas"><h2>Pestañas y búsqueda</h2>
+<p>Trabaja con tantas pestañas como necesites. Caesar recuerda las que tenías abiertas y vuelve a dejártelas igual al abrirlo.</p>
+<figure class="gif"><img src="media/gifs/pestanas-buscar.gif" alt="Varias pestañas abiertas y la barra de búsqueda dentro de una respuesta" loading="lazy"><figcaption>Cambiar entre pestañas y buscar dentro de la respuesta.</figcaption></figure>
+<ul>
+<li><kbd>Ctrl</kbd>+<kbd>T</kbd> nueva, <kbd>Ctrl</kbd>+<kbd>W</kbd> cerrar, <kbd>Ctrl</kbd>+<kbd>1…9</kbd> ir a la pestaña N.</li>
+<li><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> vuelve a la pestaña que visitaste antes o después.</li>
+<li><kbd>Ctrl</kbd>+<kbd>F</kbd> busca en la respuesta o en el editor.</li>
+<li>Clic derecho o <kbd>Ctrl</kbd>+<kbd>Mayús</kbd>+<kbd>W</kbd> cierra todas y te lleva a la pantalla de inicio con el gato.</li>
+</ul>
+<p>En macOS, <kbd>Ctrl</kbd> se sustituye por <kbd>Cmd</kbd>.</p>
+</section>
+
+<section id="espacios"><h2>Espacios de trabajo</h2>
+<p>Un <strong>espacio de trabajo</strong> es un conjunto separado de colecciones, variables y pestañas: uno para el trabajo, otro para proyectos personales, otro por cliente. Se cambia desde el selector de la barra lateral.</p>
+<figure class="gif"><img src="media/gifs/espacios.gif" alt="Crear un espacio de trabajo y cambiar entre espacios" loading="lazy"><figcaption>Cada espacio tiene sus propias colecciones y variables.</figcaption></figure>
+<p>El modo Invitado y las cuentas sin Pro incluyen <strong>un espacio</strong>; con Pro puedes tener todos los que quieras.</p>
+</section>
+
+<section id="atajos"><h2>Atajos de teclado</h2>
+<p>Todos los comandos de Caesar tienen un atajo, y <strong>puedes cambiarlos todos</strong>. Abre el editor con <kbd>Ctrl</kbd>+<kbd>/</kbd>.</p>
+<figure class="gif"><img src="media/gifs/atajos.gif" alt="Abrir el editor de atajos y cambiar la combinación de un comando" loading="lazy"><figcaption>Cambia o añade combinaciones; cada comando admite varias.</figcaption></figure>
+<table><thead><tr><th>Acción</th><th>Atajo por defecto</th></tr></thead><tbody>
+<tr><td>Enviar la petición</td><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td></tr>
+<tr><td>Guardar en la colección</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+<tr><td>Nueva pestaña / Cerrar pestaña</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></td></tr>
+<tr><td>Ir a la barra de URL</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td></tr>
+<tr><td>Buscar</td><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td></tr>
+<tr><td>Elegir una variable</td><td><kbd>Ctrl</kbd>+<kbd>Espacio</kbd></td></tr>
+<tr><td>Abrir ajustes</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td></tr>
+<tr><td>Ver y editar atajos</td><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td></tr>
+</tbody></table>
+<p>Además puedes crear <strong>acciones propias</strong> que encadenan varios comandos y poner <strong>botones a tu elección</strong> junto a la URL.</p>
+</section>
+
+<section id="temas"><h2>Temas, fuentes e idiomas</h2>
+<p>Caesar viene con seis temas: <strong>Monokai</strong> (por defecto), <strong>Dracula</strong>, <strong>Tokyo Night</strong>, <strong>Nord</strong>, <strong>One Dark</strong> y <strong>GitHub Light</strong> para quien prefiere un fondo claro.</p>
+<figure class="gif"><img src="media/gifs/temas.gif" alt="Alternar entre los temas Monokai, Dracula, Tokyo Night, Nord, One Dark y GitHub Light" loading="lazy"><figcaption>Cambia de tema al instante desde Ajustes.</figcaption></figure>
+<p>También puedes elegir la fuente y el tamaño del texto, desactivar las animaciones y ajustar el ancho de la barra lateral. La interfaz está en <strong>español, inglés, alemán, francés e italiano</strong>.</p>
+</section>
+
+<section id="ajustes-red"><h2>Ajustes de red</h2>
+<p>En <strong>Ajustes</strong> controlas cómo se envían las peticiones:</p>
+<table><thead><tr><th>Ajuste</th><th>Qué hace</th></tr></thead><tbody>
+<tr><td>Seguir redirecciones</td><td>Sigue hasta 10 redirecciones, o ninguna.</td></tr>
+<tr><td>Tiempo de espera</td><td>30 segundos por defecto. Con <code>0</code> o más de 1 hora se usa el máximo de 3600 s, útil para depurar sin que salte el error.</td></tr>
+<tr><td>Verificar SSL</td><td>Desactívalo solo para probar servidores con certificados autofirmados.</td></tr>
+<tr><td>Versión HTTP</td><td>Automática, HTTP/1.1 o HTTP/2.</td></tr>
+<tr><td>Métodos extra</td><td>Añade métodos personalizados además de los habituales.</td></tr>
+</tbody></table>
+</section>
+
+<section id="equipos"><h2>Sincronización y equipos</h2>
+<p>Con una cuenta Pro puedes usar las mismas colecciones en <strong>varios ordenadores</strong> y compartirlas con otras personas.</p>
+<ul>
+<li><strong>Sincronización personal:</strong> tus colecciones, variables y perfiles aparecen en todos tus equipos. Los cambios se fusionan por elemento, así que dos equipos no se pisan el trabajo.</li>
+<li><strong>Cifrado en tu equipo:</strong> lo que se sube va cifrado desde tu ordenador; el servicio solo guarda datos ilegibles.</li>
+<li><strong>Clave de recuperación:</strong> la guardas tú y te permite recuperar tus datos si pierdes un equipo.</li>
+<li><strong>Vincular un equipo nuevo:</strong> se aprueba desde otro equipo tuyo con un código de seis cifras que comparas en ambas pantallas.</li>
+<li><strong>Equipos:</strong> comparte una colección o un espacio de trabajo con un <strong>código</strong>; quien lo introduce se une y ve los cambios.</li>
+</ul>
+<figure class="gif"><img src="media/gifs/compartir-equipo.gif" alt="Compartir una colección con un código de equipo y unirse con ese código" loading="lazy"><figcaption>Compartir una colección con un código y unirse desde otro equipo.</figcaption></figure>
+<div class="box warn"><p><strong>Importante:</strong> en una colección compartida, quien tiene el código puede leer y modificar su contenido; no hay roles. Comparte el código solo con quien deba editar.</p></div>
+</section>
+
+<section id="planes"><h2>Invitado, cuenta y Pro</h2>
+<table><thead><tr><th>Modo</th><th>Incluye</th></tr></thead><tbody>
+<tr><td><strong>Invitado</strong> (gratis)</td><td>Todas las funciones de petición, tests, GraphQL, WebSockets, importar/exportar y generador de código. Datos solo en tu dispositivo, 1 espacio de trabajo.</td></tr>
+<tr><td><strong>Cuenta</strong> (7 días de prueba)</td><td>Igual que Invitado, en local, mientras decides si activas Pro. Pasados los 7 días sin Pro, la cuenta se elimina.</td></tr>
+<tr><td><strong>Pro</strong> (suscripción)</td><td>Sincronización cifrada, equipos y colecciones compartidas, y espacios de trabajo ilimitados.</td></tr>
+</tbody></table>
+<p>El precio, la periodicidad y los impuestos se muestran en la página de pago antes de pagar. Cancelas cuando quieras desde <em>Ajustes → Cuenta y suscripción → Gestionar suscripción</em> y tienes reembolso durante 14 días. Más detalle en <a href="index.html#precios">Precios y suscripción</a>.</p>
+</section>
+
+<section id="privacidad"><h2>Privacidad y seguridad</h2>
+<ul>
+<li><strong>Sin telemetría ni analítica.</strong> Caesar no envía datos de uso.</li>
+<li><strong>La interfaz no hace peticiones de red</strong>: las ejecuta el núcleo en Rust, que valida las URLs, solo permite http y https y limita el tamaño de respuestas y archivos.</li>
+<li><strong>Tus claves no salen del sistema:</strong> la clave de cifrado se guarda en el llavero de tu sistema operativo.</li>
+<li><strong>Permisos mínimos y política de seguridad estricta</strong> en la aplicación.</li>
+<li>En modo Invitado tus datos <strong>no salen de tu equipo</strong>.</li>
+</ul>
+<p>Más en <a href="index.html#privacidad">Seguridad y privacidad</a> y en la <a href="https://cesargarridor.github.io/caesar-legal/privacy.html">política de privacidad</a>.</p>
+</section>
+
+<section id="actualizaciones"><h2>Actualizaciones</h2>
+<p>Caesar se actualiza solo: al abrir busca una versión nueva y, si la hay, la descarga, la instala y se reinicia. <strong>Tus pestañas y borradores se conservan.</strong> Cada paquete va firmado y la aplicación comprueba la firma antes de instalarlo.</p>
+<ul>
+<li>En <em>Ajustes → Actualizaciones</em> puedes desactivarlas o pulsar <strong>Buscar actualizaciones</strong>.</li>
+<li>En Linux la actualización automática funciona con el AppImage; el <code>.deb</code> se reinstala a mano.</li>
+</ul>
+</section>
+
+<section id="buenas-practicas"><h2>Buenas prácticas</h2>
+<ol>
+<li><strong>Usa variables para lo que cambia</strong> (servidor, versión, tokens) y perfiles para cada entorno.</li>
+<li><strong>Define la autenticación en la colección</strong> y deja las peticiones en «Heredar».</li>
+<li><strong>Añade al menos un test por petición importante</strong>: estado y una comprobación del cuerpo.</li>
+<li><strong>Nombra las peticiones con verbo y recurso</strong> («Listar usuarios», «Crear pedido») y agrúpalas por carpetas.</li>
+<li><strong>Exporta una copia</strong> de tus colecciones importantes de vez en cuando.</li>
+<li><strong>No dejes secretos en la URL</strong>: usa variables secretas o la autenticación.</li>
+<li><strong>Usa un espacio por proyecto o cliente</strong> para no mezclar variables.</li>
+</ol>
+</section>
+
+<section id="problemas"><h2>Problemas habituales</h2>
+<h3>La petición no conecta</h3>
+<p>Comprueba que la URL empieza por <code>http://</code> o <code>https://</code>, que no hay una variable sin resolver (sale con otro color) y que tienes conexión. Mira la cronología de la respuesta: indica en qué paso falla.</p>
+<h3>Error de certificado SSL</h3>
+<p>Si pruebas un servidor local con certificado autofirmado, desactiva <strong>Verificar SSL</strong> en Ajustes. Vuélvelo a activar para APIs reales.</p>
+<h3>Me da 401 o 403</h3>
+<p>Revisa la pestaña Autorización: si está en «Heredar», comprueba la de la colección. Confirma que el token no ha caducado y que la variable existe en el <strong>perfil activo</strong>.</p>
+<h3>Se agota el tiempo de espera</h3>
+<p>Sube el tiempo en Ajustes. Con <code>0</code> se usa el máximo (1 hora), pensado para depurar.</p>
+<h3>Mis tests no hacen nada</h3>
+<p>Los tests se ejecutan <strong>después</strong> de recibir la respuesta, así que necesitas enviar la petición. Si hay un error en el script, se muestra junto a los resultados.</p>
+<h3>No puedo sincronizar o compartir</h3>
+<p>Estas funciones requieren Pro. En modo Invitado o con la cuenta en prueba, Caesar funciona en local. Si ya has pagado, pulsa <strong>Ya he pagado, comprobar</strong> en <em>Cuenta y suscripción</em>.</p>
+</section>
+
+<section id="faq"><h2>Preguntas frecuentes</h2>
+<h3>¿Caesar es bueno para probar APIs?</h3>
+<p>Sí: cubre REST, GraphQL y WebSocket con tests, variables, perfiles, importación de Postman y generación de código, en una app ligera que funciona sin conexión.</p>
+<h3>¿Es gratis y de código abierto?</h3>
+<p>Es gratis en modo Invitado y su código es público, pero <strong>no es de código abierto</strong>: usa la licencia FSL y está prohibido venderlo. Cada versión pasa a MIT a los dos años.</p>
+<h3>¿Dónde se guardan mis colecciones?</h3>
+<p>En tu dispositivo. Solo salen de él si activas la sincronización o compartes con un equipo, y en ese caso van cifradas.</p>
+<h3>¿Puedo traer mis colecciones de Postman?</h3>
+<p>Sí. Importa el archivo de la colección (y los entornos, que pasan a perfiles) desde la barra lateral.</p>
+<h3>¿Funcionan mis scripts de Postman?</h3>
+<p>Los tests con <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> y las funciones para guardar variables sí. Caesar usa un intérprete seguro de un subconjunto de JavaScript, así que un script que dependa de librerías externas o de red no se ejecutará.</p>
+<h3>¿Hay línea de comandos o integración en CI?</h3>
+<p>Por ahora Caesar es una aplicación de escritorio. Puedes exportar peticiones como cURL o código para usarlas en tus scripts.</p>
+<h3>¿Necesito una cuenta?</h3>
+<p>No. La cuenta solo hace falta para sincronizar y trabajar en equipo.</p>
+<h3>¿En qué sistemas funciona?</h3>
+<p>Windows, macOS (Intel y Apple Silicon) y Linux (.deb y AppImage).</p>
+</section>
+
+<div class="why"><h3 style="margin-top:0">Pruébalo ahora</h3><p>Descargarlo es gratis y no necesitas cuenta. Si te falta algo o encuentras un fallo, cuéntalo en <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">Descargar Caesar</a></p></div>
+
+</div></main>
+<footer><div class="wrap">
+<p>Caesar es Fair Source bajo licencia <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a>: no es de código abierto y está prohibido venderlo. Sitio estático, sin cookies ni rastreo.</p>
+<p><a href="https://github.com/cesargarridor/caesar">GitHub</a> · <a href="https://cesargarridor.github.io/caesar-legal/">Legal</a> · <a href="https://cesargarridor.github.io/caesar-legal/refunds.html">Reembolsos</a> · <a href="https://cesargarridor.github.io/caesar-legal/legal.html">Aviso legal</a> · <a href="https://cesargarridor.github.io/caesar-legal/terms.html">Términos</a> · <a href="https://cesargarridor.github.io/caesar-legal/privacy.html">Privacidad</a> · <a href="https://github.com/cesargarridor/caesar/issues">Soporte</a></p>
+</div></footer>
+</body>
+</html>

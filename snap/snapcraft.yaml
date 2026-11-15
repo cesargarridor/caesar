@@ -1,0 +1,46 @@
+name: caesar
+base: core22
+version: '0.15.0'   # el CI lo sustituye por la versión del tag
+summary: Caesar - cliente API rápido y seguro
+description: |
+  Caesar es un cliente de APIs rápido y seguro: peticiones HTTP, perfiles de
+  variables, sincronización y más.
+grade: stable
+confinement: strict
+architectures:
+  - build-on: amd64
+
+apps:
+  caesar:
+    command: usr/bin/caesar
+    extensions: [gnome]
+    desktop: usr/share/applications/Caesar.desktop
+    plugs:
+      - network
+      - network-bind              # callback local del login con Google
+      - home
+      - password-manager-service  # keyring (secret service)
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+
+parts:
+  caesar:
+    plugin: nil
+    # El CI deja el .deb ya compilado de la Release en snap/deb/
+    source: snap/deb
+    source-type: local
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libayatana-appindicator3-1
+      - libsecret-1-0
+    override-build: |
+      dpkg-deb -x "$CRAFT_PART_SRC"/*.deb "$CRAFT_PART_INSTALL"
+      # Tauri nombra el binario según productName; se normaliza a usr/bin/caesar
+      cd "$CRAFT_PART_INSTALL/usr/bin"
+      [ -e caesar ] || ln -s "$(ls | head -n1)" caesar
+      # el .desktop de Tauri se llama Caesar.desktop
+      cd "$CRAFT_PART_INSTALL/usr/share/applications"
+      [ -e Caesar.desktop ] || mv ./*.desktop Caesar.desktop
+      sed -i 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/128x128/apps/caesar.png|' Caesar.desktop
