@@ -174,6 +174,19 @@ export function useWorkspaceTeam(args: {
 
   return {
     conflict,
+    /** Versión de la nube y versión local, para la vista de diferencias del conflicto. */
+    loadDiff: async (): Promise<{ cloud: string; local: string } | null> => {
+      const { wsList, wsId, collections, vars, notify } = a.current;
+      const ws = wsList.find((w) => w.id === wsId);
+      if (!ws?.team) return null;
+      try {
+        const doc = await teamPull(ws.team.code, 0);
+        return doc ? { cloud: doc.json, local: wsPayloadJson(ws.name, collections, ws.team.vars ? vars : null) } : null;
+      } catch (e) {
+        notify("err", errMsg(e));
+        return null;
+      }
+    },
     /** «Sobrescribir mis cambios»: descarta lo local y baja la versión de la nube. */
     resolveKeepCloud: async () => {
       const { wsList, wsId, notify } = a.current;
