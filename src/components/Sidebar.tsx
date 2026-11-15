@@ -215,7 +215,7 @@ export default function Sidebar({
                       key={id}
                       onClick={() => setFmt(id)}
                       title={id === "json" ? "JSON" : id === "yaml" ? "YAML" : "HTTP Archive 1.2"}
-                      className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua text-ink" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
+                      className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua/20 text-aqua ring-1 ring-aqua" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
                     >
                       {label}
                     </button>

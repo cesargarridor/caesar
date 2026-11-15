@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Abrir en Caesar</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#272822">
+<meta property="og:title" content="Petición de Caesar"><meta property="og:description" content="Ábrela en Caesar con un clic.">
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{display:grid;place-items:center;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#f8f8f2;background:#272822}
+main{text-align:center;padding:32px 24px;max-width:28rem}
+h1{margin:0 0 .3em;font-size:2rem;letter-spacing:-.02em;color:#a6e22e}
+p{margin:.4em 0;color:#cfcfc2}
+a.btn,button{display:inline-block;margin:.8em .3em 0;padding:.65em 1.3em;border:0;border-radius:10px;background:#a6e22e;color:#000;font:600 .95rem system-ui;cursor:pointer;text-decoration:none}
+button.alt{background:#3e3d32;color:#f8f8f2}
+small{display:block;margin-top:1.2em;color:#a8a8a4}
+</style></head><body><main>
+<h1>Caesar</h1>
+<p id="m">Abriendo la petición en Caesar…</p>
+<a class="btn" id="open" href="#">Abrir en Caesar</a><button class="alt" id="copy">Copiar enlace</button>
+<small id="s">Si no se abre: copia el enlace, vuelve a Caesar y pega con Ctrl/Cmd+V. ¿No tienes Caesar? Descárgalo en <a href="download.html" style="color:#a6e22e">la web</a>.</small>
+<script>
+(function(){
+var p=location.hash.slice(1);
+if(!/^[A-Za-z0-9._-]{4,}$/.test(p)){document.getElementById("m").textContent="Este enlace no es válido.";document.getElementById("open").style.display="none";document.getElementById("copy").style.display="none";return}
+var deep="caesar://share?payload="+p;
+document.getElementById("open").href=deep;
+document.getElementById("copy").onclick=function(){var b=this;(navigator.clipboard?navigator.clipboard.writeText(location.href):Promise.reject()).then(function(){b.textContent="Copiado"},function(){b.textContent="No se pudo copiar"})};
+setTimeout(function(){location.href=deep},300);
+})();
+</script>
+</main></body></html>

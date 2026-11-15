@@ -71,6 +71,27 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
             <Eye size={15} />
           </button>
         )}
+        <span className="mx-1 h-4 w-px bg-fg/15" aria-hidden />
+        <div className="flex items-center gap-2 normal-case">
+          {extra.map((b) => (
+            <button key={b.id} onClick={() => onCommand?.(b.id)} className={`${ghost} max-w-[11rem] truncate normal-case`} title={b.label}>
+              <span className="truncate">{b.label}</span>
+            </button>
+          ))}
+          {onAi && (
+            <button onClick={onAi} className={ghost} title={t("Asistente de IA (con tu propia clave)")} aria-label={t("Asistente de IA")}>
+              <Sparkles size={14} />
+            </button>
+          )}
+          {onCodegen && (
+            <button onClick={onCodegen} className={codegenOpen ? done : ghost} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
+              <Code2 size={14} />
+            </button>
+          )}
+          <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
+            {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
+          </button>
+        </div>
       </div>
       <div className="flex gap-2">
       <select
@@ -99,32 +120,14 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
         spellCheck={false}
         className="flex-1 rounded-[10px] bg-kelp px-5 py-2 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
       />
-      {extra.map((b) => (
-        <button key={b.id} onClick={() => onCommand?.(b.id)} className={`${ghost} max-w-[11rem] truncate normal-case`} title={b.label}>
-          <span className="truncate">{b.label}</span>
-        </button>
-      ))}
-      <button onClick={onCopyCurl} className={flash === "curl" ? done : ghost} title={t("Copiar como cURL")}>
-        {flash === "curl" ? <Check size={14} /> : <Terminal size={14} />} {flash === "curl" ? t("Copiado") : "cURL"}
+      <button onClick={onCopyCurl} className={ghost} title={t("Copiar como cURL")}>
+        <Terminal size={14} /> cURL
       </button>
       {onShareLink && (
-        <button onClick={onShareLink} className={ghost} title={t("Copiar enlace caesar:// para compartir")} aria-label={t("Copiar enlace caesar://")}>
+        <button onClick={onShareLink} className={ghost} title={t("Copiar enlace para compartir")} aria-label={t("Copiar enlace")}>
           <Link2 size={14} />
         </button>
       )}
-      {onAi && (
-        <button onClick={onAi} className={ghost} title={t("Asistente de IA (con tu propia clave)")} aria-label={t("Asistente de IA")}>
-          <Sparkles size={14} />
-        </button>
-      )}
-      {onCodegen && (
-        <button onClick={onCodegen} className={codegenOpen ? done : ghost} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
-          <Code2 size={14} />
-        </button>
-      )}
-      <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
-        {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
-      </button>
       <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
         <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
       </button>
