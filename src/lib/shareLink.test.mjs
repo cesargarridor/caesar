@@ -38,7 +38,7 @@ test("enlaces malos dan error claro, no excepciones raras", async () => {
 
 test("el enlace es https (clicable en Discord) y también se acepta el caesar:// antiguo", async () => {
   const { link } = await makeShareLink(req);
-  assert.ok(link.startsWith("https://cesargarridor.github.io/caesar/open.html#"));
+  assert.ok(link.startsWith("https://caesar.cgarrui0301.workers.dev/#"));
   const old = "caesar://share?payload=" + link.split("#")[1];
   assert.ok(looksLikeShareLink(old));
   assert.equal((await parseShareLink(old)).url, "https://api.x.com/items");

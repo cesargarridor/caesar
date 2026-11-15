@@ -9,7 +9,9 @@ import { emptyRequest } from "./curl.ts";
  */
 export const SHARE_PREFIX = "caesar://share?payload=";
 /** Versión https del mismo enlace: Discord, Slack, WhatsApp… solo convierten en clicable un http(s). La página redirige a caesar://. */
-export const WEB_PREFIX = "https://cesargarridor.github.io/caesar/open.html#";
+/** Enlaces antiguos (ya compartidos): se siguen aceptando al pegar. */
+const OLD_WEB_PREFIX = "https://cesargarridor.github.io/caesar/open.html#";
+export const WEB_PREFIX = "https://caesar.cgarrui0301.workers.dev/#";
 const MAX_JSON = 256 * 1024;
 const SENSITIVE = /authorization|cookie|token|api[-_]?key|secret|password|signature/i;
 const MODES = ["none", "json", "text", "formdata", "urlencoded", "graphql"] as const;
@@ -24,7 +26,7 @@ interface Payload {
 
 export const looksLikeShareLink = (s: string) => {
   const t = s.trim();
-  return t.startsWith(SHARE_PREFIX) || t.startsWith(WEB_PREFIX);
+  return t.startsWith(SHARE_PREFIX) || t.startsWith(WEB_PREFIX) || t.startsWith(OLD_WEB_PREFIX);
 };
 
 const toB64Url = (b: Uint8Array) => {
@@ -96,7 +98,7 @@ const kvs = (v: unknown): KV[] =>
 export async function parseShareLink(text: string): Promise<RequestState> {
   const t = text.trim();
   if (!looksLikeShareLink(t)) throw new Error("No es un enlace de Caesar.");
-  const start = t.startsWith(WEB_PREFIX) ? WEB_PREFIX.length : SHARE_PREFIX.length;
+  const start = t.startsWith(WEB_PREFIX) ? WEB_PREFIX.length : t.startsWith(OLD_WEB_PREFIX) ? OLD_WEB_PREFIX.length : SHARE_PREFIX.length;
   let raw = t.slice(start).split(/[&#\s]/)[0];
   if (!raw) throw new Error("El enlace está vacío.");
   let bytes: Uint8Array;
