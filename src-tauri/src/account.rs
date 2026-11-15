@@ -135,6 +135,9 @@ pub(crate) async fn evaluate(app: &AppHandle, st: &SyncState, allow_delete: bool
     use tauri::Emitter;
     let before = st.account.lock().ok().and_then(|g| g.as_ref().map(|a| (a.mode.clone(), a.is_pro)));
     let r = evaluate_inner(app, st, allow_delete).await;
+    if r.is_ok() {
+        sync::LAST_EVAL.store(sync::now_ms(), std::sync::atomic::Ordering::SeqCst);
+    }
     if let Ok(a) = &r {
         // Aviso a la interfaz solo si el plan ha cambiado (pago, baja, cuenta borrada…): así no hace falta preguntar nada por intervalos.
         if before.as_ref().map(|(m, p)| (m.as_str(), *p)) != Some((a.mode.as_str(), a.is_pro)) {

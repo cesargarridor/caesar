@@ -191,6 +191,18 @@ export function useTeamSync(
 
   return {
     conflicts,
+    /** Versión de la nube y versión local, para la vista de diferencias del conflicto. */
+    loadDiff: async (code: string): Promise<{ cloud: string; local: string } | null> => {
+      const n = ref.current.find((x) => teamOf(x)?.code === code);
+      if (!n || n.type !== "folder") return null;
+      try {
+        const doc = await teamPull(code, 0);
+        return doc ? { cloud: doc.json, local: teamJson(n) } : null;
+      } catch (e) {
+        notifyRef.current("err", typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+        return null;
+      }
+    },
     /** «Sobrescribir mis cambios»: descarta lo local y baja la versión de la nube. */
     resolveKeepCloud: async (code: string) => {
       try {

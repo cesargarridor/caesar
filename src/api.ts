@@ -98,6 +98,8 @@ export const syncShowKey = () => invoke<string>("sync_show_key");
 export const syncRegenerateKey = () => invoke<string>("sync_regenerate_key");
 /** El plan o la sesión han cambiado (pago, baja, cuenta borrada…): sustituye a preguntar cada X segundos. */
 export const onAccountChanged = (cb: () => void) => listen<null>("account-changed", () => cb());
+/** Resultado de confirmar un pago tras abrir `caesar://upgrade-success` (true = el plan ya es Pro). */
+export const onUpgradeResult = (cb: (pro: boolean) => void) => listen<boolean>("upgrade-result", (e) => cb(e.payload));
 export const onAccountLinked = (cb: (email: string) => void) => listen<string>("account-linked", (e) => cb(e.payload));
 export const onLinkGithubCode = (cb: (d: DeviceCode) => void) => listen<DeviceCode>("link-github-code", (e) => cb(e.payload));
 export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync-remote", (e) => cb(e.payload));

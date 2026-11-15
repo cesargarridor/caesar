@@ -2,7 +2,7 @@
   "name": "caesar",
   "private": true,
   "license": "FSL-1.1-MIT",
-  "version": "0.18.13",
+  "version": "0.18.14",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,6 +33,7 @@
     "@fontsource/ubuntu": "^5.3.0",
     "@fontsource/work-sans": "^5.3.0",
     "@tauri-apps/api": "^2.12.4",
+    "diff": "^9.0.0",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

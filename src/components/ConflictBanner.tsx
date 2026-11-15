@@ -6,6 +6,7 @@ export interface ConflictItem {
   key: string;
   /** Nombre de la colección o del espacio afectado. */
   name: string;
+  onDiff: () => void;
   onKeepCloud: () => void;
   onForce: () => void;
 }
@@ -21,6 +22,9 @@ export function ConflictBanner({ items }: { items: ConflictItem[] }) {
           <span className="min-w-0 flex-1 text-mist">
             {t("Se han detectado cambios de otro miembro en la nube en «{0}». Tus cambios actuales entrarán en conflicto.", it.name)}
           </span>
+          <button onClick={it.onDiff} className="rounded-xl px-3 py-1.5 text-amber-300 underline-offset-2 hover:underline">
+            {t("Ver diferencias")}
+          </button>
           <button onClick={it.onKeepCloud} className="rounded-xl px-3 py-1.5 text-mist ring-1 ring-white/20 hover:bg-white/10">
             {t("Sobrescribir mis cambios")}
           </button>
