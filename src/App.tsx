@@ -39,6 +39,7 @@ import {
 import {
   appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
   onAccountChanged,
+  onUpgradeResult,
   deeplinkTake,
   onDeepLink,
   historyAdd,
@@ -63,6 +64,7 @@ import {
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { ConflictBanner } from "./components/ConflictBanner";
+import ConflictDiffModal from "./components/ConflictDiffModal";
 import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut, triggerFind } from "./lib/find";
 import { allCommands, getCombos, getToolbar, installKeymap, prettyCombo, stepsOf } from "./lib/keymap";
@@ -167,6 +169,7 @@ export default function App() {
 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [diffView, setDiffView] = useState<null | { key: string; name: string; cloud: string; local: string }>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [codegenOpen, setCodegenOpen] = useState(false);
 
@@ -801,7 +804,14 @@ export default function App() {
     void check();
     // Rust avisa cuando la sesión o el plan cambian (cerrar sesión, cuenta borrada, token revocado…): sin sondeo.
     const un = onAccountChanged(() => void check());
-    return () => { void un.then((f) => f()).catch(() => {}); };
+    const unPay = onUpgradeResult((pro) =>
+      setNotice(
+        pro
+          ? { kind: "ok", text: t("¡Pago confirmado! Tu plan Pro ya está activo.") }
+          : { kind: "err", text: t("Aún no vemos el pago. Puede tardar un minuto: pulsa «Ya he pagado, comprobar» en Ajustes → Cuenta y suscripción.") },
+      ),
+    );
+    return () => { void un.then((f) => f()).catch(() => {}); void unPay.then((f) => f()).catch(() => {}); };
   }, []);
 
   const handleDelete = (path: string) => {
@@ -1088,6 +1098,26 @@ export default function App() {
     return c ? [{ id, label: c.user ? c.label : t(c.label) }] : [];
   });
 
+  // Cambios que llegan "por debajo" (sincronización, «Actualizar», «Sobrescribir mis cambios»): las pestañas abiertas SIN borrador
+  // pasan a mostrar la versión nueva de su petición. Las que tienen cambios sin guardar no se tocan (no se pierde lo que se escribe).
+  // Para no reemplazar nada cuando solo cambia la forma (no el contenido), se compara contra la versión normalizada de la pestaña.
+  useEffect(() => {
+    setTabs((ts) => {
+      let changed = false;
+      const next = ts.map((tb) => {
+        if (!tb.path || tb.dirty) return tb;
+        const node = getAt(collections, tb.path);
+        if (!node || node.type !== "request" || node.name !== tb.name) return tb;
+        const fresh = requestFromNode(node);
+        const mine = requestFromNode(nodeFromRequest(node.name, tb.req, node));
+        if (JSON.stringify(fresh) === JSON.stringify(mine)) return tb;
+        changed = true;
+        return { ...tb, req: { ...fresh, tests: fresh.tests ?? "" } };
+      });
+      return changed ? next : ts;
+    });
+  }, [collections]);
+
   // Autoguardado (si está activado): guarda la petición abierta de una colección un instante después de dejar de editar.
   useEffect(() => {
     if (!autosave || !active.dirty || !active.path) return;
@@ -1368,14 +1398,46 @@ export default function App() {
             ...team.conflicts.flatMap((code) => {
               const n = collections.find((c) => c.type === "folder" && c.team?.code === code);
               return n
-                ? [{ key: code, name: n.name, onKeepCloud: () => void team.resolveKeepCloud(code), onForce: () => void team.resolveForce(code) }]
+                ? [
+                    {
+                      key: code,
+                      name: n.name,
+                      onDiff: () => void team.loadDiff(code).then((d) => d && setDiffView({ key: code, name: n.name, ...d })),
+                      onKeepCloud: () => void team.resolveKeepCloud(code),
+                      onForce: () => void team.resolveForce(code),
+                    },
+                  ]
                 : [];
             }),
             ...(wsTeam.conflict
-              ? [{ key: "ws", name: wsList.find((w) => w.id === wsId)?.name ?? "", onKeepCloud: () => void wsTeam.resolveKeepCloud(), onForce: () => void wsTeam.resolveForce() }]
+              ? [
+                  {
+                    key: "ws",
+                    name: wsList.find((w) => w.id === wsId)?.name ?? "",
+                    onDiff: () => void wsTeam.loadDiff().then((d) => d && setDiffView({ key: "ws", name: wsList.find((w) => w.id === wsId)?.name ?? "", ...d })),
+                    onKeepCloud: () => void wsTeam.resolveKeepCloud(),
+                    onForce: () => void wsTeam.resolveForce(),
+                  },
+                ]
               : []),
           ]}
         />
+        {diffView && (
+          <ConflictDiffModal
+            name={diffView.name}
+            cloud={diffView.cloud}
+            local={diffView.local}
+            onClose={() => setDiffView(null)}
+            onKeepCloud={() => {
+              void (diffView.key === "ws" ? wsTeam.resolveKeepCloud() : team.resolveKeepCloud(diffView.key));
+              setDiffView(null);
+            }}
+            onForce={() => {
+              void (diffView.key === "ws" ? wsTeam.resolveForce() : team.resolveForce(diffView.key));
+              setDiffView(null);
+            }}
+          />
+        )}
         {notice && (
           <div
             className={`absolute right-4 top-24 z-50 flex max-w-md items-center gap-2 break-all rounded-2xl bg-kelp px-4 py-2.5 text-xs shadow-lg ${
