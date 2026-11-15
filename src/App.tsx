@@ -857,7 +857,6 @@ export default function App() {
   const handleCopyCurl = async () => {
     try {
       await navigator.clipboard.writeText(generateCurl(buildExecuteArgs({ ...req, auth: effAuth }, effVars)));
-      setFlash("curl");
     } catch {
       setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
     }
@@ -912,9 +911,8 @@ export default function App() {
   }, []);
   const copyShareLink = async () => {
     try {
-      const { link, hidden } = await makeShareLink(req);
+      const { link } = await makeShareLink(req);
       await navigator.clipboard.writeText(link);
-      setNotice({ kind: "ok", text: hidden ? t("Enlace caesar:// copiado. Se han vaciado {0} cabecera(s) sensible(s).", hidden) : t("Enlace caesar:// copiado. Pégalo en Slack: quien lo reciba lo abre con Ctrl/Cmd+V en Caesar.") });
     } catch {
       setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
     }
