@@ -32,7 +32,7 @@ struct Meta {
 }
 
 fn device_id() -> Result<String, String> {
-    let e = keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))?;
+    let e = crate::secret::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))?;
     if let Ok(id) = e.get_password() {
         if !id.is_empty() {
             return Ok(id);

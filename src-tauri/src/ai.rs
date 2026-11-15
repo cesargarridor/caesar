@@ -10,9 +10,9 @@ use serde_json::{json, Value};
 const SERVICE: &str = "Caesar";
 const MAX_PROMPT: usize = 60_000;
 
-fn entry(provider: &str) -> Result<keyring::Entry, String> {
+fn entry(provider: &str) -> Result<crate::secret::Entry, String> {
     let p = check_provider(provider)?;
-    keyring::Entry::new(SERVICE, &format!("ai-key-{p}")).map_err(|e| format!("Llavero no disponible: {e}"))
+    crate::secret::Entry::new(SERVICE, &format!("ai-key-{p}")).map_err(|e| format!("Llavero no disponible: {e}"))
 }
 
 fn check_provider(p: &str) -> Result<&'static str, String> {

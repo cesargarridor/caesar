@@ -178,8 +178,8 @@ pub struct VaultState(Mutex<Option<Pairing>>);
 
 // ───────────────────────── llavero ─────────────────────────
 
-fn entry() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
+fn entry() -> Result<crate::secret::Entry, String> {
+    crate::secret::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
 }
 
 pub(crate) fn load_key() -> Result<Option<Key>, String> {
@@ -197,8 +197,8 @@ const PREV_ACCOUNT: &str = "data-key-prev";
 /// Cuántas claves anteriores se conservan para poder leer datos cifrados con ellas.
 const MAX_PREV: usize = 8;
 
-fn prev_entry() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, PREV_ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
+fn prev_entry() -> Result<crate::secret::Entry, String> {
+    crate::secret::Entry::new(SERVICE, PREV_ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
 }
 
 /// Claves anteriores (la más reciente primero).

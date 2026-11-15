@@ -11,6 +11,7 @@ mod mock;
 mod openapi;
 mod pack;
 mod runner;
+mod secret;
 mod sync;
 mod team;
 mod vault;
