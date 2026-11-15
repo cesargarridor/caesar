@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
@@ -49,6 +49,8 @@ export interface TreeActions {
   onCollSettings: (path: string) => void;
   /** Abre Ajustes en la sección de cuenta (función que requiere Pro). */
   onGoPro: () => void;
+  /** Abre el selector «Mover a…» para el elemento (carpeta o petición, no colecciones). */
+  onMoveTo: (path: string) => void;
 }
 
 export interface DragState {
@@ -235,6 +237,7 @@ export default function SidebarTree(props: Props) {
   const moreItems: MenuItem[] = node.type === "folder"
     ? [
         { label: t("Renombrar"), icon: <Pencil size={14} />, onClick: () => props.onStartRename(path) },
+        ...(depth > 0 ? [{ label: t("Mover a…"), icon: <FolderInput size={14} />, onClick: () => props.onMoveTo(path) }] : []),
         ...(depth === 0 ? [{ label: t("Variables y autorización de la colección"), icon: <SlidersHorizontal size={14} />, onClick: () => props.onCollSettings(path) }] : []),
         { label: t("Servidor Mock (gratis)"), icon: <Server size={14} />, onClick: () => props.onMock(path) },
         ...(depth === 0
@@ -247,7 +250,11 @@ export default function SidebarTree(props: Props) {
           : []),
         delItem,
       ]
-    : [{ label: t("Renombrar"), icon: <Pencil size={14} />, onClick: () => props.onStartRename(path) }, delItem];
+    : [
+        { label: t("Renombrar"), icon: <Pencil size={14} />, onClick: () => props.onStartRename(path) },
+        { label: t("Mover a…"), icon: <FolderInput size={14} />, onClick: () => props.onMoveTo(path) },
+        delItem,
+      ];
   const menuItems = menu?.kind === "add" ? addItems : menu?.kind === "all" && node.type === "folder" ? [...addItems, { ...moreItems[0], sep: true }, ...moreItems.slice(1)] : moreItems;
   const floating = menu && <FloatMenu x={menu.x} y={menu.y} items={menuItems} onClose={closeMenu} />;
   const onCtx = (e: React.MouseEvent) => {

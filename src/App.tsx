@@ -16,6 +16,7 @@ import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import CurlImportDialog from "./components/CurlImportDialog";
+import MoveDialog from "./components/MoveDialog";
 import ProfileBar from "./components/ProfileBar";
 import EmptyTabs from "./components/EmptyTabs";
 import RequestBar from "./components/RequestBar";
@@ -238,6 +239,7 @@ export default function App() {
     return () => un?.();
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [settingsSection, setSettingsSection] = useState<"ui" | "edit" | "sync">("ui");
   const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
   const [, setTermsRev] = useState(0); // fuerza el repintado al aceptar los términos
@@ -1187,6 +1189,7 @@ export default function App() {
         onAddSocket={handleAddSocket}
         onAddFolder={handleAddFolder}
         onMove={handleMove}
+        onMoveTo={(path) => setMoveFrom(path)}
         isOpen={(uid) => !!uid && openIds.has(uid)}
         onToggleOpen={toggleFolder}
         onOpenFolder={openFolder}
@@ -1219,6 +1222,15 @@ export default function App() {
           />
         )}
         {mockPath && mockNode?.type === "folder" && <MockDialog key={mockPath} folder={mockNode} onClose={() => setMockPath(null)} />}
+        {moveFrom && getAt(collections, moveFrom) && (
+          <MoveDialog
+            collections={collections}
+            from={moveFrom}
+            name={getAt(collections, moveFrom)!.name}
+            onClose={() => setMoveFrom(null)}
+            onPick={(to) => { handleMove(moveFrom, to); setMoveFrom(null); }}
+          />
+        )}
         {showCurlImport && (
           <CurlImportDialog
             onClose={() => setShowCurlImport(false)}
