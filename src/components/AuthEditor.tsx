@@ -186,6 +186,8 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
         <>
           <Field label="Grant Type">
             <select value={x.grantType || "manual"} onChange={(e) => setX("grantType", e.target.value)} className={input}>
+              <option value="authorization_code">{t("Authorization Code + PKCE (ventana)")}</option>
+              <option value="implicit">{t("Implicit (ventana)")}</option>
               <option value="client_credentials">Client Credentials</option>
               <option value="password">Password Credentials</option>
               <option value="manual">{t("Token manual")}</option>
@@ -199,9 +201,16 @@ export default function AuthEditor({ auth, onChange, allowInherit = true, inheri
             </>
           ) : (
             <>
-              {text("accessTokenUrl", "Access Token URL", "https://servidor/oauth/token")}
+              {(x.grantType === "authorization_code" || x.grantType === "implicit") && (
+                <>
+                  {text("authUrl", "Authorization URL", "https://servidor/oauth/authorize")}
+                  {text("redirectUri", "Redirect URI", "http://localhost/callback")}
+                  <p className="text-xs text-slate">{t("Al enviar se abre una ventana de Caesar con el inicio de sesión del proveedor; al terminar se cierra sola y se usa el token. Registra la Redirect URI en tu proveedor (no hace falta ningún servidor).")}</p>
+                </>
+              )}
+              {x.grantType !== "implicit" && text("accessTokenUrl", "Access Token URL", "https://servidor/oauth/token")}
               {text("clientId", "Client ID")}
-              {secret("clientSecret", "Client Secret")}
+              {x.grantType !== "implicit" && secret("clientSecret", "Client Secret")}
               {x.grantType === "password" && (
                 <>
                   <Field label="Username">

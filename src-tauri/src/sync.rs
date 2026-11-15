@@ -29,6 +29,8 @@ const ACCOUNT: &str = "sync-refresh-token";
 const TICK: Duration = Duration::from_secs(30);
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
+/// Espacios de trabajo permitidos sin plan Pro (con Pro, ilimitados). Debe coincidir con `FREE_WORKSPACES` de la interfaz.
+const FREE_WORKSPACES: usize = 2;
 
 /// Página que ve el usuario en el navegador al terminar el inicio de sesión con Google (gato de Caesar).
 const OAUTH_DONE_HTML: &str = include_str!("oauth_done.html");
@@ -733,12 +735,12 @@ pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> 
     if std::fs::read(&path).map(|old| old == json.as_bytes()).unwrap_or(false) {
         return Ok(()); // sin cambios reales: no se levanta la bandera
     }
-    // Sin Pro (invitado o cuenta sin pagar): un solo espacio de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
+    // Sin Pro (invitado o cuenta sin pagar): hasta FREE_WORKSPACES espacios de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
     if !st.is_pro.load(Ordering::SeqCst) {
         let count = |b: &[u8]| serde_json::from_slice::<Value>(b).ok().and_then(|v| v["workspaces"].as_array().map(|a| a.len())).unwrap_or(0);
         let new_n = count(json.as_bytes());
         let old_n = std::fs::read(&path).map(|b| count(&b)).unwrap_or(0);
-        if new_n > 1 && new_n > old_n {
+        if new_n > FREE_WORKSPACES && new_n > old_n {
             return Err("GUEST_LIMIT_WORKSPACES".into());
         }
     }

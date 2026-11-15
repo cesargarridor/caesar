@@ -1,4 +1,4 @@
-import { Check, Code2, Eye, Layers, Save, Send, Terminal } from "lucide-react";
+import { Check, Code2, Eye, Layers, Link2, Save, Send, Sparkles, Terminal } from "lucide-react";
 import type { ProfilesState } from "../types";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
@@ -22,6 +22,10 @@ interface Props {
   onSave: () => void;
   onCopyCurl: () => void;
   onCodegen?: () => void;
+  /** Abre el asistente de IA (con tu propia clave). */
+  onAi?: () => void;
+  /** Copia un enlace caesar:// con esta petición (sin nube). */
+  onShareLink?: () => void;
   codegenOpen?: boolean;
   /** Botón que acaba de completar su acción (muestra un check unos segundos). */
   flash?: "save" | "curl" | null;
@@ -43,7 +47,7 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, codegenOpen, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles, onShowResolved }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, onAi, onShareLink, codegenOpen, flash, extra = [], onCommand, profiles, onProfile, onManageProfiles, onShowResolved }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
   return (
     <div className="flex flex-col gap-2 p-4">
@@ -103,6 +107,16 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
       <button onClick={onCopyCurl} className={flash === "curl" ? done : ghost} title={t("Copiar como cURL")}>
         {flash === "curl" ? <Check size={14} /> : <Terminal size={14} />} {flash === "curl" ? t("Copiado") : "cURL"}
       </button>
+      {onShareLink && (
+        <button onClick={onShareLink} className={ghost} title={t("Copiar enlace caesar:// para compartir")} aria-label={t("Copiar enlace caesar://")}>
+          <Link2 size={14} />
+        </button>
+      )}
+      {onAi && (
+        <button onClick={onAi} className={ghost} title={t("Asistente de IA (con tu propia clave)")} aria-label={t("Asistente de IA")}>
+          <Sparkles size={14} />
+        </button>
+      )}
       {onCodegen && (
         <button onClick={onCodegen} className={codegenOpen ? done : ghost} title={t("Generar código (</>)")} aria-label={t("Generar código")} aria-pressed={!!codegenOpen}>
           <Code2 size={14} />

@@ -4,6 +4,8 @@ import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import VarTable from "./VarTable";
 import ProfilesPanel from "./ProfilesPanel";
 import CatLogo from "./CatLogo";
+import HistoryPanel from "./HistoryPanel";
+import type { HistoryEntry } from "../api";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import type { WsMeta } from "../lib/workspaces";
 import { clampSidebar, SIDEBAR_DEFAULT } from "../lib/prefs";
@@ -38,6 +40,10 @@ interface Props extends TreeActions {
   onRefreshWs: () => void;
   refreshingWs: boolean;
   onImport: () => void;
+  /** Importar un OpenAPI / Swagger (JSON o YAML). */
+  onImportOpenApi: () => void;
+  /** Abrir una petición del historial en una pestaña nueva. */
+  onOpenHistory: (e: HistoryEntry) => void;
   onNewCollection: () => void;
   onSettings: () => void;
   /** Ancho actual en px y callback al arrastrar el borde derecho. */
@@ -46,7 +52,7 @@ interface Props extends TreeActions {
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
   const [showVars, setShowVars] = useState(false);
   const [showProfiles, setShowProfiles] = useState(false);
@@ -234,6 +240,13 @@ export default function Sidebar({
           )}
         </div>
         <button
+          onClick={onImportOpenApi}
+          disabled={importing}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-50"
+        >
+          <FileUp size={15} /> {t("Importar OpenAPI")}
+        </button>
+        <button
           onClick={onNewCollection}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
         >
@@ -265,6 +278,8 @@ export default function Sidebar({
           {drag.label}
         </div>
       )}
+
+      <HistoryPanel onOpen={onOpenHistory} />
 
       <div className="shrink-0 border-t border-fg/10">
         <button

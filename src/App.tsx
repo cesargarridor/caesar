@@ -4,7 +4,13 @@ import NetworkLoader from "./components/NetworkLoader";
 import SettingsModal from "./components/SettingsModal";
 import Welcome from "./components/Welcome";
 import { useToast } from "./components/Toast";
-import { useAccount, planError } from "./lib/account";
+import { useAccount, planError, openCheckout } from "./lib/account";
+import RunnerDialog from "./components/RunnerDialog";
+import AiDialog from "./components/AiDialog";
+import MockDialog from "./components/MockDialog";
+import { looksLikeShareLink, makeShareLink, parseShareLink } from "./lib/shareLink";
+import { HISTORY_EVENT } from "./components/HistoryPanel";
+import YAML from "yaml";
 import { isOnboarded, termsAccepted } from "./lib/legal";
 import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
@@ -25,17 +31,23 @@ import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog 
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
-  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+  DEFAULT_WS, FREE_WORKSPACES, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
   appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
   onAccountChanged,
+  deeplinkTake,
+  onDeepLink,
+  historyAdd,
+  importOpenapi,
+  pickTextFile,
+  type HistoryEntry,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
 import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
-import { emptyRequest, parseCurl } from "./lib/curl";
+import { emptyRequest, looksLikeCurl, parseCurl } from "./lib/curl";
 import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./lib/request";
 import { signRequest, SIGNED_TYPES } from "./lib/authSign";
 import { applyUrlEdit, buildUrl } from "./lib/url";
@@ -298,6 +310,8 @@ export default function App() {
   const addWs = (name: string) => {
     if (!canCreateWorkspace(account.is_pro, wsList)) {
       setNotice({ kind: "err", text: planError("GUEST_LIMIT_WORKSPACES") ?? "" });
+      // Con cuenta (sin pagar) se abre directamente el pago de Pro; un invitado ve el aviso y crea cuenta desde Ajustes.
+      if (account.mode === "limbo") void openCheckout().catch(() => {});
       return;
     }
     const id = newWsId();
@@ -308,11 +322,11 @@ export default function App() {
     save(wsKey("vars", id), []);
     enterWs(id);
   };
-  // Bajada suave (sin Pro): no se borra nada, pero solo se puede usar el espacio principal (el primero). Los demás quedan bloqueados.
+  // Bajada suave (sin Pro): no se borra nada, pero solo se pueden usar los 2 primeros espacios. Los demás quedan bloqueados.
   useEffect(() => {
-    if (!accountReady || account.is_pro || wsList.length < 2 || wsId === wsList[0].id) return;
+    if (!accountReady || account.is_pro || wsList.length <= FREE_WORKSPACES || wsList.slice(0, FREE_WORKSPACES).some((w) => w.id === wsId)) return;
     enterWs(wsList[0].id);
-    setNotice({ kind: "ok", text: t("Sin el plan Pro solo puedes usar el espacio de trabajo principal. Tus otros espacios se conservan y vuelven al activar Pro.") });
+    setNotice({ kind: "ok", text: t("Sin el plan Pro solo puedes usar tus 2 primeros espacios de trabajo. Los demás se conservan y vuelven al activar Pro.") });
   }, [accountReady, account.is_pro, wsList, wsId]); // eslint-disable-line react-hooks/exhaustive-deps
   const renameWs = (id: string, name: string) => {
     const list = wsList.map((w) => (w.id === id ? { ...w, name, updatedAt: Date.now() } : w));
@@ -503,12 +517,18 @@ export default function App() {
   };
 
   // ───── CRUD de colecciones / carpetas / requests ─────
-  const handleImport = async () => {
+  const handleImport = async (mode: "files" | "openapi" = "files") => {
     setImporting(true);
     setImportError(null);
     try {
       // Acepta varios archivos a la vez (colección + entornos de Postman). Cada uno se procesa por separado.
-      const files = await pickTextFiles();
+      let files: { name: string; content: string }[];
+      if (mode === "openapi") {
+        const one = await pickTextFile();
+        files = one ? [one] : [];
+      } else {
+        files = await pickTextFiles();
+      }
       const counts: ImportCounts = { collections: 0, profiles: 0, globals: 0 };
       const roots: TreeNode[] = [];
       const newProfiles: VarProfile[] = [];
@@ -516,6 +536,15 @@ export default function App() {
       const errors: string[] = [];
       for (const file of files) {
         try {
+          if (mode === "openapi") {
+            // El YAML se pasa a JSON aquí; Rust valida y traduce el OpenAPI/Swagger a carpetas y peticiones.
+            const text = file.content.trimStart().startsWith("{") ? file.content : JSON.stringify(YAML.parse(file.content));
+            const api = await importOpenapi(text);
+            const root: TreeNode = api.root.type === "folder" ? { ...api.root, variables: api.variables } : api.root;
+            roots.push(ensureIds([root])[0]);
+            counts.collections++;
+            continue;
+          }
           const found = detectAndParse(file.content);
           if (found.kind === "env") {
             // Entorno de Postman -> perfil nuevo (sin activar); globales de Postman -> se fusionan con las globales.
@@ -844,6 +873,78 @@ export default function App() {
     }
   };
 
+  const openHistory = (e: HistoryEntry) => {
+    const name = `${e.method} ${e.url.replace(/^https?:\/\//, "").slice(0, 40)}`;
+    openTab({ id: newId(), req: e.req, path: null, name, dirty: false });
+  };
+  // Ctrl/Cmd+V en cualquier sitio de la ventana (fuera de un campo de texto): si el portapapeles es un cURL, se crea la petición al instante.
+  const pasteRef = useRef<(text: string) => void>(() => {});
+  pasteRef.current = (text: string) => {
+    try {
+      const parsed = parseCurl(text);
+      openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name: `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`, dirty: true });
+      setNotice({ kind: "ok", text: t("Petición creada desde el cURL del portapapeles.") });
+    } catch (e) {
+      setNotice({ kind: "err", text: errMsg(e) });
+    }
+  };
+  // Enlaces mágicos caesar://: sobrescriben la pestaña actual (o abren una si no hay ninguna). Llegan pegados o desde el sistema operativo.
+  const shareRef = useRef<(text: string) => void>(() => {});
+  shareRef.current = (text: string) => {
+    parseShareLink(text)
+      .then((parsed) => {
+        const name = `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`;
+        if (activeOrNull) {
+          patchTab(active.id, (tb) => ({ ...tb, req: parsed, name: tb.path ? tb.name : name, dirty: true }));
+          setResults((r) => ({ ...r, [active.id]: { response: null, error: null } }));
+        } else {
+          openTab({ id: newId(), req: parsed, path: null, name, dirty: true });
+        }
+        setNotice({ kind: "ok", text: t("Petición abierta desde un enlace caesar://") });
+      })
+      .catch((e) => setNotice({ kind: "err", text: t(errMsg(e)) }));
+  };
+  useEffect(() => {
+    const open = (u: string) => shareRef.current(u);
+    void deeplinkTake().then((l) => l.forEach(open)).catch(() => {});
+    const un = onDeepLink(open);
+    return () => { void un.then((f) => f()).catch(() => {}); };
+  }, []);
+  const copyShareLink = async () => {
+    try {
+      const { link, hidden } = await makeShareLink(req);
+      await navigator.clipboard.writeText(link);
+      setNotice({ kind: "ok", text: hidden ? t("Enlace caesar:// copiado. Se han vaciado {0} cabecera(s) sensible(s).", hidden) : t("Enlace caesar:// copiado. Pégalo en Slack: quien lo reciba lo abre con Ctrl/Cmd+V en Caesar.") });
+    } catch {
+      setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
+    }
+  };
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      // Un enlace caesar:// se abre desde cualquier sitio (también desde la barra de URL), salvo en los editores de texto del cuerpo.
+      if (looksLikeShareLink(text) && !(el && el.closest("textarea, [contenteditable='true'], .cm-editor, .monaco-editor"))) {
+        e.preventDefault();
+        shareRef.current(text);
+        return;
+      }
+      // En un campo de texto o editor se pega normal (la barra de URL ya sabe convertir un cURL).
+      if (el && (el.closest("input, textarea, select, [contenteditable='true'], .cm-editor, .monaco-editor") !== null)) return;
+      if (!looksLikeCurl(text)) return;
+      e.preventDefault();
+      pasteRef.current(text);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, []);
+  const [runnerPath, setRunnerPath] = useState<string | null>(null);
+  const [showAi, setShowAi] = useState(false);
+  const [mockPath, setMockPath] = useState<string | null>(null);
+  const mockNode = mockPath ? getAt(collections, mockPath) : null;
+  const runnerNode = runnerPath ? getAt(collections, runnerPath) : null;
+  const runnerRoot = runnerPath ? collections[Number(runnerPath.split("/")[0])] : null;
+
   const handleSend = async () => {
     if (!activeOrNull) return; // sin pestañas: nada que enviar
     if (req.kind === "ws") {
@@ -866,6 +967,12 @@ export default function App() {
       // Digest, NTLM, OAuth, AWS… se firman o negocian justo antes de enviar.
       const args = SIGNED_TYPES.includes(effAuth.type) ? await signRequest(effAuth, base, effVars, executeRequest) : base;
       const response = await executeRequest(args);
+      // Historial local: solo las pestañas sueltas (las que no son de una colección).
+      if (!active.path) {
+        historyAdd({ id: newId(), at: Date.now(), method: req.method, url: req.url, status: response.status, req })
+          .then(() => window.dispatchEvent(new Event(HISTORY_EVENT)))
+          .catch(() => {});
+      }
       // Tests / automatizaciones post-respuesta (intérprete propio, sin eval ni red).
       let script: ScriptResult | null = null;
       if (req.tests?.trim()) {
@@ -1050,7 +1157,11 @@ export default function App() {
         manageProfilesTick={manageTick}
         onOpenVars={(section) => setVarsDlg({ section })}
         onCollSettings={(path) => setVarsDlg({ section: "collection", collIdx: Number(path.split("/")[0]) })}
-        onImport={handleImport}
+        onImport={() => void handleImport()}
+        onImportOpenApi={() => void handleImport("openapi")}
+        onOpenHistory={openHistory}
+        onRun={(path) => setRunnerPath(path)}
+        onMock={(path) => setMockPath(path)}
         onNewCollection={() => (!account.is_pro ? handleNewCollection() : setTeamDialog({ kind: "new" }))}
         onShare={(path) => setTeamDialog({ kind: "share", path })}
         onTeamInfo={(path) => setTeamDialog({ kind: "info", path })}
@@ -1090,6 +1201,25 @@ export default function App() {
         <div className="stars" style={{ boxShadow: STARS }} aria-hidden />
         <div className="fs-scale fs-request flex min-h-0 flex-1 flex-col">
         <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onCloseMany={requestCloseMany} />
+        {runnerPath && runnerNode?.type === "folder" && (
+          <RunnerDialog
+            folder={runnerNode}
+            path={runnerPath}
+            collections={collections}
+            baseVars={[...vars, ...(runnerRoot && runnerRoot.type === "folder" ? runnerRoot.variables ?? [] : []), ...profVars]}
+            isPro={account.is_pro}
+            onUpgrade={() => {
+              if (account.mode === "limbo") void openCheckout().catch(() => {});
+              else setNotice({ kind: "err", text: t("Crea una cuenta desde Ajustes para activar Pro.") });
+              setRunnerPath(null);
+            }}
+            onClose={() => setRunnerPath(null)}
+          />
+        )}
+        {mockPath && mockNode?.type === "folder" && <MockDialog key={mockPath} folder={mockNode} onClose={() => setMockPath(null)} />}
+        {showAi && activeOrNull && (
+          <AiDialog req={req} response={results[active.id]?.response ?? null} onApplyTests={(code) => patch({ tests: code })} onClose={() => setShowAi(false)} />
+        )}
         {pendingClose && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={() => setPendingClose(null)}>
             <div className="w-full max-w-md rounded-2xl bg-kelp glass p-7" onMouseDown={(e) => e.stopPropagation()}>
@@ -1190,6 +1320,8 @@ export default function App() {
           />
         ) : (
         <RequestBar
+          onAi={() => setShowAi(true)}
+          onShareLink={copyShareLink}
           method={req.method}
           methods={[...BASE_METHODS, ...extraMethods]}
           onMore={() => { setSettingsSection("edit"); setShowSettings(true); }}

@@ -66,11 +66,13 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   }, [refresh]);
   // Mientras se sincroniza: estado cada segundo (qué paso va y cuánto lleva).
   const working = !!st?.phase;
+  // Se mira el estado local (sin red) mientras hay una acción en curso o la sincronización de fondo está trabajando.
+  const watching = busy || working;
   useEffect(() => {
-    if (!working) return;
+    if (!watching) return;
     const id = setInterval(() => { setNow(Date.now()); void syncStatus().then(setSt).catch(() => {}); }, 1000);
     return () => clearInterval(id);
-  }, [working]);
+  }, [watching]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -78,7 +80,8 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     try {
       await fn();
     } catch (e) {
-      setMsg(keyError(e));
+      const m = keyError(e);
+      setMsg(m === "Sincronización cancelada." ? t(m) : m);
     } finally {
       setBusy(false);
       refresh();

@@ -1,0 +1,26 @@
+[package]
+name = "caesar-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Caesar CLI: ejecuta colecciones de Caesar/Postman (JSON v2.1) en CI/CD. Un único ejecutable, sin Node.js."
+license = "MIT"
+
+[[bin]]
+name = "caesar"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+csv = "1"
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "gzip", "deflate"] }
+
+# Proyecto aparte de la app (no entra en ningún workspace): se compila con `cargo build --release` dentro de esta carpeta.
+[workspace]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

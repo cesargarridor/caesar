@@ -1,7 +1,7 @@
 // ÚNICO punto de contacto con el exterior: IPC hacia Rust. Sin fetch(), sin XHR, sin WebSocket.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { BodyData, ImportedCollection, KV, ResponseData, Settings } from "./types";
+import type { BodyData, ImportedCollection, KV, RequestState, ResponseData, Settings } from "./types";
 
 export const importCollectionFile = () =>
   invoke<ImportedCollection | null>("import_collection_file");
@@ -109,3 +109,40 @@ export const checkUpdate = () => invoke<UpdateInfo | null>("check_update");
 export const installUpdate = () => invoke<void>("install_update");
 export const onUpdateProgress = (cb: (p: { downloaded: number; total: number | null }) => void) =>
   listen<{ downloaded: number; total: number | null }>("update-progress", (e) => cb(e.payload));
+
+// Historial local: las últimas 50 peticiones enviadas que no son de una colección (Rust guarda un archivo ligero).
+export interface HistoryEntry { id: string; at: number; method: string; url: string; status: number | null; req: RequestState }
+export const historyAdd = (entry: HistoryEntry) => invoke<void>("history_add", { entry });
+export const historyList = () => invoke<HistoryEntry[]>("history_list");
+/** Sin id borra todo el historial. */
+export const historyClear = (id?: string) => invoke<void>("history_clear", { id: id ?? null });
+
+// OAuth 2.0 en una ventana WebView embebida (Rust la abre, intercepta la redirección y la cierra).
+export interface OAuthResult { code: string | null; state: string | null; access_token: string | null; token_type: string | null; expires_in: string | null; error: string | null; error_description: string | null }
+export const oauthAuthorize = (url: string, redirectUri: string) => invoke<OAuthResult>("oauth_authorize", { url, redirectUri });
+
+// Enlaces caesar://share?payload=…: Rust recibe el enlace del sistema y la interfaz lo desempaqueta.
+export const deeplinkTake = () => invoke<string[]>("deeplink_take");
+export const onDeepLink = (cb: (url: string) => void) => listen<string>("deep-link", (e) => cb(e.payload));
+
+// Importar OpenAPI / Swagger (JSON; el YAML se convierte antes en la interfaz).
+export const importOpenapi = (content: string) => invoke<ImportedCollection>("import_openapi", { content });
+
+// Collection Runner (Pro): Rust abre el selector y lee el CSV con la caja `csv`.
+export interface CsvData { name: string; headers: string[]; rows: string[][]; truncated: boolean }
+export const runnerPickCsv = () => invoke<CsvData | null>("runner_pick_csv");
+
+// Asistente de IA con tu propia clave (BYOK): la clave vive en el llavero y las llamadas las hace Rust.
+export type AiProvider = "openai" | "anthropic";
+export const aiStatus = () => invoke<{ openai: boolean; anthropic: boolean }>("ai_status");
+export const aiSetKey = (provider: AiProvider, key: string) => invoke<void>("ai_set_key", { provider, key });
+export const aiClearKey = (provider: AiProvider) => invoke<void>("ai_clear_key", { provider });
+export const aiChat = (provider: AiProvider, model: string, system: string, prompt: string) => invoke<string>("ai_chat", { provider, model, system, prompt });
+
+// Servidor Mock local (127.0.0.1, gratis e ilimitado).
+export interface MockRoute { method: string; path: string; status: number; headers: [string, string][]; body: string; delayMs: number }
+export interface MockHit { at: number; method: string; path: string; status: number }
+export const mockStart = (port: number, routes: MockRoute[]) => invoke<number>("mock_start", { port, routes });
+export const mockStop = () => invoke<void>("mock_stop");
+export const mockStatus = () => invoke<{ running: boolean; port: number; hits: MockHit[] }>("mock_status");
+export const onMockHit = (cb: (h: MockHit) => void) => listen<MockHit>("mock-hit", (e) => cb(e.payload));

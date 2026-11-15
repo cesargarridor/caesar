@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Link2, Lock, Pencil, Plus, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import { t } from "../lib/i18n";
-import { canCreateWorkspace, type WsMeta } from "../lib/workspaces";
+import { FREE_WORKSPACES, canCreateWorkspace, type WsMeta } from "../lib/workspaces";
 import { useAccount } from "../lib/account";
 
 interface Props {
@@ -105,11 +105,11 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
           <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wide text-slate">{t("Espacios de trabajo")}</p>
           <div className="max-h-56 overflow-y-auto">
             {list.map((w, i) => (
-              <button key={w.id} className={item} disabled={!account.is_pro && i > 0} title={!account.is_pro && i > 0 ? proTip : undefined} onClick={() => { if (w.id !== activeId) onSwitch(w.id); close(); }}>
+              <button key={w.id} className={item} disabled={!account.is_pro && i >= FREE_WORKSPACES} title={!account.is_pro && i >= FREE_WORKSPACES ? proTip : undefined} onClick={() => { if (w.id !== activeId) onSwitch(w.id); close(); }}>
                 {w.team && <Users size={13} className="shrink-0 text-aqua" />}
                 <span className="flex-1 truncate">{w.name}</span>
                 {w.id === activeId && <Check size={14} className="text-aqua" />}
-                {!account.is_pro && i > 0 && <Lock size={13} className="shrink-0 text-slate" aria-hidden />}
+                {!account.is_pro && i >= FREE_WORKSPACES && <Lock size={13} className="shrink-0 text-slate" aria-hidden />}
               </button>
             ))}
           </div>
@@ -134,7 +134,7 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
             </div>
           ) : (
             <>
-              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Sin el plan Pro solo puedes tener un espacio. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
+              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Sin el plan Pro puedes tener hasta 2 espacios. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
                 <Plus size={14} /> {t("Nuevo espacio de trabajo")}
               </button>
               <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { setText(""); setMode("join"); }}>
