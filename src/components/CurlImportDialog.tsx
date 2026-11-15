@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Terminal, X } from "lucide-react";
+import { Lock, Terminal, X } from "lucide-react";
 import { parseCurl } from "../lib/curl";
 import type { RequestState } from "../types";
 import { t } from "../lib/i18n";
@@ -13,6 +13,20 @@ interface Props {
 const METHOD_COLORS: Record<string, string> = { GET: "text-[#4ad295]", POST: "text-[#ffb454]", PUT: "text-[#5ab0ff]", PATCH: "text-[#c792ea]", DELETE: "text-[#ff6b7a]" };
 
 const BODY_LABEL: Record<string, string> = { json: "JSON", text: "Text", graphql: "GraphQL", formdata: "form-data", urlencoded: "x-www-form-urlencoded" };
+
+const SNIPPET_MAX = 70;
+const AUTH_LABEL: Record<string, string> = { bearer: "Bearer", basic: "Basic", apikey: "API Key", digest: "Digest", ntlm: "NTLM", oauth1: "OAuth 1", oauth2: "OAuth 2", wsse: "WSSE", awsv4: "AWS v4", akamai: "Akamai" };
+
+/** Extracto de una línea del body, truncado a ~70 caracteres. */
+function bodySnippet(body: RequestState["body"]): string {
+  let raw = "";
+  if (body.mode === "graphql") raw = body.gqlQuery ?? "";
+  else if (body.mode === "formdata" || body.mode === "urlencoded") {
+    raw = body[body.mode].filter((k) => k.enabled && k.key).map((k) => `${k.key}=${k.value}`).join("&");
+  } else if (body.mode !== "none") raw = body.raw;
+  const flat = raw.replace(/\s+/g, " ").trim();
+  return flat.length > SNIPPET_MAX ? `${flat.slice(0, SNIPPET_MAX)}...` : flat;
+}
 
 /** Importador inverso: pega un cURL, ve qué se importará y ábrelo en una pestaña nueva sin tocar la actual. */
 export default function CurlImportDialog({ onAccept, onClose }: Props) {
@@ -38,6 +52,14 @@ export default function CurlImportDialog({ onAccept, onClose }: Props) {
   const headers = req ? req.headers.filter((h) => h.enabled && h.key) : [];
   const params = req ? req.params.filter((p) => p.enabled && p.key) : [];
   const bodyLabel = req && req.body.mode !== "none" ? BODY_LABEL[req.body.mode] ?? req.body.mode : null;
+  const snippet = req ? bodySnippet(req.body) : "";
+  // El parser mueve Bearer/Basic a req.auth; si queda un Authorization con otro esquema, lo mostramos igual.
+  const rawAuth = headers.find((h) => h.key.toLowerCase() === "authorization");
+  const authLabel = req && req.auth.type !== "none" && req.auth.type !== "inherit"
+    ? AUTH_LABEL[req.auth.type] ?? req.auth.type
+    : rawAuth ? rawAuth.value.split(/\s+/)[0] || "Custom" : null;
+  // Auth ya tiene su badge: fuera de la lista. Con más de 2 headers solo el conteo.
+  const shownHeaders = headers.filter((h) => h !== rawAuth);
   const accept = () => req && onAccept(req);
 
   return (
@@ -80,17 +102,26 @@ export default function CurlImportDialog({ onAccept, onClose }: Props) {
                   `${headers.length} Header${headers.length === 1 ? "" : "s"}`,
                   params.length ? `${params.length} Query param${params.length === 1 ? "" : "s"}` : null,
                   bodyLabel ? `Body ${bodyLabel}` : t("Sin body"),
-                  req.auth.type !== "none" ? `Auth ${req.auth.type}` : null,
                 ].filter((c): c is string => !!c).map((c) => (
                   <span key={c} className="rounded-md bg-fg/10 px-2 py-0.5 text-silver">{c}</span>
                 ))}
+                {authLabel && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-aqua/15 px-2 py-0.5 text-aqua">
+                    <Lock size={11} /> Auth {authLabel}
+                  </span>
+                )}
               </p>
-              {headers.length > 0 && (
-                <ul className="max-h-24 overflow-y-auto text-xs text-slate">
-                  {headers.map((h, i) => (
+              {shownHeaders.length > 0 && shownHeaders.length <= 2 && (
+                <ul className="text-xs text-slate">
+                  {shownHeaders.map((h, i) => (
                     <li key={i} className="truncate"><span className="text-silver">{h.key}:</span> {h.value}</li>
                   ))}
                 </ul>
+              )}
+              {snippet && (
+                <p className="truncate font-mono text-xs text-slate" title={req.body.raw || undefined}>
+                  <span className="mr-1.5 text-silver/70">body</span>{snippet}
+                </p>
               )}
             </div>
           )}
