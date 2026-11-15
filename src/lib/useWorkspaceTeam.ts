@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { teamPull, teamPush } from "../api";
-import { hashJson } from "./useTeamSync";
+import { FOCUS_GAP_MS, hashJson } from "./useTeamSync";
 import { ensureIds } from "./tree";
 import { t } from "./i18n";
 import type { WsMeta } from "./workspaces";
@@ -10,7 +10,8 @@ import type { KV, TreeNode } from "../types";
  * Espacio de trabajo compartido con un equipo: usa el mismo código y la misma nube que las colecciones de equipo,
  * pero lo que se comparte es el espacio entero (todas sus colecciones y, si quien lo comparte lo elige, sus variables).
  * Solo se sincroniza el espacio que está abierto, y con la misma filosofía: subir en segundo plano tras guardar y bajar
- * solo al pulsar «Actualizar» (primero la fecha; el contenido solo si hay algo más nuevo).
+ * al volver a la ventana y al pulsar «Actualizar» (primero la fecha; el contenido solo si hay algo más nuevo).
+ * Si la nube tiene cambios más nuevos que la versión sobre la que se editó, la subida se frena y se marca un conflicto.
  */
 export interface WsPayload {
   name: string;
@@ -59,13 +60,18 @@ export function useWorkspaceTeam(args: {
   const busy = useRef(false);
   const warned = useRef("");
   const [refreshing, setRefreshing] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const conflictRef = useRef(false);
+  conflictRef.current = conflict;
+  const lastFocus = useRef(0);
 
   const patch = (id: string, p: Partial<NonNullable<WsMeta["team"]>>) =>
     a.current.setWsList((list) => list.map((w) => (w.id === id && w.team ? { ...w, team: { ...w.team, ...p } } : w)));
 
   /** Sincroniza el espacio abierto. `pull` = el usuario pidió actualizar. Devuelve "changed" | "same" | "failed". */
-  const run = async (pull: boolean): Promise<"changed" | "same" | "failed"> => {
+  const run = async (pull: boolean, silent = false): Promise<"changed" | "same" | "failed"> => {
     while (busy.current) await sleep(150);
+    if (conflictRef.current) return "same"; // en conflicto: no se toca nada hasta que el usuario elija
     busy.current = true;
     // Se lee todo de golpe, antes de cualquier espera.
     const { wsList, wsId, collections, vars, setCollections, setVars, setWsList, notify } = a.current;
@@ -79,7 +85,7 @@ export function useWorkspaceTeam(args: {
       const known = team.h;
 
       const doPush = async () => {
-        const stamp = await teamPush(code, json);
+        const stamp = await teamPush(code, json, team.seen, false);
         patch(ws.id, { seen: stamp, h });
       };
       const doPull = async (): Promise<boolean> => {
@@ -113,11 +119,15 @@ export function useWorkspaceTeam(args: {
       return "same";
     } catch (e) {
       const msg = typeof e === "string" ? e : e instanceof Error ? e.message : "";
+      if (msg === "CONFLICT") {
+        setConflict(true);
+        return "same";
+      }
       if (msg === "NOT_FOUND") {
         // El dueño dejó de compartirlo o eliminó su cuenta: se conserva la copia local, ya sin vínculo.
         setWsList((list) => list.map((w) => (w.id === ws?.id ? { ...w, team: undefined } : w)));
         notify("err", t("«{0}» ya no se comparte (su dueño la eliminó). Conservas tu copia local.", ws?.name ?? ""));
-      } else if (pull) {
+      } else if (pull && !silent) {
         notify("err", msg || t("Error desconocido"));
       } else if (warned.current !== msg) {
         warned.current = msg;
@@ -129,6 +139,9 @@ export function useWorkspaceTeam(args: {
     }
   };
 
+  // Un conflicto pertenece al espacio abierto: al cambiar de espacio se olvida (se volverá a detectar al subir).
+  useEffect(() => setConflict(false), [args.wsId]);
+
   // Subida en segundo plano tras guardar cambios (el arranque no cuenta: no hay nada nuevo).
   const first = useRef(true);
   useEffect(() => {
@@ -137,12 +150,71 @@ export function useWorkspaceTeam(args: {
       return;
     }
     if (!args.wsList.find((w) => w.id === args.wsId)?.team) return;
-    const id = setTimeout(() => void run(false), 2500);
+    const id = setTimeout(() => void run(false), 2000);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [args.collections, args.vars, args.wsId]);
 
+  // Al volver a la ventana: una comprobación de fechas del espacio abierto (nunca sondeo con la ventana en segundo plano).
+  useEffect(() => {
+    const onFocus = () => {
+      const now = Date.now();
+      if (now - lastFocus.current < FOCUS_GAP_MS) return;
+      const cur = a.current;
+      if (!cur.wsList.find((w) => w.id === cur.wsId)?.team) return;
+      lastFocus.current = now;
+      void run(true, true);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const errMsg = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+
   return {
+    conflict,
+    /** «Sobrescribir mis cambios»: descarta lo local y baja la versión de la nube. */
+    resolveKeepCloud: async () => {
+      const { wsList, wsId, notify } = a.current;
+      const ws = wsList.find((w) => w.id === wsId);
+      if (!ws?.team) return setConflict(false);
+      try {
+        setConflict(false);
+        const doc = await teamPull(ws.team.code, 0);
+        if (!doc) return;
+        const p = parseWsPayload(doc.json);
+        if (!p) throw new Error(t("El espacio compartido no es válido."));
+        const cols = ensureIds(p.collections);
+        const vs = ws.team.vars && p.vars ? p.vars : null;
+        a.current.setCollections(cols);
+        if (vs) a.current.setVars(vs);
+        a.current.setWsList((list) =>
+          list.map((w) =>
+            w.id === ws.id && w.team
+              ? { ...w, name: p.name, team: { ...w.team, seen: doc.updatedAt, h: hashJson(wsPayloadJson(p.name, cols, w.team.vars ? vs ?? a.current.vars : null)) } }
+              : w,
+          ),
+        );
+      } catch (e) {
+        setConflict(true);
+        notify("err", errMsg(e));
+      }
+    },
+    /** «Forzar subida»: escribe lo local en la nube aunque pise lo del compañero. */
+    resolveForce: async () => {
+      const { wsList, wsId, collections, vars, notify } = a.current;
+      const ws = wsList.find((w) => w.id === wsId);
+      if (!ws?.team) return setConflict(false);
+      try {
+        const json = wsPayloadJson(ws.name, collections, ws.team.vars ? vars : null);
+        const stamp = await teamPush(ws.team.code, json, ws.team.seen, true);
+        patch(ws.id, { seen: stamp, h: hashJson(json) });
+        setConflict(false);
+      } catch (e) {
+        notify("err", errMsg(e));
+      }
+    },
     refreshing,
     /** Sube ya lo pendiente (antes de cambiar de espacio o cerrar sesión). */
     flush: async () => {

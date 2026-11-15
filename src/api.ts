@@ -33,7 +33,7 @@ export const parseCollectionContent = (content: string) => invoke<ImportedCollec
 export interface TeamDoc { json: string; updatedAt: number; owner: boolean }
 export const teamPublish = (json: string) => invoke<string>("team_publish", { json });
 export const teamJoin = (code: string) => invoke<TeamDoc>("team_join", { code });
-export const teamPush = (code: string, json: string) => invoke<number>("team_push", { code, json });
+export const teamPush = (code: string, json: string, seen: number, force = false) => invoke<number>("team_push", { code, json, seen, force });
 export const teamPull = (code: string, since: number) => invoke<TeamDoc | null>("team_pull", { code, since });
 export const teamUnshare = (code: string) => invoke<void>("team_unshare", { code });
 
