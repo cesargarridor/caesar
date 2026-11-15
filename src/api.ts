@@ -74,8 +74,6 @@ export const syncSignOut = () => invoke<void>("sync_sign_out");
 export const syncNow = () => invoke<void>("sync_now");
 /** Cancela la sincronización manual en curso. */
 export const syncCancel = () => invoke<void>("sync_cancel");
-/** Reconcilia la suscripción con Lemon Squeezy y devuelve el estado resultante. */
-export const syncBillingRefresh = () => invoke<Billing>("sync_billing_refresh");
 export const vaultCreate = () => invoke<string>("vault_create");
 export const vaultRestore = (recovery: string) => invoke<void>("vault_restore", { recovery });
 export const vaultRecovery = () => invoke<string>("vault_recovery");
@@ -98,6 +96,8 @@ export const syncEnterKey = (key: string) => invoke<SyncRole>("sync_enter_key", 
 export const syncMakeMaster = () => invoke<SyncRole>("sync_make_master");
 export const syncShowKey = () => invoke<string>("sync_show_key");
 export const syncRegenerateKey = () => invoke<string>("sync_regenerate_key");
+/** El plan o la sesión han cambiado (pago, baja, cuenta borrada…): sustituye a preguntar cada X segundos. */
+export const onAccountChanged = (cb: () => void) => listen<null>("account-changed", () => cb());
 export const onAccountLinked = (cb: (email: string) => void) => listen<string>("account-linked", (e) => cb(e.payload));
 export const onLinkGithubCode = (cb: (d: DeviceCode) => void) => listen<DeviceCode>("link-github-code", (e) => cb(e.payload));
 export const onSyncRemote = (cb: (json: string) => void) => listen<string>("sync-remote", (e) => cb(e.payload));

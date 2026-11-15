@@ -1348,6 +1348,11 @@ fn main() {
         .manage(vault::VaultState::default())
         .manage(sync::SyncState::default())
         .manage(ws::WsState::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Focused(true) = event {
+                { use tauri::Manager; sync::on_focus(window.app_handle()); }
+            }
+        })
         .setup(|app| {
             sync::start_worker(app.handle().clone());
             Ok(())
@@ -1390,7 +1395,6 @@ fn main() {
             sync::sync_sign_out,
             sync::sync_now,
             sync::sync_cancel,
-            sync::sync_billing_refresh,
             sync::sync_billing,
             sync::sync_delete_account,
             sync::sync_checkout_url,

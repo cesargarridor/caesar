@@ -29,6 +29,7 @@ import {
 } from "./lib/workspaces";
 import {
   appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  onAccountChanged,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -124,7 +125,7 @@ const planThrow = (e: unknown): never => {
 export default function App() {
   useLang(); // re-renderiza toda la interfaz al cambiar de idioma
   const toast = useToast();
-  const { account, setAccount } = useAccount();
+  const { account, ready: accountReady, setAccount } = useAccount();
   // Espacios de trabajo: cada uno guarda sus propias colecciones, variables y pestañas (ver lib/workspaces.ts).
   const [wsList, setWsList] = useState<WsMeta[]>(loadWsList);
   const [wsId, setWsId] = useState<string>(() => loadWsActive(wsList));
@@ -307,6 +308,12 @@ export default function App() {
     save(wsKey("vars", id), []);
     enterWs(id);
   };
+  // Bajada suave (sin Pro): no se borra nada, pero solo se puede usar el espacio principal (el primero). Los demás quedan bloqueados.
+  useEffect(() => {
+    if (!accountReady || account.is_pro || wsList.length < 2 || wsId === wsList[0].id) return;
+    enterWs(wsList[0].id);
+    setNotice({ kind: "ok", text: t("Sin el plan Pro solo puedes usar el espacio de trabajo principal. Tus otros espacios se conservan y vuelven al activar Pro.") });
+  }, [accountReady, account.is_pro, wsList, wsId]); // eslint-disable-line react-hooks/exhaustive-deps
   const renameWs = (id: string, name: string) => {
     const list = wsList.map((w) => (w.id === id ? { ...w, name, updatedAt: Date.now() } : w));
     setWsList(list);
@@ -763,8 +770,9 @@ export default function App() {
         })
         .catch(() => {});
     void check();
-    const id = setInterval(check, 4000);
-    return () => clearInterval(id);
+    // Rust avisa cuando la sesión o el plan cambian (cerrar sesión, cuenta borrada, token revocado…): sin sondeo.
+    const un = onAccountChanged(() => void check());
+    return () => { void un.then((f) => f()).catch(() => {}); };
   }, []);
 
   const handleDelete = (path: string) => {
