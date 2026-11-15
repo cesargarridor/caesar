@@ -72,7 +72,7 @@ export default function RequestTabs({ req, patch, inherited, vars, onAi }: Props
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${
-              tab === t.id ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"
+              tab === t.id ? "border-aqua font-semibold text-aqua" : "border-transparent text-slate hover:text-silver"
             }`}
           >
             {t.label}

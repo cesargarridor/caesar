@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Download, FileUp, Maximize2, Plus, Settings } from "lucide-react";
+import { Download, FileUp, History, Maximize2, MoreHorizontal, Plus, Settings, SlidersHorizontal, Variable } from "lucide-react";
 import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import VarTable from "./VarTable";
 import ProfilesPanel from "./ProfilesPanel";
@@ -54,10 +54,9 @@ interface Props extends TreeActions {
 export default function Sidebar({
   collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, width, onWidth, ...actions
 }: Props) {
-  const [showVars, setShowVars] = useState(false);
-  const [showProfiles, setShowProfiles] = useState(false);
+  const [dock, setDock] = useState<"history" | "vars" | "profiles" | null>(null);
   useEffect(() => {
-    if (manageProfilesTick > 0) setShowProfiles(true);
+    if (manageProfilesTick > 0) setDock("profiles");
   }, [manageProfilesTick]);
   const [showExport, setShowExport] = useState(false);
   const [fmt, setFmt] = useState<"json" | "yaml" | "har">("json");
@@ -188,73 +187,61 @@ export default function Sidebar({
           <span className="cosmic-text">Caesar</span>
         </div>
         <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} onShare={onShareWs} onInfo={onInfoWs} onJoin={onJoinWs} onRefresh={onRefreshWs} refreshing={refreshingWs} />
-        <div className="relative flex shrink-0 gap-2">
-          <button
-            onClick={onImport}
-            disabled={importing}
-            className="btn-aurora flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-semibold disabled:opacity-50"
-          >
-            <FileUp size={15} /> {importing ? t("Importando…") : t("Importar")}
-          </button>
-          <button
-            onClick={() => setShowExport((s) => !s)}
-            disabled={exportable.length === 0}
-            title={exportable.length ? t("Exportar una colección (JSON, YAML o HAR)") : t("No hay colecciones que exportar")}
-            className="flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-40"
-          >
-            <Download size={15} /> {t("Exportar")}
-          </button>
-          {showExport && exportable.length > 0 && (
-            <>
-              <div className="fixed inset-0 z-40" onMouseDown={() => setShowExport(false)} />
-              <div className="glass absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl bg-kelp p-1 shadow-lg ring-1 ring-fg/15">
-                <p className="eyebrow px-2.5 py-1.5">{t("Formato")}</p>
-                <div className="mb-1 flex gap-1 px-1.5">
-                  {([["json", "JSON"], ["yaml", "YAML"], ["har", "HAR"]] as const).map(([id, label]) => (
-                    <button
-                      key={id}
-                      onClick={() => setFmt(id)}
-                      title={id === "json" ? "JSON" : id === "yaml" ? "YAML" : "HTTP Archive 1.2"}
-                      className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua/20 text-aqua ring-1 ring-aqua" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="eyebrow px-2.5 py-1.5">{t("Exportar colección")}</p>
-                {exportable.map((c) => (
-                  <button
-                    key={c.path}
-                    onClick={() => {
-                      setShowExport(false);
-                      actions.onExport(c.path, fmt);
-                    }}
-                    className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist"
-                    title={c.name}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <button
-          onClick={onImportOpenApi}
-          disabled={importing}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40 disabled:opacity-50"
-        >
-          <FileUp size={15} /> {t("Importar OpenAPI")}
-        </button>
-        <button
-          onClick={onNewCollection}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
-        >
-          <Plus size={15} /> {t("Nueva colección")}
-        </button>
-        {error && <p className="mt-2 text-xs text-rose">{error}</p>}
       </div>
 
+      <div className="relative flex shrink-0 items-center gap-1 px-4 pb-1">
+        <span className="eyebrow flex-1">{t("Colecciones")}</span>
+        <button onClick={onNewCollection} className="rounded-md p-1.5 text-silver hover:bg-fg/10 hover:text-aqua" title={t("Nueva colección")} aria-label={t("Nueva colección")}>
+          <Plus size={16} />
+        </button>
+        <button onClick={() => setShowExport((s) => !s)} className="rounded-md p-1.5 text-silver hover:bg-fg/10 hover:text-mist" title={t("Importar y exportar")} aria-label={t("Importar y exportar")} aria-haspopup="menu" aria-expanded={showExport}>
+          <MoreHorizontal size={16} />
+        </button>
+        {showExport && (
+          <>
+            <div className="fixed inset-0 z-40" onMouseDown={() => setShowExport(false)} />
+            <div role="menu" className="glass absolute right-3 top-full z-50 mt-1 max-h-80 w-60 overflow-y-auto rounded-xl bg-kelp p-1 shadow-lg ring-1 ring-fg/15">
+              <button role="menuitem" disabled={importing} onClick={() => { setShowExport(false); onImport(); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist disabled:opacity-50">
+                <FileUp size={14} /> {importing ? t("Importando…") : t("Importar")}
+              </button>
+              <button role="menuitem" disabled={importing} onClick={() => { setShowExport(false); onImportOpenApi(); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist disabled:opacity-50">
+                <FileUp size={14} /> {t("Importar OpenAPI")}
+              </button>
+              <p className="eyebrow flex items-center gap-1.5 px-2.5 pb-1 pt-2"><Download size={12} /> {t("Exportar")}</p>
+              {exportable.length === 0 ? (
+                <p className="px-2.5 py-1.5 text-xs text-slate">{t("No hay colecciones que exportar")}</p>
+              ) : (
+                <>
+                  <div className="mb-1 flex gap-1 px-1.5">
+                    {([["json", "JSON"], ["yaml", "YAML"], ["har", "HAR"]] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setFmt(id)}
+                        title={id === "json" ? "JSON" : id === "yaml" ? "YAML" : "HTTP Archive 1.2"}
+                        className={`flex-1 rounded-lg px-2 py-1 text-xs ${fmt === id ? "bg-aqua/20 text-aqua ring-1 ring-aqua" : "text-silver ring-1 ring-fg/15 hover:text-mist"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {exportable.map((c) => (
+                    <button
+                      key={c.path}
+                      onClick={() => { setShowExport(false); actions.onExport(c.path, fmt); }}
+                      className="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist"
+                      title={c.name}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && <p className="shrink-0 px-4 pb-1 text-xs text-rose">{error}</p>}
       <div
         data-drop="root"
         className={`min-h-[8rem] flex-1 overflow-y-auto pb-2 ${drag?.over === "root" ? "bg-aqua/10 ring-1 ring-inset ring-aqua" : ""}`}
@@ -279,51 +266,49 @@ export default function Sidebar({
         </div>
       )}
 
-      <HistoryPanel onOpen={onOpenHistory} />
-
       <div className="shrink-0 border-t border-fg/10">
-        <button
-          onClick={onSettings}
-          className="flex w-full items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-        >
-          <Settings size={14} /> {t("Ajustes")}
-        </button>
-        <div className="flex items-center pr-3">
-          <button
-            onClick={() => setShowVars((s) => !s)}
-            aria-expanded={showVars}
-            className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-          >
-            {showVars ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            <span className="truncate">{t("Variables globales")}</span> <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span>
-          </button>
-          <button onClick={() => onOpenVars("globals")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}>
-            <Maximize2 size={13} />
-          </button>
-        </div>
-        {showVars && (
-          <div className="max-h-72 overflow-y-auto p-2">
+        {dock === "history" && (
+          <div className="max-h-[40vh] overflow-y-auto"><HistoryPanel bare onOpen={onOpenHistory} /></div>
+        )}
+        {dock === "vars" && (
+          <div className="max-h-[40vh] overflow-y-auto p-2">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <span className="eyebrow">{t("Variables globales")} <span className="font-light text-slate">({vars.filter((v) => v.key).length})</span></span>
+              <button onClick={() => onOpenVars("globals")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}><Maximize2 size={13} /></button>
+            </div>
             <VarTable compact rows={vars} onChange={onVars} />
           </div>
         )}
-        <div className="flex items-center pr-3">
-          <button
-            onClick={() => setShowProfiles((s) => !s)}
-            aria-expanded={showProfiles}
-            className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-[0.025em] text-silver hover:text-mist"
-          >
-            {showProfiles ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            <span className="truncate">{t("Perfiles de variables")}</span> <span className="font-light text-slate">({profiles.list.length})</span>
-          </button>
-          <button onClick={() => onOpenVars("profiles")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}>
-            <Maximize2 size={13} />
-          </button>
-        </div>
-        {showProfiles && (
-          <div className="max-h-96 overflow-y-auto p-2">
+        {dock === "profiles" && (
+          <div className="max-h-[40vh] overflow-y-auto p-2">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <span className="eyebrow">{t("Perfiles de variables")} <span className="font-light text-slate">({profiles.list.length})</span></span>
+              <button onClick={() => onOpenVars("profiles")} className="text-slate hover:text-aqua" title={t("Abrir en una ventana grande")} aria-label={t("Abrir en una ventana grande")}><Maximize2 size={13} /></button>
+            </div>
             <ProfilesPanel profiles={profiles} onChange={onProfiles} />
           </div>
         )}
+        <div className="flex items-center justify-around px-2 py-1.5">
+          {([
+            ["history", History, t("Historial")],
+            ["vars", Variable, t("Variables globales")],
+            ["profiles", SlidersHorizontal, t("Perfiles de variables")],
+          ] as const).map(([id, Icon, label]) => (
+            <button
+              key={id}
+              onClick={() => setDock((d) => (d === id ? null : id))}
+              aria-pressed={dock === id}
+              title={label}
+              aria-label={label}
+              className={`rounded-lg p-2 ${dock === id ? "bg-aqua/15 text-aqua" : "text-silver hover:bg-fg/10 hover:text-mist"}`}
+            >
+              <Icon size={16} />
+            </button>
+          ))}
+          <button onClick={onSettings} title={t("Ajustes")} aria-label={t("Ajustes")} className="rounded-lg p-2 text-silver hover:bg-fg/10 hover:text-mist">
+            <Settings size={16} />
+          </button>
+        </div>
       </div>
     </aside>
   );

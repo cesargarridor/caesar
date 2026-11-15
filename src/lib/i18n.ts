@@ -83,6 +83,8 @@ const D: Record<string, Row> = {
   "Enlace caesar:// copiado. Pégalo en Slack: quien lo reciba lo abre con Ctrl/Cmd+V en Caesar.": ["caesar:// link copied. Paste it in Slack: whoever gets it opens it with Ctrl/Cmd+V in Caesar.", "caesar://-Link kopiert. Füge ihn in Slack ein: Wer ihn erhält, öffnet ihn mit Strg/Cmd+V in Caesar.", "Lien caesar:// copié. Colle-le dans Slack : le destinataire l’ouvre avec Ctrl/Cmd+V dans Caesar.", "Link caesar:// copiato. Incollalo su Slack: chi lo riceve lo apre con Ctrl/Cmd+V in Caesar."],
   "Copiar enlace para compartir": ["Copy link to share", "Link zum Teilen kopieren", "Copier un lien à partager", "Copia link da condividere"],
   "Copiar enlace": ["Copy link", "Link kopieren", "Copier le lien", "Copia link"],
+  "Colecciones": ["Collections", "Sammlungen", "Collections", "Raccolte"],
+  "Importar y exportar": ["Import and export", "Import und Export", "Importer et exporter", "Importa ed esporta"],
   "Copiar enlace caesar:// para compartir": ["Copy a caesar:// link to share", "caesar://-Link zum Teilen kopieren", "Copier un lien caesar:// à partager", "Copia un link caesar:// da condividere"],
   "Copiar enlace caesar://": ["Copy caesar:// link", "caesar://-Link kopieren", "Copier le lien caesar://", "Copia link caesar://"],
   "Authorization Code + PKCE (ventana)": ["Authorization Code + PKCE (window)", "Authorization Code + PKCE (Fenster)", "Authorization Code + PKCE (fenêtre)", "Authorization Code + PKCE (finestra)"],
