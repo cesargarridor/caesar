@@ -176,7 +176,7 @@ impl Default for SyncState {
     }
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
@@ -347,6 +347,7 @@ pub(crate) async fn put_main(st: &SyncState, uid: &str, tok: &str, blob: &str, s
         }
         if cfg().map(|c| !c.checkout_url.is_empty()).unwrap_or(false) {
             st.blocked.store(true, Ordering::SeqCst);
+            LAST_EVAL.store(0, Ordering::SeqCst); // la caché del plan ya no vale: se reevalúa al volver a la ventana
             return Err("Tu suscripción no está activa: tus datos siguen guardados en este equipo y en la nube, pero no se suben cambios nuevos.".into());
         }
     }
@@ -1125,6 +1126,7 @@ pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> 
     let base = cfg().map(|c| c.checkout_url).filter(|u| !u.is_empty()).ok_or("El cobro no está configurado.")?;
     let uid = st.session.lock().map_err(|_| "Estado bloqueado")?.as_ref().map(|s| s.uid.clone()).filter(|u| !u.is_empty()).ok_or("Inicia sesión primero.")?;
     let sep = if base.contains('?') { '&' } else { '?' };
+    AWAITING_PAYMENT_UNTIL.store(now_ms() + PAYMENT_WINDOW_MS, Ordering::SeqCst);
     Ok(format!("{base}{sep}checkout%5Bcustom%5D%5Buid%5D={uid}"))
 }
 
@@ -1304,8 +1306,20 @@ pub fn sync_cancel(st: tauri::State<'_, SyncState>) {
 
 static LAST_FOCUS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 
+/// Última vez que se comprobó el plan contra la red (lo anota `account::evaluate`). El plan se guarda en caché: solo se vuelve a
+/// consultar al arrancar, al iniciar sesión, tras un pago (enlace `caesar://upgrade-success`), al pulsar «Ya he pagado», al
+/// fallar una subida con 403 y, como mucho, cada `PLAN_TTL_MS` si la app lleva abierta mucho tiempo.
+pub(crate) static LAST_EVAL: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+const PLAN_TTL_MS: i64 = 6 * 60 * 60 * 1000;
+
+/// Hasta cuándo se espera un pago iniciado desde la app (se activa al abrir el enlace de compra). Mientras tanto, y sin Pro, volver
+/// a la ventana sí comprueba el plan: cubre el caso de pagar en el navegador sin que el enlace `caesar://` llegue a abrirse.
+static AWAITING_PAYMENT_UNTIL: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+const PAYMENT_WINDOW_MS: i64 = 30 * 60 * 1000;
+
 /// El usuario vuelve a la ventana (p. ej. tras pagar en el navegador): una sola comprobación del plan y de cambios remotos.
-/// Con la cuenta sin Pro se permite cada 10 s (puede estar esperando el pago); con Pro, cada 15 s. Sin sesión no hace nada.
+/// Al volver a la ventana: baja cambios de otros equipos (como mucho cada 15 s) y, solo si hace falta, reevalúa el plan: con la caché
+/// caducada, o sin Pro y con un pago en marcha (cada 10 s). Sin sesión no hace nada.
 pub fn on_focus(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -1323,12 +1337,47 @@ pub fn on_focus(app: &AppHandle) {
             Ok(g) => g,
             Err(_) => return,
         };
-        let _ = crate::account::evaluate(&app, &st, false).await;
+        let stale = now - LAST_EVAL.load(Ordering::SeqCst) >= PLAN_TTL_MS;
+        let paying = !st.is_pro.load(Ordering::SeqCst) && now < AWAITING_PAYMENT_UNTIL.load(Ordering::SeqCst);
+        if stale || paying {
+            let _ = crate::account::evaluate(&app, &st, false).await;
+        }
         if st.is_pro.load(Ordering::SeqCst) {
+            AWAITING_PAYMENT_UNTIL.store(0, Ordering::SeqCst);
             let r = pull(&app, &st).await;
             set_error(&st, r.err());
         }
         st.set_phase(None);
+    });
+}
+
+/// Tras un pago (`caesar://upgrade-success`): descarta la caché y confirma el plan contra Firestore. El webhook de Lemon Squeezy puede
+/// tardar unos segundos en escribir `active`, así que se reintenta cada 3 s (hasta ~40 s). Emite `upgrade-result` (true = ya es Pro).
+pub fn confirm_upgrade(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let st = app.state::<SyncState>();
+        LAST_EVAL.store(0, Ordering::SeqCst);
+        let mut pro = false;
+        for i in 0..14 {
+            if i > 0 {
+                tokio::time::sleep(Duration::from_secs(3)).await;
+            }
+            if !st.has_session() {
+                break;
+            }
+            if let Ok(a) = crate::account::evaluate(&app, &st, false).await {
+                if a.is_pro {
+                    pro = true;
+                    break;
+                }
+            }
+        }
+        if pro {
+            AWAITING_PAYMENT_UNTIL.store(0, Ordering::SeqCst);
+            let _ = pull(&app, &st).await;
+        }
+        let _ = app.emit("upgrade-result", pro);
     });
 }
 
