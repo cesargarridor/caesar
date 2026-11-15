@@ -407,7 +407,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [notice]);
   /** Feedback en los botones Guardar / cURL: icono de check durante ~2,5 s. */
-  const [flash, setFlash] = useState<"save" | "curl" | null>(null);
+  const [flash, setFlash] = useState<"save" | "curl" | "link" | null>(null);
   useEffect(() => {
     if (!flash) return;
     const t = setTimeout(() => setFlash(null), 2500);
@@ -914,6 +914,7 @@ export default function App() {
     try {
       const { link } = await makeShareLink(req);
       await navigator.clipboard.writeText(link);
+      setFlash("link");
     } catch {
       setNotice({ kind: "err", text: t("No se pudo copiar al portapapeles.") });
     }
