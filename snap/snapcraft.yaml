@@ -60,6 +60,12 @@ apps:
       - wayland
       - x11
 
+# WebKitGTK tiene fija la ruta /usr/lib/<arch>/webkit2gtk-4.1/ (ignora WEBKIT_EXEC_PATH en las builds
+# de Ubuntu): se enlaza la copia del snap en esa ruta para que encuentre WebKitNetworkProcess, etc.
+layout:
+  /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1:
+    bind: $SNAP/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+
 parts:
   caesar:
     plugin: nil
