@@ -17,8 +17,9 @@ function ago(ms: number): string {
 }
 
 /** Historial local (gratis): las últimas peticiones sueltas. Un clic la abre en una pestaña nueva. */
-export default function HistoryPanel({ onOpen }: { onOpen: (e: HistoryEntry) => void }) {
-  const [open, setOpen] = useState(false);
+export default function HistoryPanel({ onOpen, bare }: { onOpen: (e: HistoryEntry) => void; bare?: boolean }) {
+  const [openState, setOpen] = useState(false);
+  const open = bare || openState;
   const [list, setList] = useState<HistoryEntry[]>([]);
   const load = useCallback(() => { historyList().then(setList).catch(() => {}); }, []);
   useEffect(() => {
@@ -28,8 +29,15 @@ export default function HistoryPanel({ onOpen }: { onOpen: (e: HistoryEntry) => 
   }, [load]);
 
   return (
-    <div className="shrink-0 border-t border-fg/10">
-      <div className="flex items-center pr-3">
+    <div className={bare ? "" : "shrink-0 border-t border-fg/10"}>
+      {bare && list.length > 0 && (
+        <div className="flex justify-end px-3 pt-2">
+          <button onClick={() => { historyClear().then(load).catch(() => {}); }} className="flex items-center gap-1 text-[11px] text-slate hover:text-red-400" title={t("Vaciar el historial")}>
+            <Trash2 size={12} /> {t("Vaciar el historial")}
+          </button>
+        </div>
+      )}
+      {!bare && <div className="flex items-center pr-3">
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
@@ -44,7 +52,7 @@ export default function HistoryPanel({ onOpen }: { onOpen: (e: HistoryEntry) => 
             <Trash2 size={13} />
           </button>
         )}
-      </div>
+      </div>}
       {open && (
         <div className="max-h-56 overflow-y-auto px-2 pb-2">
           {list.length === 0 ? (
