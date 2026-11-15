@@ -238,7 +238,7 @@ export default function App() {
     return () => un?.();
   }, []);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<"ui" | "edit">("ui");
+  const [settingsSection, setSettingsSection] = useState<"ui" | "edit" | "sync">("ui");
   const [showWelcome, setShowWelcome] = useState(() => !isOnboarded());
   const [, setTermsRev] = useState(0); // fuerza el repintado al aceptar los términos
   // Arranque: comprueba prueba de 7 días / lista blanca (Rust hace la red). Si la cuenta se borró, vuelve al modo Invitado.
@@ -1175,6 +1175,7 @@ export default function App() {
         onRefreshWs={() => void wsTeam.refresh()}
         refreshingWs={wsTeam.refreshing}
         onSettings={() => setShowSettings(true)}
+        onGoPro={() => { setSettingsSection("sync"); setShowSettings(true); }}
         width={sidebarW}
         onWidth={setSidebarW}
         renaming={renamingPath}

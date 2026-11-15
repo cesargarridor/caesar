@@ -31,7 +31,7 @@ interface Props {
   onAutosave: (on: boolean) => void;
   extraMethods: string[];
   onExtraMethods: (m: string[]) => void;
-  initialSection?: "ui" | "edit";
+  initialSection?: "ui" | "edit" | "sync";
   /** Colecciones compartidas en este equipo (se van al cerrar sesión). */
   sharedCount: number;
   /** Se llama antes de cerrar sesión para subir lo pendiente de las colecciones compartidas. */
