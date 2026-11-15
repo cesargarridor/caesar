@@ -19,12 +19,14 @@ interface Props {
   /** Rueda de actualizar del espacio compartido abierto. */
   onRefresh: () => void;
   refreshing: boolean;
+  /** Abre Ajustes en la sección de cuenta (para pasarse a Pro). */
+  onGoPro: () => void;
 }
 
-const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist disabled:opacity-40";
+const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-silver hover:bg-fg/10 hover:text-mist aria-disabled:opacity-50";
 
 /** Selector de espacio de trabajo: el cambio es instantáneo (todo vive en local). */
-export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onRename, onDelete, onShare, onInfo, onJoin, onRefresh, refreshing }: Props) {
+export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onRename, onDelete, onShare, onInfo, onJoin, onRefresh, refreshing, onGoPro }: Props) {
   const { account } = useAccount();
   const guest = !account.is_pro;
   const canNew = canCreateWorkspace(account.is_pro, list);
@@ -105,7 +107,7 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
           <p className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wide text-slate">{t("Espacios de trabajo")}</p>
           <div className="max-h-56 overflow-y-auto">
             {list.map((w, i) => (
-              <button key={w.id} className={item} disabled={!account.is_pro && i >= FREE_WORKSPACES} title={!account.is_pro && i >= FREE_WORKSPACES ? proTip : undefined} onClick={() => { if (w.id !== activeId) onSwitch(w.id); close(); }}>
+              <button key={w.id} className={item} aria-disabled={!account.is_pro && i >= FREE_WORKSPACES} title={!account.is_pro && i >= FREE_WORKSPACES ? proTip : undefined} onClick={() => { if (!account.is_pro && i >= FREE_WORKSPACES) { onGoPro(); close(); return; } if (w.id !== activeId) onSwitch(w.id); close(); }}>
                 {w.team && <Users size={13} className="shrink-0 text-aqua" />}
                 <span className="flex-1 truncate">{w.name}</span>
                 {w.id === activeId && <Check size={14} className="text-aqua" />}
@@ -134,19 +136,19 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
             </div>
           ) : (
             <>
-              <button className={item} disabled={!canNew} title={canNew ? undefined : t("Sin el plan Pro puedes tener hasta 2 espacios. Pásate a Pro para crear más.")} onClick={() => { setText(""); setMode("new"); }}>
-                <Plus size={14} /> {t("Nuevo espacio de trabajo")}
+              <button className={item} aria-disabled={!canNew} title={canNew ? undefined : t("Sin el plan Pro puedes tener hasta 2 espacios. Pásate a Pro para crear más.")} onClick={() => { if (!canNew) { onGoPro(); close(); return; } setText(""); setMode("new"); }}>
+                <Plus size={14} /> {t("Nuevo espacio de trabajo")}{!canNew && <Lock size={12} className="ml-auto text-slate" aria-hidden />}
               </button>
-              <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { setText(""); setMode("join"); }}>
-                <Link2 size={14} /> {t("Unirme a un espacio con un código")}
+              <button className={item} aria-disabled={guest} title={guest ? proTip : undefined} onClick={() => { if (guest) { onGoPro(); close(); return; } setText(""); setMode("join"); }}>
+                <Link2 size={14} /> {t("Unirme a un espacio con un código")}{guest && <Lock size={12} className="ml-auto text-slate" aria-hidden />}
               </button>
               {active.team ? (
                 <button className={item} onClick={() => { onInfo(); close(); }}>
                   <Users size={14} /> {t("Equipo: código y opciones")}
                 </button>
               ) : (
-                <button className={item} disabled={guest} title={guest ? proTip : undefined} onClick={() => { onShare(); close(); }}>
-                  <Share2 size={14} /> {t("Compartir este espacio con un equipo")}
+                <button className={item} aria-disabled={guest} title={guest ? proTip : undefined} onClick={() => { if (guest) onGoPro(); else onShare(); close(); }}>
+                  <Share2 size={14} /> {t("Compartir este espacio con un equipo")}{guest && <Lock size={12} className="ml-auto text-slate" aria-hidden />}
                 </button>
               )}
               <button className={item} onClick={() => { setText(active.name); setMode("rename"); }}>

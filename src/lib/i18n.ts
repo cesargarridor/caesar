@@ -457,6 +457,7 @@ const D: Record<string, Row> = {
   "Eliminar": ["Delete", "Löschen", "Supprimer", "Elimina"],
   "Nueva petición": ["New request", "Neue Anfrage", "Nouvelle requête", "Nuova richiesta"],
   "Nueva carpeta": ["New folder", "Neuer Ordner", "Nouveau dossier", "Nuova cartella"],
+  "Más acciones": ["More actions", "Weitere Aktionen", "Plus d'actions", "Altre azioni"],
   "Renombrar": ["Rename", "Umbenennen", "Renommer", "Rinomina"],
   "Vacío": ["Empty", "Leer", "Vide", "Vuoto"],
 

@@ -109,7 +109,7 @@ export default function Sidebar({
       } else {
         over = null;
         if (target && target !== "root" && hit) {
-          // Línea de inserción entre elementos: arriba/abajo de la fila = antes/después; centro de una carpeta = dentro.
+          // Línea de inserción entre elementos: bordes de la fila (20 %) = antes/después; el centro de una carpeta = dentro.
           const isFolder = hit.dataset.kind === "folder";
           const row = isFolder ? (hit.firstElementChild as HTMLElement | null) : hit;
           const r = row?.getBoundingClientRect();
@@ -117,8 +117,8 @@ export default function Sidebar({
           const isColl = !target.includes("/");
           if (!isColl && canMoveRelative(path, target)) {
             if (!isFolder) pos = f < 0.5 ? "before" : "after";
-            else if (f < 0.25) pos = "before";
-            else if (f > 0.75 && hit.dataset.open !== "1") pos = "after";
+            else if (f < 0.2) pos = "before";
+            else if (f > 0.8 && hit.dataset.open !== "1") pos = "after";
           }
           if (pos) over = target;
         }
@@ -186,7 +186,7 @@ export default function Sidebar({
           <CatLogo size={30} />
           <span className="cosmic-text">Caesar</span>
         </div>
-        <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} onShare={onShareWs} onInfo={onInfoWs} onJoin={onJoinWs} onRefresh={onRefreshWs} refreshing={refreshingWs} />
+        <WorkspaceSwitcher list={workspaces} activeId={activeWs} onSwitch={onSwitchWs} onAdd={onAddWs} onRename={onRenameWs} onDelete={onDeleteWs} onShare={onShareWs} onInfo={onInfoWs} onJoin={onJoinWs} onRefresh={onRefreshWs} refreshing={refreshingWs} onGoPro={actions.onGoPro} />
       </div>
 
       <div className="relative flex shrink-0 items-center gap-1 px-4 pb-1">
