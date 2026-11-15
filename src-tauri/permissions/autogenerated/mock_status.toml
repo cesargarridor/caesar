@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mock-status"
+description = "Enables the mock_status command without any pre-configured scope."
+commands.allow = ["mock_status"]
+
+[[permission]]
+identifier = "deny-mock-status"
+description = "Denies the mock_status command without any pre-configured scope."
+commands.deny = ["mock_status"]

@@ -327,13 +327,30 @@ pub fn vault_forget() -> Result<(), String> {
     }
 }
 
+const MAX_PLAIN: usize = 1_048_576;
+const MAX_ENVELOPE: usize = 2 * 1_048_576;
+
+/// El contexto (AAD) es dinámico (p. ej. id de colección): solo se valida el formato.
+fn check_context(c: &str) -> Result<(), String> {
+    let ok = !c.is_empty() && c.len() <= 128 && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ":_.-".contains(ch));
+    ok.then_some(()).ok_or_else(|| "Contexto de cifrado no válido.".to_string())
+}
+
 #[tauri::command]
 pub fn vault_encrypt(context: String, plaintext: String) -> Result<String, String> {
+    check_context(&context)?;
+    if plaintext.len() > MAX_PLAIN {
+        return Err("Datos demasiado grandes para cifrar (máx. 1 MB).".into());
+    }
     encrypt(&require_key()?, &context, plaintext.as_bytes())
 }
 
 #[tauri::command]
 pub fn vault_decrypt(context: String, envelope: String) -> Result<String, String> {
+    check_context(&context)?;
+    if envelope.len() > MAX_ENVELOPE {
+        return Err("Sobre cifrado demasiado grande (máx. 2 MB).".into());
+    }
     let bytes = decrypt(&require_key()?, &context, &envelope)?;
     String::from_utf8(bytes).map_err(|_| "Los datos descifrados no son texto válido.".to_string())
 }

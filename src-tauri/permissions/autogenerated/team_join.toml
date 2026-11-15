@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-team-join"
+description = "Enables the team_join command without any pre-configured scope."
+commands.allow = ["team_join"]
+
+[[permission]]
+identifier = "deny-team-join"
+description = "Denies the team_join command without any pre-configured scope."
+commands.deny = ["team_join"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-enter-key"
+description = "Enables the sync_enter_key command without any pre-configured scope."
+commands.allow = ["sync_enter_key"]
+
+[[permission]]
+identifier = "deny-sync-enter-key"
+description = "Denies the sync_enter_key command without any pre-configured scope."
+commands.deny = ["sync_enter_key"]

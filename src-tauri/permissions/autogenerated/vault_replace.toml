@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vault-replace"
+description = "Enables the vault_replace command without any pre-configured scope."
+commands.allow = ["vault_replace"]
+
+[[permission]]
+identifier = "deny-vault-replace"
+description = "Denies the vault_replace command without any pre-configured scope."
+commands.deny = ["vault_replace"]

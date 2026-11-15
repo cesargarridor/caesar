@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-make-master"
+description = "Enables the sync_make_master command without any pre-configured scope."
+commands.allow = ["sync_make_master"]
+
+[[permission]]
+identifier = "deny-sync-make-master"
+description = "Denies the sync_make_master command without any pre-configured scope."
+commands.deny = ["sync_make_master"]

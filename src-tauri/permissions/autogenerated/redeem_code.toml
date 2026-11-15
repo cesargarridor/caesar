@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-redeem-code"
+description = "Enables the redeem_code command without any pre-configured scope."
+commands.allow = ["redeem_code"]
+
+[[permission]]
+identifier = "deny-redeem-code"
+description = "Denies the redeem_code command without any pre-configured scope."
+commands.deny = ["redeem_code"]

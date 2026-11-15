@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pairing-approve-start"
+description = "Enables the pairing_approve_start command without any pre-configured scope."
+commands.allow = ["pairing_approve_start"]
+
+[[permission]]
+identifier = "deny-pairing-approve-start"
+description = "Denies the pairing_approve_start command without any pre-configured scope."
+commands.deny = ["pairing_approve_start"]

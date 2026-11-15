@@ -98,6 +98,9 @@ pub fn validate_ws_url(raw: &str) -> Result<Url, String> {
     if !url.username().is_empty() || url.password().is_some() {
         return Err("Las credenciales embebidas en la URL no están permitidas".into());
     }
+    if crate::url_targets_metadata(&url) {
+        return Err("Host de metadatos/link-local bloqueado (169.254.0.0/16, metadata.google.internal)".into());
+    }
     Ok(url)
 }
 
@@ -298,6 +301,9 @@ pub async fn ws_connect<R: tauri::Runtime>(
 
 #[tauri::command]
 pub fn ws_send(state: tauri::State<'_, WsState>, id: String, kind: String, data: String) -> Result<usize, String> {
+    if data.len() > MAX_MSG_BYTES + MAX_MSG_BYTES / 3 + 4 {
+        return Err("El mensaje supera el límite de 16 MB".into());
+    }
     let msg = match kind.as_str() {
         "text" => Message::Text(data.into()),
         "binary" => Message::Binary(B64.decode(data.trim()).map_err(|_| "Base64 inválido".to_string())?.into()),
@@ -323,6 +329,9 @@ pub fn ws_send(state: tauri::State<'_, WsState>, id: String, kind: String, data:
 
 #[tauri::command]
 pub fn ws_close(state: tauri::State<'_, WsState>, id: String, code: Option<u16>, reason: Option<String>) -> Result<(), String> {
+    if reason.as_ref().map_or(false, |r| r.len() > 123) {
+        return Err("El motivo de cierre admite como máximo 123 bytes".into());
+    }
     let g = state.conns.lock().map_err(|_| "Estado interno bloqueado".to_string())?;
     if let Some(h) = g.get(&id) {
         let c = match code {

@@ -30,9 +30,7 @@ fn read(path: &PathBuf) -> Vec<Value> {
 
 fn write(path: &PathBuf, list: &[Value]) -> Result<(), String> {
     let bytes = serde_json::to_vec(list).map_err(|e| e.to_string())?;
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, bytes).map_err(|e| format!("No se pudo guardar el historial: {e}"))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("No se pudo guardar el historial: {e}"))
+    crate::sync::write_atomic(path, &bytes).map_err(|e| e.replace("No se pudo guardar", "No se pudo guardar el historial"))
 }
 
 /// Misma petición = mismo método y misma URL: sube arriba en vez de duplicarse.
@@ -57,12 +55,70 @@ fn valid(entry: &Value) -> bool {
         && serde_json::to_vec(entry).map(|b| b.len() <= MAX_ENTRY_BYTES).unwrap_or(false)
 }
 
+const MASK: &str = "••••";
+
+/// Cabeceras / parámetros cuyo valor nunca se guarda en el historial (sin distinguir mayúsculas).
+const SENSITIVE_NAMES: [&str; 6] = ["authorization", "cookie", "set-cookie", "proxy-authorization", "x-api-key", "x-auth-token"];
+
+/// Campos de `auth.extra` (OAuth, AWS, NTLM, WSSE, Akamai…) que contienen credenciales.
+const SENSITIVE_EXTRA: [&str; 11] = [
+    "accessToken", "refreshToken", "token", "clientSecret", "consumerSecret", "tokenSecret", "secretKey", "sessionToken", "password", "verifier", "clientToken",
+];
+
+/// Una referencia `{{variable}}` no es un secreto: se conserva para que re-enviar siga funcionando.
+fn is_var_ref(s: &str) -> bool {
+    let t = s.trim();
+    t.starts_with("{{") && t.ends_with("}}") && t.matches("{{").count() == 1
+}
+
+fn mask_field(obj: &mut Value, field: &str) {
+    if let Some(Value::String(s)) = obj.get_mut(field) {
+        if !s.is_empty() && !is_var_ref(s) {
+            *s = MASK.to_string();
+        }
+    }
+}
+
+fn redact_kv_list(list: &mut Value) {
+    if let Some(items) = list.as_array_mut() {
+        for it in items {
+            let sensitive = it["key"].as_str().map(|k| SENSITIVE_NAMES.contains(&k.trim().to_ascii_lowercase().as_str())).unwrap_or(false);
+            if sensitive {
+                mask_field(it, "value");
+            }
+        }
+    }
+}
+
+/// Quita las credenciales de la petición antes de guardarla (el historial queda en claro en disco).
+/// La entrada sigue siendo válida: el usuario repone la credencial al re-enviar.
+pub(crate) fn redact_entry(entry: &mut Value) {
+    let Some(req) = entry.get_mut("req") else { return };
+    redact_kv_list(&mut req["headers"]);
+    redact_kv_list(&mut req["params"]);
+    if let Some(auth) = req.get_mut("auth").filter(|a| a.is_object()) {
+        for f in ["token", "password", "value"] {
+            mask_field(auth, f);
+        }
+        if let Some(extra) = auth.get_mut("extra").and_then(Value::as_object_mut) {
+            for f in SENSITIVE_EXTRA {
+                if let Some(Value::String(s)) = extra.get_mut(f) {
+                    if !s.is_empty() && !is_var_ref(s) {
+                        *s = MASK.to_string();
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Apunta una petición enviada. Una entrada no válida o demasiado grande se ignora sin error.
 #[tauri::command]
-pub fn history_add(app: AppHandle, entry: Value) -> Result<(), String> {
+pub fn history_add(app: AppHandle, mut entry: Value) -> Result<(), String> {
     if !valid(&entry) {
         return Ok(());
     }
+    redact_entry(&mut entry);
     let _g = LOCK.lock().map_err(|_| "Historial ocupado.".to_string())?;
     let path = file(&app)?;
     write(&path, &push_entry(read(&path), entry))
@@ -120,5 +176,44 @@ mod tests {
         assert!(!valid(&json!({ "id": "1" })));
         let grande = json!({ "id": "1", "method": "POST", "url": "u", "req": { "raw": "x".repeat(300_000) } });
         assert!(!valid(&grande));
+    }
+
+    #[test]
+    fn redacta_credenciales_y_sigue_siendo_valida() {
+        let mut ent = json!({
+            "id": "1", "method": "GET", "url": "https://x/a", "req": {
+                "headers": [
+                    { "key": "authorization", "value": "Bearer abc", "enabled": true },
+                    { "key": "X-API-KEY", "value": "k123", "enabled": true },
+                    { "key": "Cookie", "value": "s=1", "enabled": true },
+                    { "key": "Accept", "value": "json", "enabled": true },
+                    { "key": "Proxy-Authorization", "value": "{{proxy}}", "enabled": true }
+                ],
+                "params": [ { "key": "X-Auth-Token", "value": "t", "enabled": true }, { "key": "q", "value": "1", "enabled": true } ],
+                "auth": { "type": "oauth2", "token": "tok", "username": "u", "password": "pw", "key": "k", "value": "apikeyval",
+                          "extra": { "accessToken": "at", "refreshToken": "rt", "clientSecret": "cs", "clientId": "id", "addTokenTo": "header" } },
+                "body": { "mode": "raw", "raw": "{}" }
+            }
+        });
+        redact_entry(&mut ent);
+        let r = &ent["req"];
+        assert_eq!(r["headers"][0]["value"], MASK);
+        assert_eq!(r["headers"][1]["value"], MASK);
+        assert_eq!(r["headers"][2]["value"], MASK);
+        assert_eq!(r["headers"][3]["value"], "json");
+        assert_eq!(r["headers"][4]["value"], "{{proxy}}");
+        assert_eq!(r["params"][0]["value"], MASK);
+        assert_eq!(r["params"][1]["value"], "1");
+        assert_eq!(r["auth"]["token"], MASK);
+        assert_eq!(r["auth"]["password"], MASK);
+        assert_eq!(r["auth"]["value"], MASK);
+        assert_eq!(r["auth"]["username"], "u");
+        assert_eq!(r["auth"]["extra"]["accessToken"], MASK);
+        assert_eq!(r["auth"]["extra"]["refreshToken"], MASK);
+        assert_eq!(r["auth"]["extra"]["clientSecret"], MASK);
+        assert_eq!(r["auth"]["extra"]["clientId"], "id");
+        assert_eq!(r["auth"]["extra"]["addTokenTo"], "header");
+        assert!(valid(&ent));
+        assert!(!serde_json::to_string(&ent).unwrap().contains("Bearer abc"));
     }
 }

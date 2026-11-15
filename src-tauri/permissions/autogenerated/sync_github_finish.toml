@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-github-finish"
+description = "Enables the sync_github_finish command without any pre-configured scope."
+commands.allow = ["sync_github_finish"]
+
+[[permission]]
+identifier = "deny-sync-github-finish"
+description = "Denies the sync_github_finish command without any pre-configured scope."
+commands.deny = ["sync_github_finish"]
