@@ -8,6 +8,8 @@ import { emptyRequest } from "./curl.ts";
  * Caesar (Ctrl/Cmd+V) o lo abre con un clic. La autorización de la petición NO se incluye y los valores de cabeceras sensibles se vacían.
  */
 export const SHARE_PREFIX = "caesar://share?payload=";
+/** Versión https del mismo enlace: Discord, Slack, WhatsApp… solo convierten en clicable un http(s). La página redirige a caesar://. */
+export const WEB_PREFIX = "https://cesargarridor.github.io/caesar/open.html#";
 const MAX_JSON = 256 * 1024;
 const SENSITIVE = /authorization|cookie|token|api[-_]?key|secret|password|signature/i;
 const MODES = ["none", "json", "text", "formdata", "urlencoded", "graphql"] as const;
@@ -20,7 +22,10 @@ interface Payload {
   b: { mode: string; raw?: string; urlencoded?: [string, string][]; formdata?: [string, string][]; q?: string; qv?: string; op?: string };
 }
 
-export const looksLikeShareLink = (s: string) => s.trim().startsWith(SHARE_PREFIX);
+export const looksLikeShareLink = (s: string) => {
+  const t = s.trim();
+  return t.startsWith(SHARE_PREFIX) || t.startsWith(WEB_PREFIX);
+};
 
 const toB64Url = (b: Uint8Array) => {
   let bin = "";
@@ -80,7 +85,7 @@ export async function makeShareLink(req: RequestState): Promise<{ link: string; 
       if (z.length + 2 < payload.length) payload = `z.${z}`;
     } catch { /* se queda sin comprimir */ }
   }
-  return { link: SHARE_PREFIX + payload, hidden };
+  return { link: WEB_PREFIX + payload, hidden };
 }
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
@@ -91,7 +96,8 @@ const kvs = (v: unknown): KV[] =>
 export async function parseShareLink(text: string): Promise<RequestState> {
   const t = text.trim();
   if (!looksLikeShareLink(t)) throw new Error("No es un enlace de Caesar.");
-  let raw = t.slice(SHARE_PREFIX.length).split(/[&#\s]/)[0];
+  const start = t.startsWith(WEB_PREFIX) ? WEB_PREFIX.length : SHARE_PREFIX.length;
+  let raw = t.slice(start).split(/[&#\s]/)[0];
   if (!raw) throw new Error("El enlace está vacío.");
   let bytes: Uint8Array;
   try {

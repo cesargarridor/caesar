@@ -56,7 +56,7 @@ export default function ProfilesPanel({ profiles, onChange, wide = false, initia
             <div className="flex items-center gap-1.5 px-2 py-1.5">
               <button
                 onClick={() => toggleActive(p.id)}
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ring-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-aqua ${on ? "bg-aqua text-ink ring-aqua" : "text-transparent ring-fg/30 hover:text-slate"}`}
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ring-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-aqua ${on ? "bg-aqua/20 text-aqua ring-aqua" : "text-transparent ring-fg/30 hover:text-slate"}`}
                 title={on ? t("Perfil activo: clic para desactivarlo") : t("Activar este perfil")}
                 aria-label={on ? t("Desactivar este perfil") : t("Activar este perfil")}
                 aria-pressed={on}
