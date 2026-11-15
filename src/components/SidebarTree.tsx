@@ -79,8 +79,8 @@ function DropLine({ pos, indent }: { pos: "before" | "after"; indent: number }) 
       className="pointer-events-none absolute right-1 z-10 flex items-center"
       style={{ left: indent, [pos === "before" ? "top" : "bottom"]: -1 }}
     >
-      <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
-      <span className="h-0.5 flex-1 bg-accent" />
+      <span className="-ml-1 h-2 w-2 shrink-0 rounded-full bg-aqua" />
+      <span className="h-0.5 flex-1 bg-aqua shadow-[0_0_6px_var(--t-accent)]" />
     </div>
   );
 }

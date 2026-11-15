@@ -15,6 +15,7 @@ import { isOnboarded, termsAccepted } from "./lib/legal";
 import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
+import CurlImportDialog from "./components/CurlImportDialog";
 import ProfileBar from "./components/ProfileBar";
 import EmptyTabs from "./components/EmptyTabs";
 import RequestBar from "./components/RequestBar";
@@ -407,6 +408,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [notice]);
   /** Feedback en los botones Guardar / cURL: icono de check durante ~2,5 s. */
+  const [showCurlImport, setShowCurlImport] = useState(false);
   const [flash, setFlash] = useState<"save" | "curl" | "link" | null>(null);
   useEffect(() => {
     if (!flash) return;
@@ -1222,6 +1224,15 @@ export default function App() {
           />
         )}
         {mockPath && mockNode?.type === "folder" && <MockDialog key={mockPath} folder={mockNode} onClose={() => setMockPath(null)} />}
+        {showCurlImport && (
+          <CurlImportDialog
+            onClose={() => setShowCurlImport(false)}
+            onAccept={(parsed) => {
+              openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name: `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`, dirty: true });
+              setShowCurlImport(false);
+            }}
+          />
+        )}
         {showAi && activeOrNull && (
           <AiDialog req={req} response={results[active.id]?.response ?? null} onApplyTests={(code) => patch({ tests: code })} onClose={() => setShowAi(false)} />
         )}
@@ -1336,7 +1347,7 @@ export default function App() {
           onCurl={handleCurl}
           onSend={handleSend}
           onSave={() => handleSave()}
-          onCopyCurl={handleCopyCurl}
+          onImportCurl={() => setShowCurlImport(true)}
           onCodegen={() => setCodegenOpen((o) => !o)}
           codegenOpen={codegenOpen}
           flash={flash}

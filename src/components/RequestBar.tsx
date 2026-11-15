@@ -19,7 +19,8 @@ interface Props {
   onCurl: (text: string) => void;
   onSend: () => void;
   onSave: () => void;
-  onCopyCurl: () => void;
+  /** Abre el importador de cURL (vista previa + pestaña nueva). */
+  onImportCurl: () => void;
   onCodegen?: () => void;
   /** Abre el asistente de IA (con tu propia clave). */
     /** Copia un enlace caesar:// con esta petición (sin nube). */
@@ -38,7 +39,7 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onCopyCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
   const icon = "flex items-center rounded-[10px] px-3 py-2 text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40";
   return (
@@ -71,7 +72,7 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
             spellCheck={false}
             className="w-full flex-1 rounded-[10px] bg-kelp py-2 pl-5 pr-11 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
           />
-          <button onClick={onCopyCurl} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate/70 hover:text-aqua" title={t("Copiar como cURL")} aria-label={t("Copiar como cURL")}>
+          <button onClick={onImportCurl} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate/70 hover:text-aqua" title={t("Importar desde cURL")} aria-label={t("Importar desde cURL")}>
             <Terminal size={14} />
           </button>
         </div>
