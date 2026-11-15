@@ -141,6 +141,33 @@ Usa tus peticiones y colecciones en varios ordenadores sin que nadie más pueda 
 Qué guarda la app y cómo borrar tus datos: [Seguridad](https://cesargarridor.github.io/caesar-legal/security.html) ·
 [Borrar datos](https://cesargarridor.github.io/caesar-legal/delete.html).
 
+## Exención de responsabilidad (tal cual / «as is»)
+
+**Caesar se ofrece «tal cual» y «según disponibilidad», sin garantías de ningún tipo**, ni expresas ni implícitas (incluidas las de
+comerciabilidad, adecuación a un fin concreto, ausencia de errores o de interrupciones y no infracción). Úsalo bajo tu propia responsabilidad.
+
+En la medida máxima que permita la ley aplicable, **el autor (Cesar Garrido) no se hace responsable** de ningún daño, pérdida o
+reclamación derivados del uso o de la imposibilidad de usar Caesar, entre otros:
+
+- Pérdida, corrupción o filtración de datos, colecciones, variables, historial, tokens o claves (incluida la pérdida de la clave de
+  recuperación del cifrado de extremo a extremo o del llavero del sistema, que hace irrecuperables los datos cifrados).
+- Las peticiones que envíes con la app: su contenido, sus efectos en servicios de terceros, costes, bloqueos de cuenta o
+  daños en los sistemas a los que apuntes. Tú decides qué ejecutas y contra qué servidor.
+- Fallos de seguridad, vulnerabilidades o errores del software o de sus dependencias, aunque se hayan hecho auditorías o correcciones:
+  ninguna medida de seguridad garantiza una protección total.
+- Fallos, cambios o cortes de servicios de terceros (GitHub, Google, Firebase, Lemon Squeezy, proveedores de IA, etc.) o del servicio de sincronización.
+- Daños indirectos, lucro cesante, pérdida de negocio o de beneficios, y cualquier daño derivado de actualizaciones automáticas.
+
+**Haz copias de seguridad** de lo importante (exporta tus colecciones y guarda la clave de recuperación).
+
+Esta exención no limita la responsabilidad que la ley no permita excluir (por ejemplo, por dolo o negligencia grave), ni los derechos
+irrenunciables que correspondan a los consumidores, ni el derecho de reembolso de 14 días de Pro. Consulta también la [licencia](LICENSE),
+los [Términos](https://cesargarridor.github.io/caesar-legal/terms.html) y el [Aviso legal](https://cesargarridor.github.io/caesar-legal/legal.html).
+
+*English:* Caesar is provided “AS IS” and “AS AVAILABLE”, without warranty of any kind. To the maximum extent permitted by law, the author
+is not liable for any loss of data or keys, damages, lost profits, or the consequences of the requests you send with the app. Keep backups.
+This does not limit liability or consumer rights that cannot be excluded by law.
+
 ## Primer uso
 
 La primera vez que abres Caesar puedes **iniciar sesión**, **registrarte** o **continuar como invitado**. Como invitado los
