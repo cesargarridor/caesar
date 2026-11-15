@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, RefreshCw, RotateCcw, X } from "lucide-react";
 import type { UpdateState } from "../types";
-import { THEMES, type Theme } from "../lib/themes";
+import { THEMES, useTheme, type ColorMode, type Theme } from "../lib/themes";
 import CatLogo from "./CatLogo";
 import { setJsonCopyMode, useJsonCopyMode, type JsonCopyMode } from "../lib/jsonCopy";
 import ShortcutsEditor from "./ShortcutsEditor";
@@ -381,8 +381,20 @@ function Block({ title, hint, children }: { title: string; hint: string; childre
 
 export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, extraMethods, onExtraMethods, initialSection, sharedCount, onBeforeSignOut, onSignedOut, updates, onClose }: Props) {
   useLang();
+  const { mode, setMode } = useTheme();
+  const MODES: [ColorMode, string][] = [["light", "Claro"], ["dark", "Oscuro"], ["system", "Sistema"]];
   const UiSection = () => (
     <>
+      <Block title="Modo de color" hint="«Sistema» sigue el modo claro u oscuro de tu ordenador y cambia solo, sin reiniciar. Al elegir un tema se recuerda uno para cada modo.">
+        <div className="inline-flex rounded-[10px] bg-kelp p-1" role="radiogroup" aria-label={t("Modo de color")}>
+          {MODES.map(([m, label]) => (
+            <button key={m} role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
+              className={`rounded-lg px-4 py-1.5 text-sm ${mode === m ? "bg-iris text-onprimary" : "text-slate hover:text-mist"}`}>
+              {t(label)}
+            </button>
+          ))}
+        </div>
+      </Block>
       <Block title="Tema" hint="Elige el estilo de la aplicación. Los colores de GET, POST, PUT, PATCH y DELETE son siempre los mismos.">
     <div className="grid grid-cols-2 gap-4 px-1 py-1 md:grid-cols-3">
       {THEMES.map((t) => {

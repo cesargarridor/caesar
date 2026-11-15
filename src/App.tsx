@@ -47,7 +47,7 @@ import {
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
-import { applyTheme, loadThemeId, saveThemeId } from "./lib/themes";
+import { useTheme } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, looksLikeCurl, parseCurl } from "./lib/curl";
 import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./lib/request";
@@ -175,7 +175,7 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const [steps, setSteps] = useState<StepState[]>([]);
 
-  const [themeId, setThemeId] = useState(loadThemeId);
+  const { themeId, choose: chooseTheme } = useTheme();
   const [fonts, setFonts] = useState<FontPrefs>(loadFonts);
   const [sidebarW, setSidebarW] = useState(loadSidebarWidth);
   useEffect(() => {
@@ -437,12 +437,6 @@ export default function App() {
       unlisten?.();
     };
   }, []);
-
-  const chooseTheme = (id: string) => {
-    setThemeId(id);
-    applyTheme(id);
-    saveThemeId(id);
-  };
 
   // ───── pestañas ─────
   const patchTab = (id: string, fn: (t: Tab) => Tab) => setTabs((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));

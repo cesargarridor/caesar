@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 /** Temas de Caesar. Los colores de método (GET/POST/PUT/PATCH/DELETE) NO viven aquí: son fijos en todos los estilos. */
 
 export interface JsonPalette {
@@ -34,18 +36,46 @@ const DARK_SEM = { ok: "#3ddc97", bad: "#ff5c6c" };
 
 export const THEMES: Theme[] = [
   {
-    id: "monokai", name: "Monokai (predeterminado)", dark: true,
+    id: "caesar", name: "Caesar (predeterminado)", dark: true,
+    ui: { abyss: "#0d0d0d", deep: "#141414", kelp: "#1b1b1b", mist: "#ededed", silver: "#c4c4c4", slate: "#8a8a8a", iris: "#d8571f", onprimary: "#ffffff", accent: "#f0883e", hl: "#f2b35e", ...DARK_SEM },
+    resp: { key: "#79b8ff", str: "#9ecb7b", num: "#f2a65a", bool: "#d2a8ff", nul: "#7d8590", punc: "#7d8590", link: "#f0883e" },
+    body: { key: "#7aa2f7", str: "#e0af68", num: "#ff9e64", bool: "#bb9af7", nul: "#6a739f", punc: "#565f89" },
+    grad: ["#f2b35e", "#f0883e", "#d8571f"], stars: 0,
+  },
+  {
+    id: "monokai", name: "Monokai", dark: true,
     ui: { abyss: "#272822", deep: "#1e1f1c", kelp: "#3e3d32", mist: "#f8f8f2", silver: "#cfcfc2", slate: "#a8a8a4", iris: "#f92672", onprimary: "#000000", accent: "#a6e22e", hl: "#e6db74", ...DARK_SEM, bad: "#ff808c"},
     resp: { key: "#66d9ef", str: "#e6db74", num: "#ae81ff", bool: "#f92672", nul: "#fd971f", punc: "#90908a", link: "#a6e22e" },
     body: { key: "#a6e22e", str: "#fd971f", num: "#ae81ff", bool: "#f92672", nul: "#90908a", punc: "#75715e" },
     grad: ["#f92672", "#fd971f", "#a6e22e"], stars: 0,
   },
   {
-    id: "caesar", name: "Caesar", dark: true,
-    ui: { abyss: "#1a1640", deep: "#130f30", kelp: "#2a2563", mist: "#f4f0ff", silver: "#cfcdeb", slate: "#9f9bd0", iris: "#8052ff", onprimary: "#ffffff", accent: "#9584ff", hl: "#ffb829", ...DARK_SEM },
-    resp: { key: "#6cb6ff", str: "#ffd866", num: "#ffb454", bool: "#ff9ec4", nul: "#b3b0d9", punc: "#8d89c4", link: "#5ff0b4" },
-    body: { key: "#e59cff", str: "#7ee0c3", num: "#ffa66b", bool: "#9cb2ff", nul: "#9b97c4", punc: "#8d89c4" },
-    grad: ["#e59cff", "#ba9cff", "#9cb2ff"], stars: 0.55,
+    id: "catppuccin-mocha", name: "Catppuccin Mocha", dark: true,
+    ui: { abyss: "#1e1e2e", deep: "#181825", kelp: "#313244", mist: "#cdd6f4", silver: "#bac2de", slate: "#9399b2", iris: "#cba6f7", onprimary: "#1e1e2e", accent: "#89b4fa", hl: "#f9e2af", ok: "#a6e3a1", bad: "#f38ba8" },
+    resp: { key: "#89b4fa", str: "#a6e3a1", num: "#fab387", bool: "#cba6f7", nul: "#7f849c", punc: "#7f849c", link: "#94e2d5" },
+    body: { key: "#f5c2e7", str: "#f9e2af", num: "#fab387", bool: "#89dceb", nul: "#7f849c", punc: "#6c7086" },
+    grad: ["#f5c2e7", "#cba6f7", "#89b4fa"], stars: 0,
+  },
+  {
+    id: "gruvbox-dark", name: "Gruvbox Dark", dark: true,
+    ui: { abyss: "#282828", deep: "#1d2021", kelp: "#3c3836", mist: "#ebdbb2", silver: "#d5c4a1", slate: "#a89984", iris: "#d79921", onprimary: "#1d2021", accent: "#fabd2f", hl: "#fe8019", ok: "#b8bb26", bad: "#fb4934" },
+    resp: { key: "#83a598", str: "#b8bb26", num: "#d3869b", bool: "#fb4934", nul: "#928374", punc: "#928374", link: "#8ec07c" },
+    body: { key: "#fe8019", str: "#b8bb26", num: "#d3869b", bool: "#83a598", nul: "#928374", punc: "#7c6f64" },
+    grad: ["#fe8019", "#fabd2f", "#b8bb26"], stars: 0,
+  },
+  {
+    id: "github-dark", name: "GitHub Dark", dark: true,
+    ui: { abyss: "#0d1117", deep: "#010409", kelp: "#161b22", mist: "#e6edf3", silver: "#c9d1d9", slate: "#8b949e", iris: "#238636", onprimary: "#ffffff", accent: "#58a6ff", hl: "#d29922", ok: "#3fb950", bad: "#ff7b72" },
+    resp: { key: "#79c0ff", str: "#a5d6ff", num: "#ffa657", bool: "#ff7b72", nul: "#8b949e", punc: "#8b949e", link: "#7ee787" },
+    body: { key: "#d2a8ff", str: "#a5d6ff", num: "#ffa657", bool: "#ff7b72", nul: "#8b949e", punc: "#6e7681" },
+    grad: ["#58a6ff", "#d2a8ff", "#ff7b72"], stars: 0,
+  },
+  {
+    id: "arcade", name: "Arcade / Retro Neon", dark: true,
+    ui: { abyss: "#07060f", deep: "#04040b", kelp: "#14112b", mist: "#f2f6ff", silver: "#c7cdf0", slate: "#8e92c4", iris: "#ff6a00", onprimary: "#07060f", accent: "#00f0ff", hl: "#ff2bd6", ok: "#39ff14", bad: "#ff3b6b" },
+    resp: { key: "#00f0ff", str: "#39ff14", num: "#ff9a1f", bool: "#ff2bd6", nul: "#8e92c4", punc: "#7a7fb5", link: "#39ff14" },
+    body: { key: "#ff2bd6", str: "#c6ff3d", num: "#ff9a1f", bool: "#00f0ff", nul: "#8e92c4", punc: "#6a6fa5" },
+    grad: ["#00f0ff", "#ff2bd6", "#ff9a1f"], stars: 0.5,
   },
   {
     id: "monokai-light", name: "Monokai Light", dark: false,
@@ -76,7 +106,7 @@ export const THEMES: Theme[] = [
     grad: ["#88c0d0", "#81a1c1", "#b48ead"], stars: 0.3,
   },
   {
-    id: "one-dark", name: "One Dark", dark: true,
+    id: "one-dark", name: "One Dark Pro", dark: true,
     ui: { abyss: "#282c34", deep: "#21252b", kelp: "#323842", mist: "#dcdfe4", silver: "#abb2bf", slate: "#9ba1ae", iris: "#61afef", onprimary: "#1e222a", accent: "#61afef", hl: "#e5c07b", ...DARK_SEM, bad: "#ff7381"},
     resp: { key: "#61afef", str: "#e5c07b", num: "#d19a66", bool: "#c678dd", nul: "#7f8697", punc: "#7f8697", link: "#98c379" },
     body: { key: "#e06c75", str: "#98c379", num: "#d19a66", bool: "#56b6c2", nul: "#7f8697", punc: "#5c6370" },
@@ -91,31 +121,92 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const DEFAULT_THEME = "monokai";
-const KEY = "caesar.theme";
+export const DEFAULT_THEME = "caesar";
+export const DEFAULT_LIGHT_THEME = "github-light";
 
-export function loadThemeId(): string {
-  try {
-    const id = localStorage.getItem(KEY);
-    if (id && THEMES.some((t) => t.id === id)) return id;
-  } catch {
-    /* sin almacenamiento */
+export type ColorMode = "light" | "dark" | "system";
+
+interface ThemePrefs { mode: ColorMode; dark: string; light: string }
+export interface ThemeState extends ThemePrefs { /** Tema realmente aplicado ahora. */ themeId: string; /** El SO está en oscuro. */ systemDark: boolean }
+
+const K_MODE = "caesar.colorMode", K_DARK = "caesar.themeDark", K_LIGHT = "caesar.themeLight", K_OLD = "caesar.theme";
+
+const find = (id: string | null | undefined) => THEMES.find((t) => t.id === id);
+const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const put = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
+
+function loadPrefs(): ThemePrefs {
+  const p: ThemePrefs = { mode: "system", dark: DEFAULT_THEME, light: DEFAULT_LIGHT_THEME };
+  const m = get(K_MODE);
+  if (m === "light" || m === "dark" || m === "system") p.mode = m;
+  const d = find(get(K_DARK)), l = find(get(K_LIGHT));
+  if (d?.dark) p.dark = d.id;
+  if (l && !l.dark) p.light = l.id;
+  // Migración: antes había un solo tema; se respeta fijando el modo a su luminosidad.
+  const old = find(get(K_OLD));
+  if (old && !m) {
+    if (old.dark) p.dark = old.id; else p.light = old.id;
+    p.mode = old.dark ? "dark" : "light";
   }
-  return DEFAULT_THEME;
+  return p;
 }
 
-export function saveThemeId(id: string) {
-  try {
-    localStorage.setItem(KEY, id);
-  } catch {
-    /* sin almacenamiento */
-  }
+const mq: MediaQueryList | null = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+let prefs = loadPrefs();
+let state: ThemeState = compute();
+const listeners = new Set<() => void>();
+
+function compute(): ThemeState {
+  const systemDark = mq ? mq.matches : true;
+  const dark = prefs.mode === "system" ? systemDark : prefs.mode === "dark";
+  return { ...prefs, systemDark, themeId: dark ? prefs.dark : prefs.light };
 }
 
-/** Vuelca el tema a variables CSS en <html>. */
+function refresh() {
+  state = compute();
+  applyTheme(state.themeId);
+  listeners.forEach((f) => f());
+}
+
+let started = false;
+/** Aplica el tema y escucha los cambios del modo claro/oscuro del sistema operativo (sin recargar). */
+export function initTheme() {
+  if (started) return;
+  started = true;
+  mq?.addEventListener("change", () => { if (prefs.mode === "system") refresh(); else { state = compute(); listeners.forEach((f) => f()); } });
+  refresh();
+}
+
+export function setColorMode(mode: ColorMode) {
+  prefs = { ...prefs, mode };
+  put(K_MODE, mode);
+  refresh();
+}
+
+/** Elige un tema: lo guarda en su hueco (oscuro o claro). Si no encaja con el modo actual, pasa a ese modo. */
+export function chooseTheme(id: string) {
+  const th = find(id);
+  if (!th) return;
+  prefs = { ...prefs, [th.dark ? "dark" : "light"]: id };
+  put(th.dark ? K_DARK : K_LIGHT, id);
+  const nowDark = prefs.mode === "system" ? (mq ? mq.matches : true) : prefs.mode === "dark";
+  if (nowDark !== th.dark) {
+    prefs.mode = th.dark ? "dark" : "light";
+    put(K_MODE, prefs.mode);
+  }
+  refresh();
+}
+
+export function useTheme() {
+  const st = useSyncExternalStore((f) => { listeners.add(f); return () => { listeners.delete(f); }; }, () => state);
+  return { ...st, setMode: setColorMode, choose: chooseTheme };
+}
+
+/** Vuelca el tema a variables CSS y clases en <html> (.theme-dark / .theme-light / .theme-<id>). */
 export function applyTheme(id: string) {
-  const t = THEMES.find((x) => x.id === id) ?? THEMES[0];
-  const s = document.documentElement.style;
+  const t = find(id) ?? THEMES[0];
+  const root = document.documentElement;
+  const s = root.style;
   const set = (k: string, v: string) => s.setProperty(`--t-${k}`, v);
   const u = t.ui;
   set("abyss", u.abyss); set("deep", u.deep); set("kelp", u.kelp);
@@ -128,5 +219,7 @@ export function applyTheme(id: string) {
   set("g1", t.grad[0]); set("g2", t.grad[1]); set("g3", t.grad[2]);
   set("stars", String(t.stars));
   s.colorScheme = t.dark ? "dark" : "light";
-  document.documentElement.dataset.theme = t.id;
+  Array.from(root.classList).filter((c) => c.startsWith("theme-")).forEach((c) => root.classList.remove(c));
+  root.classList.add(t.dark ? "theme-dark" : "theme-light", `theme-${t.id}`);
+  root.dataset.theme = t.id;
 }
