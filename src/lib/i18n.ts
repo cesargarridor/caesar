@@ -567,6 +567,11 @@ const D: Record<string, Row> = {
   "El script se ejecutó sin resultados.": ["The script ran with no results.", "Das Skript wurde ohne Ergebnisse ausgeführt.", "Le script s'est exécuté sans résultat.", "Lo script è stato eseguito senza risultati."],
 
   // ── Ajustes ──
+  "Modo de color": ["Colour mode", "Farbmodus", "Mode de couleur", "Modalità colore"],
+  "Claro": ["Light", "Hell", "Clair", "Chiaro"],
+  "Oscuro": ["Dark", "Dunkel", "Sombre", "Scuro"],
+  "Sistema": ["System", "System", "Système", "Sistema"],
+  "«Sistema» sigue el modo claro u oscuro de tu ordenador y cambia solo, sin reiniciar. Al elegir un tema se recuerda uno para cada modo.": ["“System” follows your computer's light or dark mode and switches by itself, no restart. Picking a theme remembers one for each mode.", "„System“ folgt dem hellen oder dunklen Modus deines Computers und wechselt von selbst, ohne Neustart. Beim Wählen eines Themes wird je Modus eines gemerkt.", "« Système » suit le mode clair ou sombre de ton ordinateur et change tout seul, sans redémarrer. Choisir un thème en retient un pour chaque mode.", "«Sistema» segue la modalità chiara o scura del computer e cambia da solo, senza riavviare. Scegliendo un tema se ne ricorda uno per ogni modalità."],
   "Tema": ["Theme", "Design", "Thème", "Tema"],
   "Tamaño de letra": ["Font size", "Schriftgröße", "Taille de police", "Dimensione carattere"],
   "Respuesta": ["Response", "Antwort", "Réponse", "Risposta"],

@@ -34,14 +34,14 @@ interface Props {
 }
 
 const ghost =
-  "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40";
+  "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-slate hover:bg-fg/10 hover:text-mist";
 
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
 export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand }: Props) {
   const options = methods.includes(method) ? methods : [method, ...methods];
-  const icon = "flex items-center rounded-[10px] px-3 py-2 text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40";
+  const icon = "flex items-center rounded-[10px] px-3 py-2 text-slate hover:bg-fg/10 hover:text-mist";
   return (
     <div className="flex flex-col gap-2 p-4">
       <div className="flex gap-2">
