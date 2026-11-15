@@ -1,3 +1,4 @@
+import DelayTip from "./DelayTip";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Link2, Lock, Pencil, Plus, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import { t } from "../lib/i18n";
@@ -92,14 +93,16 @@ export default function WorkspaceSwitcher({ list, activeId, onSwitch, onAdd, onR
           <ChevronsUpDown size={14} className="shrink-0 text-slate" />
         </button>
         {active.team && (
-          <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            title={t("Actualizar espacio de equipo")}
-            className="shrink-0 rounded-[10px] bg-kelp px-2.5 text-slate ring-1 ring-fg/10 hover:text-mist hover:ring-fg/30"
-          >
-            <RefreshCw size={14} className={refreshing ? "animate-spin text-aqua" : ""} />
-          </button>
+          <DelayTip text={t("Recargar workspace")}>
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              aria-label={t("Recargar workspace")}
+              className="h-full shrink-0 rounded-[10px] bg-kelp px-2.5 text-slate ring-1 ring-fg/10 hover:text-mist hover:ring-fg/30"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin text-aqua" : ""} />
+            </button>
+          </DelayTip>
         )}
       </div>
       {open && (

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import DelayTip from "./DelayTip";
 import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
@@ -302,9 +303,18 @@ export default function SidebarTree(props: Props) {
             </span>
           )}
           {!isRenaming && depth === 0 && node.team && (
-            <IconBtn title={t("Actualizar colección de equipo")} onClick={() => props.onTeamRefresh(node.team!.code)}>
-              <RefreshCw size={14} className={props.refreshingTeams.includes(node.team.code) ? "animate-spin text-aqua" : ""} />
-            </IconBtn>
+            <DelayTip text={t("Recargar colección")}>
+              <button
+                aria-label={t("Recargar colección")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onTeamRefresh(node.team!.code);
+                }}
+                className="p-0.5 text-slate hover:text-mist"
+              >
+                <RefreshCw size={14} className={props.refreshingTeams.includes(node.team.code) ? "animate-spin text-aqua" : ""} />
+              </button>
+            </DelayTip>
           )}
           {!isRenaming && (
             <span className={`flex items-center gap-0.5 ${menu ? "" : "invisible group-hover:visible"}`}>
