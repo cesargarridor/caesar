@@ -3,6 +3,7 @@ import { Lock, Terminal, X } from "lucide-react";
 import { parseCurl } from "../lib/curl";
 import type { RequestState } from "../types";
 import { t } from "../lib/i18n";
+import { METHOD_COLORS } from "./SidebarTree";
 
 interface Props {
   /** Se llama con la petición ya parseada: la interfaz la abre en una pestaña nueva. */
@@ -10,7 +11,6 @@ interface Props {
   onClose: () => void;
 }
 
-const METHOD_COLORS: Record<string, string> = { GET: "text-[#4ad295]", POST: "text-[#ffb454]", PUT: "text-[#5ab0ff]", PATCH: "text-[#c792ea]", DELETE: "text-[#ff6b7a]" };
 
 const BODY_LABEL: Record<string, string> = { json: "JSON", text: "Text", graphql: "GraphQL", formdata: "form-data", urlencoded: "x-www-form-urlencoded" };
 

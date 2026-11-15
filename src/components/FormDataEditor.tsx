@@ -64,7 +64,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
               onChange={(e) =>
                 update(i, e.target.value === "file" ? { kind: "file", value: "", path: "" } : { kind: "text", value: "", path: "" })
               }
-              className="w-24 shrink-0 rounded-xl bg-kelp px-2 py-1.5 text-sm outline-none ring-1 ring-fg/10"
+              className="w-24 shrink-0 rounded-xl bg-kelp px-2 py-1.5 text-sm outline-none ring-1 ring-fg/10 focus:ring-aqua"
             >
               <option value="text">Text</option>
               <option value="file">File</option>
@@ -99,7 +99,7 @@ export default function FormDataEditor({ rows, onChange }: Props) {
               value={row.contentType ?? ""}
               onChange={(e) => update(i, { contentType: e.target.value })}
               title={t("Content-Type de esta parte")}
-              className="w-44 shrink-0 rounded-xl bg-kelp px-2 py-1.5 text-xs outline-none ring-1 ring-fg/10"
+              className="w-44 shrink-0 rounded-xl bg-kelp px-2 py-1.5 text-xs outline-none ring-1 ring-fg/10 focus:ring-aqua"
             >
               <option value="">{t("Content-Type: auto")}</option>
               {(row.contentType && !CT_OPTIONS.includes(row.contentType) ? [...CT_OPTIONS, row.contentType] : CT_OPTIONS)

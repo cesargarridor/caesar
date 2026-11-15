@@ -73,7 +73,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
           <select
             value={lang}
             onChange={(e) => setLang(e.target.value as "json" | "text")}
-            className="rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10"
+            className="rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
           >
             <option value="json">JSON</option>
             <option value="text">Text</option>
