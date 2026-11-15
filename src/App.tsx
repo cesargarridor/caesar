@@ -9,19 +9,26 @@ import { isOnboarded, termsAccepted } from "./lib/legal";
 import { TermsGate } from "./components/ConsentChecks";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
+import EmptyTabs from "./components/EmptyTabs";
 import RequestBar from "./components/RequestBar";
 import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
+import CodeSnippetPanel from "./components/CodeSnippetPanel";
+import WebSocketPanel from "./components/WebSocketPanel";
+import WsMessages from "./components/WsMessages";
+import { disposeWs, wsStatusOf } from "./lib/wsStore";
+import { sendDraft, startWs } from "./lib/wsRequest";
 import VarPicker from "./components/VarPicker";
 import VarPeek from "./components/VarPeek";
+import VarsDialog, { type VarsSection } from "./components/VarsDialog";
 import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog } from "./components/TeamDialogs";
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
-  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+  DEFAULT_WS, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
-  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFile, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
 import UpdatePrompt from "./components/UpdatePrompt";
@@ -32,22 +39,24 @@ import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./l
 import { signRequest, SIGNED_TYPES } from "./lib/authSign";
 import { applyUrlEdit, buildUrl } from "./lib/url";
 import { exportCollection } from "./lib/collectionExport";
+import { collectNestedVars, foldNestedVars, importSummary, mergeGlobals, profileFromEnv, type ImportCounts } from "./lib/vars";
 import { detectAndParse, exportExt, exportFileName, exportHar, exportYaml, type ExportFormat } from "./lib/interchange";
 import {
-  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
+  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, newWsNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { runScript, type ScriptResult } from "./lib/script";
 import { installFindShortcut, triggerFind } from "./lib/find";
-import { allCommands, getToolbar, installKeymap, stepsOf } from "./lib/keymap";
+import { allCommands, getCombos, getToolbar, installKeymap, prettyCombo, stepsOf } from "./lib/keymap";
+import { activeAfterClose, dirtyIds, idsToClose, type CloseMode } from "./lib/tabs";
 import { useKeymapVersion } from "./lib/useKeymap";
 import { t, useLang } from "./lib/i18n";
 import {
   applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
-import type { KV, ProfilesState, ProgressEvent, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
+import type { KV, ProfilesState, ProgressEvent, VarProfile, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
 const STEP_DEFS = [
   { id: "validate", label: "Validando petición" },
@@ -88,13 +97,18 @@ let idSeq = 0;
 const newId = () => `t${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 const blankTab = (): Tab => ({ id: newId(), req: emptyRequest(), path: null, name: t("Nueva petición"), dirty: false });
 
+/** Pestaña "fantasma" para cuando no hay ninguna abierta: nunca está en `tabs`, así los parches por id no hacen nada. */
+const NO_TAB: Tab = { id: "", req: emptyRequest(), path: null, name: "", dirty: false };
+
 /** Tabs guardadas: se valida la forma por si el formato cambió. */
 function loadTabs(wsId: string): { tabs: Tab[]; activeId: string } {
   const saved = load<{ tabs?: Tab[]; activeId?: string }>(wsKey("tabs", wsId), {});
   const tabs = (saved.tabs ?? []).filter(
     (t) => t && typeof t.id === "string" && t.req && typeof t.req.method === "string" && Array.isArray(t.req.params),
   );
+  // Lo guardado como [] se respeta (sin pestañas). Solo si no hay clave guardada (primer arranque) se abre una en blanco.
   if (tabs.length === 0) {
+    if (Array.isArray(saved.tabs)) return { tabs: [], activeId: "" };
     const t = blankTab();
     return { tabs: [t], activeId: t.id };
   }
@@ -137,6 +151,7 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [codegenOpen, setCodegenOpen] = useState(false);
 
   // Respuestas en memoria, una por pestaña.
   const [results, setResults] = useState<
@@ -225,9 +240,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [manageTick, setManageTick] = useState(0);
+  /** Editor grande de variables / perfiles / colección (null = cerrado). collIdx = colección elegida (por defecto la de la pestaña activa). */
+  const [varsDlg, setVarsDlg] = useState<null | { section: VarsSection; collIdx?: number; collTab?: "vars" | "auth" }>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
-  const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
+  const activeOrNull = tabs.find((t) => t.id === activeId) ?? tabs[0] ?? null;
+  const active = activeOrNull ?? NO_TAB;
   const req = active.req;
   /** Colección (carpeta raíz) a la que pertenece la pestaña activa y sus variables; pisan a las globales. */
   const rootIdx = active.path !== null ? Number(active.path.split("/")[0]) : null;
@@ -239,7 +257,6 @@ export default function App() {
   const effVars = useMemo(() => [...vars, ...collVars, ...profVars], [vars, collVars, profVars]);
   /** Autorización efectiva: con "Inherit" sube por las carpetas hasta la de la colección. */
   const effAuth = useMemo(() => resolveInherit(req.auth, collections, active.path), [req.auth, collections, active.path]);
-  const collAuth = rootNode && rootNode.type === "folder" ? normAuth(rootNode.auth ?? { type: "none" }) : null;
   const res = results[active.id] ?? { response: null, error: null };
   const fullUrl = useMemo(() => buildUrl(req.url, req.params), [req.url, req.params]);
 
@@ -413,6 +430,10 @@ export default function App() {
   };
 
   const newTab = () => openTab(blankTab());
+  const newWsTab = () => {
+    const node = newWsNode(t("Nueva WebSocket"));
+    openTab({ id: newId(), req: requestFromNode(node), path: null, name: node.name, dirty: false });
+  };
 
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   /** Pide confirmación si la pestaña tiene cambios sin guardar. */
@@ -421,21 +442,41 @@ export default function App() {
     if (t?.dirty) setPendingClose(id);
     else closeTab(id);
   };
-  const closeTab = (id: string) => {
-    const i = tabs.findIndex((t) => t.id === id);
-    const rest = tabs.filter((t) => t.id !== id);
-    if (rest.length === 0) {
-      const t = blankTab();
-      setTabs([t]);
-      setActiveId(t.id);
-    } else {
-      setTabs(rest);
-      if (id === active.id) setActiveId(rest[Math.min(i, rest.length - 1)].id);
+  const closeTab = (id: string) => closeTabs([id]);
+  /** Cierra varias pestañas: corta sus WebSockets, limpia resultados y elige la nueva activa (ninguna si no queda alguna). */
+  const closeTabs = (ids: string[]) => {
+    if (ids.length === 0) return;
+    ids.forEach((id) => disposeWs(id)); // cierra su conexión WebSocket, si la tiene
+    const next = activeAfterClose(tabs, ids, activeOrNull?.id ?? null);
+    const gone = new Set(ids);
+    setTabs(tabs.filter((t) => !gone.has(t.id)));
+    setActiveId(next ?? "");
+    setResults((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !gone.has(k))));
+  };
+  const [pendingMany, setPendingMany] = useState<string[] | null>(null);
+  /** Cierra varias; si alguna tiene cambios sin guardar, un solo diálogo de confirmación. */
+  const requestCloseMany = (mode: CloseMode, id: string | null) => {
+    const ids = idsToClose(tabs, id, mode);
+    if (ids.length === 0) return;
+    if (dirtyIds(tabs, ids).length > 0) setPendingMany(ids);
+    else closeTabs(ids);
+  };
+  /** Guarda varias pestañas de una vez (una sola actualización de colecciones, para que los borradores no se pisen). */
+  const saveMany = (list: Tab[]) => {
+    let cols = collections;
+    for (const tab of list) {
+      const r = tab.req;
+      const cur = tab.path ? getAt(cols, tab.path) : null;
+      if (tab.path && cur && cur.type === "request") {
+        cols = updateAt(cols, tab.path, (n) => nodeFromRequest(n.name, r, n));
+        continue;
+      }
+      const node = nodeFromRequest(suggestName(r), r);
+      if (cols.length === 0 || cols[0].type !== "folder") cols = [...cols, newFolderNode(t("Mi colección"))];
+      const target = cols[0].type === "folder" ? "0" : String(cols.length - 1);
+      cols = addChild(cols, target, node).nodes;
     }
-    setResults((r) => {
-      const { [id]: _drop, ...others } = r;
-      return others;
-    });
+    setCollections(cols);
   };
 
   /** Abre una petición del árbol: si ya está abierta se activa (conservando el borrador). */
@@ -447,7 +488,7 @@ export default function App() {
     }
     const tab: Tab = { id: newId(), req: requestFromNode(node), path, name: node.name, dirty: false };
     // Si la pestaña activa es un borrador vacío sin tocar, se reutiliza.
-    if (!active.path && !active.dirty && !active.req.url) {
+    if (activeOrNull && !active.path && !active.dirty && !active.req.url) {
       setTabs((ts) => ts.map((t) => (t.id === active.id ? { ...tab, id: active.id } : t)));
     } else {
       openTab(tab);
@@ -459,16 +500,57 @@ export default function App() {
     setImporting(true);
     setImportError(null);
     try {
-      const file = await pickTextFile();
-      const found = file ? detectAndParse(file.content) : null;
-      const imported = !file || !found ? null : found.kind === "native" ? await parseCollectionContent(file.content) : found.data;
-      if (imported) {
-        // Las variables de la colección importada viven en la propia colección (no en las globales).
-        const root: TreeNode =
-          imported.root.type === "folder" ? { ...imported.root, variables: imported.variables } : imported.root;
-        const [withId] = ensureIds([root]);
-        setCollections((c) => [...c, withId]);
-        openFolder(withId.type === "folder" ? withId.uid : undefined);
+      // Acepta varios archivos a la vez (colección + entornos de Postman). Cada uno se procesa por separado.
+      const files = await pickTextFiles();
+      const counts: ImportCounts = { collections: 0, profiles: 0, globals: 0 };
+      const roots: TreeNode[] = [];
+      const newProfiles: VarProfile[] = [];
+      let globals = vars;
+      const errors: string[] = [];
+      for (const file of files) {
+        try {
+          const found = detectAndParse(file.content);
+          if (found.kind === "env") {
+            // Entorno de Postman -> perfil nuevo (sin activar); globales de Postman -> se fusionan con las globales.
+            if (found.env.kind === "globals") {
+              const m = mergeGlobals(globals, found.env.vars);
+              globals = m.vars;
+              counts.globals += m.added + m.updated;
+            } else {
+              newProfiles.push(profileFromEnv(found.env, [...profiles.list, ...newProfiles], newProfileId()));
+              counts.profiles++;
+            }
+            continue;
+          }
+          const imported = found.kind === "native" ? await parseCollectionContent(file.content) : found.data;
+          // Las variables de la colección importada viven en la propia colección (no en las globales). Las de carpetas y peticiones
+          // (Postman v2.1) se suben a la colección raíz sin pisar las claves que ya tenga.
+          let variables = imported.variables;
+          if (found.kind === "native") {
+            try {
+              variables = foldNestedVars(variables, collectNestedVars(JSON.parse(file.content)));
+            } catch {
+              /* el JSON ya lo validó Rust */
+            }
+          }
+          const root: TreeNode = imported.root.type === "folder" ? { ...imported.root, variables } : imported.root;
+          roots.push(ensureIds([root])[0]);
+          counts.collections++;
+        } catch (e) {
+          errors.push(`${file.name}: ${errMsg(e)}`);
+        }
+      }
+      if (roots.length) {
+        setCollections((c) => [...c, ...roots]);
+        const last = roots[roots.length - 1];
+        openFolder(last.type === "folder" ? last.uid : undefined);
+      }
+      if (newProfiles.length) setProfiles((p) => ({ ...p, list: [...p.list, ...newProfiles] }));
+      if (globals !== vars) setVars(globals);
+      if (errors.length) setImportError(errors.join(" · "));
+      if (counts.collections + counts.profiles + counts.globals > 0) {
+        const only = counts.collections === 0 && counts.globals === 0 && newProfiles.length === 1;
+        setNotice({ kind: "ok", text: only ? `${t("Perfil")} «${newProfiles[0].name}» ${t("importado")}` : importSummary(counts, t) });
       }
     } catch (e) {
       setImportError(errMsg(e));
@@ -600,6 +682,14 @@ export default function App() {
     setRenamingPath(np);
   };
 
+  const handleAddSocket = (path: string) => {
+    const node = newWsNode(t("Nueva WebSocket"));
+    const { nodes, path: np } = addChild(collections, path, node);
+    setCollections(nodes);
+    openTab({ id: newId(), req: requestFromNode(node), path: np, name: node.name, dirty: false });
+    setRenamingPath(np);
+  };
+
   const handleRename = (path: string, name: string) => {
     setCollections((c) => renameAt(c, path, name));
     setTabs((ts) => ts.map((t) => (t.path === path ? { ...t, name } : t)));
@@ -692,6 +782,7 @@ export default function App() {
   };
 
   const handleSave = (tab: Tab = active, silent = false) => {
+    if (!tab.id) return; // sin pestañas: nada que guardar
     const req = tab.req;
     const current = tab.path ? getAt(collections, tab.path) : null;
     if (tab.path && current && current.type === "request") {
@@ -746,6 +837,17 @@ export default function App() {
   };
 
   const handleSend = async () => {
+    if (!activeOrNull) return; // sin pestañas: nada que enviar
+    if (req.kind === "ws") {
+      // WebSocket: Ctrl/Cmd+Enter envía el mensaje si hay conexión; si no, conecta.
+      const st = wsStatusOf(active.id);
+      if (st === "connected") sendDraft(active.id, req).catch((e) => setNotice({ kind: "err", text: t(String((e as Error)?.message ?? e)) }));
+      else if (st === "disconnected") {
+        const err = startWs(active.id, req, effAuth, effVars);
+        if (err) setNotice({ kind: "err", text: err });
+      }
+      return;
+    }
     if (sending) return;
     const id = active.id;
     setSending(true);
@@ -819,8 +921,9 @@ export default function App() {
   });
   kb.current = {
     newTab,
-    closeTab: () => requestClose(active.id),
+    closeTab: () => activeOrNull && requestClose(activeOrNull.id),
     step: (d) => {
+      if (tabs.length === 0) return;
       const i = tabs.findIndex((t) => t.id === active.id);
       setActiveId(tabs[(i + d + tabs.length) % tabs.length].id);
     },
@@ -834,9 +937,11 @@ export default function App() {
     switch (id) {
       case "save": return saveRef.current();
       case "send": return sendRef.current();
-      case "copyCurl": return void copyCurlRef.current();
+      case "copyCurl": return activeOrNull ? void copyCurlRef.current() : undefined;
+      case "codegen": return activeOrNull ? setCodegenOpen((o) => !o) : undefined;
       case "newTab": return kb.current.newTab();
       case "closeTab": return kb.current.closeTab();
+      case "closeAllTabs": return requestCloseMany("all", null);
       case "nextTab": return kb.current.step(1);
       case "prevTab": return kb.current.step(-1);
       case "historyBack": return histGo.current(-1);
@@ -891,7 +996,7 @@ export default function App() {
       h.nav = false;
       return;
     }
-    if (h.list[h.idx] === active.id) return;
+    if (!active.id || h.list[h.idx] === active.id) return;
     h.list = [...h.list.slice(0, h.idx + 1), active.id].slice(-100);
     h.idx = h.list.length - 1;
   }, [active.id]);
@@ -932,20 +1037,11 @@ export default function App() {
         error={importError}
         vars={vars}
         onVars={setVars}
-        collName={rootNode && rootNode.type === "folder" ? rootNode.name : null}
-        collVars={collVars}
-        onCollVars={(v) =>
-          rootIdx !== null &&
-          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, variables: v, updatedAt: Date.now() } : n)))
-        }
         profiles={profiles}
         onProfiles={setProfiles}
         manageProfilesTick={manageTick}
-        collAuth={collAuth}
-        onCollAuth={(a) =>
-          rootIdx !== null &&
-          setCollections((c) => updateAt(c, String(rootIdx), (n) => (n.type === "folder" ? { ...n, auth: a, updatedAt: Date.now() } : n)))
-        }
+        onOpenVars={(section) => setVarsDlg({ section })}
+        onCollSettings={(path) => setVarsDlg({ section: "collection", collIdx: Number(path.split("/")[0]) })}
         onImport={handleImport}
         onNewCollection={() => (!account.is_pro ? handleNewCollection() : setTeamDialog({ kind: "new" }))}
         onShare={(path) => setTeamDialog({ kind: "share", path })}
@@ -972,6 +1068,7 @@ export default function App() {
         onRename={handleRename}
         onCancelRename={() => setRenamingPath(null)}
         onAddRequest={handleAddRequest}
+        onAddSocket={handleAddSocket}
         onAddFolder={handleAddFolder}
         onMove={handleMove}
         isOpen={(uid) => !!uid && openIds.has(uid)}
@@ -984,7 +1081,7 @@ export default function App() {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="stars" style={{ boxShadow: STARS }} aria-hidden />
         <div className="fs-scale fs-request flex min-h-0 flex-1 flex-col">
-        <TabBar tabs={tabs} activeId={active.id} onSelect={setActiveId} onClose={requestClose} onNew={newTab} />
+        <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onCloseMany={requestCloseMany} />
         {pendingClose && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={() => setPendingClose(null)}>
             <div className="w-full max-w-md rounded-2xl bg-kelp glass p-7" onMouseDown={(e) => e.stopPropagation()}>
@@ -1024,6 +1121,66 @@ export default function App() {
             </div>
           </div>
         )}
+        {pendingMany && (() => {
+          const dirtyN = dirtyIds(tabs, pendingMany).length;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-8" onMouseDown={() => setPendingMany(null)}>
+              <div role="alertdialog" aria-modal="true" aria-labelledby="close-many-title" className="w-full max-w-md rounded-2xl bg-kelp glass p-7" onMouseDown={(e) => e.stopPropagation()}>
+                <h2 id="close-many-title" className="text-xl text-mist">
+                  {dirtyN === 1 ? t("Una pestaña tiene cambios sin guardar") : t("{0} pestañas tienen cambios sin guardar", dirtyN)}
+                </h2>
+                <p className="mt-2 text-sm text-slate">{t("Si las cierras sin guardar, se perderán los cambios.")}</p>
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                  <button
+                    autoFocus
+                    onClick={() => setPendingMany(null)}
+                    className="rounded-[10px] px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
+                  >
+                    {t("Cancelar")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      closeTabs(pendingMany);
+                      setPendingMany(null);
+                    }}
+                    className="rounded-[10px] px-4 py-2 text-sm text-rose ring-1 ring-rose/40 hover:ring-rose"
+                  >
+                    {t("Cerrar sin guardar")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const gone = new Set(pendingMany);
+                      saveMany(tabs.filter((x) => gone.has(x.id) && x.dirty));
+                      closeTabs(pendingMany);
+                      setPendingMany(null);
+                    }}
+                    className="btn-aurora px-5 py-2 text-sm font-semibold"
+                  >
+                    {t("Guardar todo y cerrar")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+        {!activeOrNull ? (
+          <EmptyTabs onNew={newTab} onNewWs={newWsTab} newCombo={getCombos("newTab")[0] ? prettyCombo(getCombos("newTab")[0]) : undefined} />
+        ) : req.kind === "ws" ? (
+          <WebSocketPanel
+            key={active.id}
+            id={active.id}
+            req={req}
+            patch={patch}
+            auth={effAuth}
+            vars={effVars}
+            profiles={profiles}
+            onProfile={(a) => setProfiles((p) => ({ ...p, active: a }))}
+            onManageProfiles={() => setManageTick((n) => n + 1)}
+            onSave={() => handleSave()}
+            saved={flash === "save"}
+            onError={(text) => setNotice({ kind: "err", text })}
+          />
+        ) : (
         <RequestBar
           method={req.method}
           methods={[...BASE_METHODS, ...extraMethods]}
@@ -1031,6 +1188,7 @@ export default function App() {
           profiles={profiles}
           onProfile={(active) => setProfiles((p) => ({ ...p, active }))}
           onManageProfiles={() => setManageTick((n) => n + 1)}
+          onShowResolved={() => setVarsDlg({ section: "resolved" })}
           url={fullUrl}
           sending={sending}
           onMethod={(method) => patch({ method })}
@@ -1039,10 +1197,13 @@ export default function App() {
           onSend={handleSend}
           onSave={() => handleSave()}
           onCopyCurl={handleCopyCurl}
+          onCodegen={() => setCodegenOpen((o) => !o)}
+          codegenOpen={codegenOpen}
           flash={flash}
           extra={toolbarButtons}
           onCommand={(id) => runCommandRef.current(id)}
         />
+        )}
         {notice && (
           <div
             className={`absolute right-4 top-24 z-50 flex max-w-md items-center gap-2 break-all rounded-2xl bg-kelp px-4 py-2.5 text-xs shadow-lg ${
@@ -1053,10 +1214,14 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} />
+        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} />}
         </div>
-        <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
-        {sending && <NetworkLoader steps={steps} method={req.method} />}
+        {!activeOrNull ? null : req.kind === "ws" ? (
+          <WsMessages key={active.id} id={active.id} />
+        ) : (
+          <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
+        )}
+        {activeOrNull && sending && req.kind !== "ws" && <NetworkLoader steps={steps} method={req.method} />}
         {showSettings && (
           <SettingsModal
             themeId={themeId}
@@ -1089,6 +1254,27 @@ export default function App() {
         )}
         {showWelcome && <Welcome onDone={() => setShowWelcome(false)} />}
         {!showWelcome && !termsAccepted() && <TermsGate onAccepted={() => setTermsRev((n) => n + 1)} />}
+        {varsDlg && (() => {
+          const ci = varsDlg.collIdx ?? rootIdx;
+          const cn = ci !== null && ci !== undefined ? collections[ci] : undefined;
+          const folder = cn && cn.type === "folder" ? cn : null;
+          return (
+            <VarsDialog
+              section={varsDlg.section}
+              collTab={varsDlg.collTab}
+              vars={vars}
+              onVars={setVars}
+              profiles={profiles}
+              onProfiles={setProfiles}
+              collName={folder ? folder.name : null}
+              collVars={folder?.variables ?? []}
+              onCollVars={(v) => ci != null && setCollections((c) => updateAt(c, String(ci), (n) => (n.type === "folder" ? { ...n, variables: v, updatedAt: Date.now() } : n)))}
+              collAuth={folder ? normAuth(folder.auth ?? { type: "none" }) : null}
+              onCollAuth={(a) => ci != null && setCollections((c) => updateAt(c, String(ci), (n) => (n.type === "folder" ? { ...n, auth: a, updatedAt: Date.now() } : n)))}
+              onClose={() => setVarsDlg(null)}
+            />
+          );
+        })()}
         <VarPicker vars={effVars} />
         <VarPeek
           vars={vars}
@@ -1147,6 +1333,13 @@ export default function App() {
         )}
         {upd.phase === "installing" && <UpdateOverlay version={upd.version} downloaded={upd.downloaded} total={upd.total} />}
       </main>
+      {codegenOpen && activeOrNull && (
+        <CodeSnippetPanel
+          getArgs={(resolve) => buildExecuteArgs({ ...req, auth: effAuth }, resolve ? effVars : [])}
+          onClose={() => setCodegenOpen(false)}
+          onNotice={(kind, text) => setNotice({ kind, text })}
+        />
+      )}
     </div>
   );
 }

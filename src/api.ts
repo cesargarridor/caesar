@@ -26,6 +26,7 @@ export const saveTextFile = (suggestedName: string, content: string, ext?: strin
 
 export interface TextFile { name: string; content: string }
 export const pickTextFile = () => invoke<TextFile | null>("pick_text_file");
+export const pickTextFiles = () => invoke<TextFile[]>("pick_text_files");
 export const parseCollectionContent = (content: string) => invoke<ImportedCollection>("parse_collection_content", { content });
 
 // Colecciones de equipo (compartidas por código; Rust cifra y habla con Firebase).

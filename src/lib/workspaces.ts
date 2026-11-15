@@ -1,4 +1,5 @@
 import { t } from "./i18n";
+import { normVars } from "./vars";
 import type { KV, ProfilesState, Tombstone, TreeNode } from "../types";
 
 /**
@@ -86,7 +87,7 @@ export interface WsData {
 export function normProfiles(raw: unknown): ProfilesState {
   const r = raw as Partial<ProfilesState> | null | undefined;
   const list = Array.isArray(r?.list)
-    ? r.list.filter((p) => p && typeof p.id === "string" && typeof p.name === "string").map((p) => ({ id: p.id, name: p.name, vars: Array.isArray(p.vars) ? p.vars : [] }))
+    ? r.list.filter((p) => p && typeof p.id === "string" && typeof p.name === "string").map((p) => ({ id: p.id, name: p.name, vars: normVars(p.vars) }))
     : [];
   const active = typeof r?.active === "string" && list.some((p) => p.id === r.active) ? r.active : null;
   return { list, active };

@@ -2,6 +2,8 @@ export interface KV {
   key: string;
   value: string;
   enabled: boolean;
+  /** Solo variables: valor secreto (se muestra oculto; se exporta a Postman como type "secret"). Opcional: lo guardado antes no lo tiene. */
+  secret?: boolean;
   /** Solo form-data: "text" (por defecto) o "file" */
   kind?: "text" | "file";
   /** Ruta del archivo elegido con el selector nativo (kind === "file") */
@@ -61,6 +63,37 @@ export interface Settings {
   httpVersion?: "auto" | "1.1" | "2";
 }
 
+/** Tipo de petición: HTTP (por defecto, también lo guardado antes) o WebSocket. */
+export type RequestKind = "http" | "ws";
+
+/** Formato del compositor de mensajes WebSocket. */
+export type WsMsgFormat = "text" | "json" | "hex" | "base64";
+
+export interface WsSavedMsg {
+  id: string;
+  name: string;
+  format: WsMsgFormat;
+  data: string;
+}
+
+/** Configuración propia de una petición WebSocket (se guarda con ella). */
+export interface WsConfig {
+  /** Sec-WebSocket-Protocol, separados por comas. */
+  subprotocols: string;
+  handshakeTimeoutSecs: number;
+  verifySsl: boolean;
+  autoReconnect: boolean;
+  reconnectAttempts: number;
+  reconnectDelaySecs: number;
+  /** 0 = sin ping periódico. */
+  pingIntervalSecs: number;
+  /** Mensaje en el compositor. */
+  draftFormat: WsMsgFormat;
+  draft: string;
+  /** Mensajes guardados (nombre + contenido). */
+  saved: WsSavedMsg[];
+}
+
 /** Estado editable de una petición. `url` es la base SIN query; los params viven en `params`. */
 export interface RequestState {
   method: string;
@@ -72,6 +105,9 @@ export interface RequestState {
   settings: Settings;
   /** Script (post-respuesta). Opcional: borradores antiguos no lo tienen. */
   tests?: string;
+  /** "ws" = WebSocket (method vale "WS"). Ausente = http. */
+  kind?: RequestKind;
+  ws?: WsConfig;
 }
 
 export type TreeNode =
@@ -88,6 +124,8 @@ export type TreeNode =
       body: Partial<BodyData> & { mode: string };
       auth: Partial<AuthData> & { type?: string };
       tests?: string;
+      kind?: RequestKind;
+      ws?: WsConfig;
     };
 
 export type RequestNode = Extract<TreeNode, { type: "request" }>;
