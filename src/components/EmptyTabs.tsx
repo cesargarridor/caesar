@@ -16,7 +16,7 @@ export default function EmptyTabs({ onNew, onNewWs, newCombo }: Props) {
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 flex items-center justify-center select-none"
-        style={{ filter: "grayscale(1)", opacity: 0.08 }}
+        style={{ filter: "grayscale(1)", opacity: 0.04 }}
       >
         <CatLogo size={420} />
       </div>
@@ -31,7 +31,7 @@ export default function EmptyTabs({ onNew, onNewWs, newCombo }: Props) {
           </button>
           <button
             onClick={onNewWs}
-            className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-silver ring-1 ring-fg/15 hover:text-mist hover:ring-fg/40"
+            className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-slate hover:bg-fg/10 hover:text-mist"
           >
             <Plug size={15} aria-hidden="true" />
             {t("Nueva WebSocket")}

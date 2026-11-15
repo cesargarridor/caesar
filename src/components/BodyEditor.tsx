@@ -71,7 +71,7 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
             {onAi && (
               <button
                 onClick={onAi}
-                className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate hover:bg-fg/10 hover:text-mist"
                 title={t("Asistente de IA (con tu propia clave)")}
               >
                 <WandSparkles size={13} /> {t("Asistente de IA")}
@@ -80,14 +80,14 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
             {body.mode === "json" && (<>
             <button
               onClick={() => reformat(2)}
-              className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate hover:bg-fg/10 hover:text-mist"
               title={t("Formatear con indentación")}
             >
               <Sparkles size={13} /> Beautify
             </button>
             <button
               onClick={() => reformat(undefined)}
-              className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate hover:bg-fg/10 hover:text-mist"
               title={t("Compactar en una línea")}
             >
               <Minimize2 size={13} /> Minify

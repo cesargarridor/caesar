@@ -3,13 +3,13 @@
 /* Caesar = mezcla de Dala (píldoras, tipografía ligera, destellos) y Reflect (brillo inset, estrellas, lavanda).
    Todos los colores salen de variables --t-* que cambia el selector de temas (Ajustes). */
 :root {
-  --t-abyss: #1a1640; --t-deep: #130f30; --t-kelp: #2a2563;
-  --t-mist: #f4f0ff; --t-silver: #cfcdeb; --t-slate: #9f9bd0;
-  --t-iris: #8052ff; --t-onprimary: #ffffff; --t-accent: #9382ff; --t-hl: #ffb829;
+  --t-abyss: #0d0d0d; --t-deep: #141414; --t-kelp: #1b1b1b;
+  --t-mist: #ededed; --t-silver: #c4c4c4; --t-slate: #8a8a8a;
+  --t-iris: #d8571f; --t-onprimary: #ffffff; --t-accent: #f0883e; --t-hl: #f2b35e;
   --t-ok: #3ddc97; --t-bad: #ff5c6c; --t-fg: #ffffff;
   --t-r-key: #6cb6ff; --t-r-str: #ffd866; --t-r-num: #ffb454; --t-r-bool: #ff9ec4; --t-r-nul: #b3b0d9; --t-r-punc: #8d89c4; --t-r-link: #7fd0ff;
   --t-b-key: #e59cff; --t-b-str: #7ee0c3; --t-b-num: #ffa66b; --t-b-bool: #9cb2ff; --t-b-nul: #9b97c4; --t-b-punc: #8d89c4;
-  --t-g1: #e59cff; --t-g2: #ba9cff; --t-g3: #9cb2ff; --t-stars: 0.55;
+  --t-g1: #e59cff; --t-g2: #ba9cff; --t-g3: #9cb2ff; --t-stars: 0;
 }
 
 @theme {
@@ -29,6 +29,7 @@
   --color-onprimary: var(--t-onprimary);
   --font-matter: "PPNeueMontreal", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --radius-md: 10px;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 html, body, #root { height: 100%; }
@@ -129,9 +130,9 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
 /* Divisor aurora vertical */
 .aurora-line {
   width: 1px;
-  background: linear-gradient(180deg, transparent 0%, var(--t-accent) 50%, transparent 100%);
-  opacity: .55;
+  background: rgba(255, 255, 255, 0.08);
 }
+:root:not([data-theme="caesar"]) .aurora-line { background: linear-gradient(180deg, transparent 0%, var(--t-accent) 50%, transparent 100%); opacity: .55; }
 
 /* Campo de estrellas */
 .stars { position: absolute; top: 0; left: 0; width: 1px; height: 1px; border-radius: 50%; pointer-events: none; opacity: var(--t-stars); color: var(--t-fg); }
