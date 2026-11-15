@@ -157,3 +157,29 @@ jobs:
           else
             gh release edit "beta-${{ github.run_number }}" --repo "${{ github.repository_owner }}/caesar-beta" --draft=false --prerelease
           fi
+
+  # Snap Store (Ubuntu): solo versiones estables. Reutiliza el .deb de la Release ya publicada.
+  # Necesita el secreto SNAPCRAFT_STORE_CREDENTIALS (snapcraft export-login --snaps caesar --channels stable,candidate,beta,edge -).
+  snap:
+    needs: [gate, publish]
+    if: github.ref_type == 'tag' && needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar el .deb de la Release
+        run: |
+          mkdir -p snap/deb
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern '*_amd64.deb' --dir snap/deb
+      - name: Versión del snap = tag
+        run: sed -i "s|^version: .*|version: '${GITHUB_REF_NAME#v}'|" snap/snapcraft.yaml
+      - uses: snapcore/action-build@v1
+        id: build
+      - name: Subir a Snap Store (stable)
+        if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        uses: snapcore/action-publish@v1
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          release: stable
