@@ -1,0 +1,15 @@
+/* Ajustes de diseño: menos "plantilla" (sin resplandores ni degradados, radios pequeños, bordes sólidos). Se carga tras Tailwind. */
+[class*="blur-[120px]"],[class*="blur-[100px]"],[class*="blur-2xl"],[class*="blur-3xl"],.grid-bg{display:none!important}
+[class*="shadow-[0_0_"],[class*="shadow-[0_40px"]{box-shadow:none!important}
+.rounded-2xl{border-radius:8px!important}
+.rounded-xl{border-radius:6px!important}
+.border-white\/10{border-color:#262626!important}
+.ring-1{--tw-ring-shadow:0 0 #0000!important;box-shadow:none!important}
+.bg-clip-text,.bg-clip-text[class*="from-brand"]{background:none!important;background-color:transparent!important;-webkit-text-fill-color:currentColor!important;color:#ff7b00!important}
+[class*="from-brand"]{background-image:none!important;background-color:#15110d!important}
+[class*="tracking-[0.2em]"]{text-transform:none!important;letter-spacing:0!important;font-family:inherit!important;font-size:.875rem!important;color:#8a8a8a!important}
+.hover\:-translate-y-0\.5:hover,.group:hover .group-hover\:opacity-100{transform:none!important}
+h1.font-black{font-weight:700!important;letter-spacing:-.03em!important}
+#hero-media{background:#0b0b0c}
+[class*="bg-gradient-to"],[class*="radial-gradient"]{background-image:none!important}
+.rounded-3xl{border-radius:8px!important}
