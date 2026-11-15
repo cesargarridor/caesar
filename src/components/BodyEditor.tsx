@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Minimize2 } from "lucide-react";
+import { Sparkles, Minimize2, WandSparkles } from "lucide-react";
 import KVEditor from "./KVEditor";
 import FormDataEditor from "./FormDataEditor";
 import JsonEditor from "./JsonEditor";
@@ -15,6 +15,8 @@ interface Props {
   vars?: KV[];
   inherited?: AuthData | null;
   onMethod?: (m: string) => void;
+  /** Abre el asistente de IA (sugerir cuerpo, explicar…). */
+  onAi?: () => void;
 }
 
 const MODES: { id: BodyMode; label: string }[] = [
@@ -26,7 +28,7 @@ const MODES: { id: BodyMode; label: string }[] = [
   { id: "urlencoded", label: "x-www-form-urlencoded" },
 ];
 
-export default function BodyEditor({ body, onChange, req, vars, inherited, onMethod }: Props) {
+export default function BodyEditor({ body, onChange, req, vars, inherited, onMethod, onAi }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const reformat = (indent: number | undefined) => {
@@ -64,8 +66,18 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
             {m.label}
           </label>
         ))}
-        {body.mode === "json" && (
+        {(onAi || body.mode === "json") && (
           <span className="ml-auto flex gap-2">
+            {onAi && (
+              <button
+                onClick={onAi}
+                className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
+                title={t("Asistente de IA (con tu propia clave)")}
+              >
+                <WandSparkles size={13} /> {t("Asistente de IA")}
+              </button>
+            )}
+            {body.mode === "json" && (<>
             <button
               onClick={() => reformat(2)}
               className="flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 text-xs hover:border-aqua hover:text-aqua"
@@ -80,6 +92,7 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
             >
               <Minimize2 size={13} /> Minify
             </button>
+            </>)}
           </span>
         )}
       </div>
