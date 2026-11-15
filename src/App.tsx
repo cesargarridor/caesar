@@ -45,6 +45,7 @@ import {
   historyAdd,
   importOpenapi,
   pickTextFile,
+  syncNow,
   type HistoryEntry,
 } from "./api";
 import UpdateOverlay from "./components/UpdateOverlay";
@@ -897,18 +898,14 @@ export default function App() {
       setNotice({ kind: "err", text: errMsg(e) });
     }
   };
-  // Enlaces mágicos caesar://: sobrescriben la pestaña actual (o abren una si no hay ninguna). Llegan pegados o desde el sistema operativo.
+  // Enlaces mágicos caesar://: se abren siempre en una pestaña nueva. Llegan pegados o desde el sistema operativo.
+  const [syncingNow, setSyncingNow] = useState(false);
   const shareRef = useRef<(text: string) => void>(() => {});
   shareRef.current = (text: string) => {
     parseShareLink(text)
       .then((parsed) => {
         const name = `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`;
-        if (activeOrNull) {
-          patchTab(active.id, (tb) => ({ ...tb, req: parsed, name: tb.path ? tb.name : name, dirty: true }));
-          setResults((r) => ({ ...r, [active.id]: { response: null, error: null } }));
-        } else {
-          openTab({ id: newId(), req: parsed, path: null, name, dirty: true });
-        }
+        openTab({ id: newId(), req: parsed, path: null, name, dirty: true });
         setNotice({ kind: "ok", text: t("Petición abierta desde un enlace caesar://") });
       })
       .catch((e) => setNotice({ kind: "err", text: t(errMsg(e)) }));
@@ -1208,6 +1205,8 @@ export default function App() {
         onRefreshWs={() => void wsTeam.refresh()}
         refreshingWs={wsTeam.refreshing}
         onSettings={() => setShowSettings(true)}
+        onSync={account.is_pro ? () => { setSyncingNow(true); void syncNow().catch(() => {}).finally(() => setSyncingNow(false)); } : undefined}
+        syncing={syncingNow}
         onGoPro={() => { setSettingsSection("sync"); setShowSettings(true); }}
         width={sidebarW}
         onWidth={setSidebarW}
