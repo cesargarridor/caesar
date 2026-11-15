@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-link-confirm"
+description = "Enables the sync_link_confirm command without any pre-configured scope."
+commands.allow = ["sync_link_confirm"]
+
+[[permission]]
+identifier = "deny-sync-link-confirm"
+description = "Denies the sync_link_confirm command without any pre-configured scope."
+commands.deny = ["sync_link_confirm"]

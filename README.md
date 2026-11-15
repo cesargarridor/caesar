@@ -116,7 +116,10 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 
 - La interfaz nunca hace peticiones de red: todo pasa por Rust (`reqwest`) mediante IPC.
 - Rust valida las URLs, solo permite `http`/`https` y limita el tamaño de respuestas y archivos.
-- CSP estricta y permisos mínimos de Tauri.
+- CSP estricta y permisos mínimos de Tauri; cada comando IPC tiene su propio permiso `allow-<comando>`.
+- Se bloquean los hosts de metadatos cloud/link-local (169.254.x.x) y las redirecciones de un host público a la red interna (localhost, redes privadas, CGNAT).
+- El historial local no guarda credenciales: `Authorization`, `Cookie`, tokens, contraseñas y claves de API se sustituyen por «••••».
+- El archivo `datos.json` se cifra en reposo (AES-256-GCM) con una clave aleatoria guardada en el llavero del sistema. Si el llavero no está disponible, se guarda sin cifrar antes que perder datos. Nota: la copia de trabajo de la interfaz (`localStorage`) no está cifrada.
 
 ## Sincronización cifrada de extremo a extremo
 

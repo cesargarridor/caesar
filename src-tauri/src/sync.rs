@@ -29,6 +29,8 @@ const ACCOUNT: &str = "sync-refresh-token";
 const TICK: Duration = Duration::from_secs(2);
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
+/// Tope del JSON local que acepta `local_save` (20 MiB).
+const MAX_LOCAL: usize = 20 * 1024 * 1024;
 /// Espacios de trabajo permitidos sin plan Pro (con Pro, ilimitados). Debe coincidir con `FREE_WORKSPACES` de la interfaz.
 const FREE_WORKSPACES: usize = 2;
 
@@ -442,7 +444,7 @@ pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> 
     require_pro(st)?;
     st.set_phase(Some("Preparando los datos…"));
     let (uid, tok) = valid_token(st).await?;
-    let plain = std::fs::read(data_file(app)?).map_err(|e| format!("No se pudo leer datos.json: {e}"))?;
+    let plain = crate::localcrypt::read_data(&data_file(app)?)?;
     let key = vault::load_key()?.ok_or("Activa el cifrado (clave de recuperación) antes de sincronizar.")?;
     // Filtro → compresión (solo si es grande) → cifrado → Base64. No hay nada pesado que filtrar: datos.json solo lleva peticiones, variables y lápidas.
     let blob = vault::encrypt(&key, &context(&uid), &crate::pack::pack(&plain)?)?;
@@ -518,7 +520,12 @@ pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> 
     let remote: Value = serde_json::from_str(&text).map_err(|_| "Los datos remotos no son JSON válido.".to_string())?;
     let file = data_file(app)?;
     // Fusión por elemento (gana la última edición de cada petición/carpeta): ya no se descarta lo local por tener cambios pendientes.
-    let local_bytes = std::fs::read(&file).ok();
+    let raw_before = std::fs::read(&file).ok();
+    // Si el archivo está cifrado y falta la clave, se corta aquí con un error claro (no se fusiona sobre «nada» ni se sobrescribe).
+    let local_bytes = match &raw_before {
+        Some(_) => Some(crate::localcrypt::read_data(&file)?),
+        None => None,
+    };
     let local: Option<Value> = local_bytes.as_ref().and_then(|b| serde_json::from_slice(b).ok());
     let merged = match &local {
         Some(l) => crate::merge::merge_snapshots(l, &remote),
@@ -527,11 +534,16 @@ pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> 
     let merged_text = serde_json::to_string(&merged).map_err(|e| e.to_string())?;
     if local.as_ref() != Some(&merged) {
         // Si el usuario guardó mientras tanto, no se pisa: se reintenta en la próxima bajada.
-        if std::fs::read(&file).ok() != local_bytes {
+        if std::fs::read(&file).ok() != raw_before {
             return Ok(());
         }
-        let _ = std::fs::copy(&file, file.with_extension("json.bak")); // copia de seguridad de lo local
-        write_atomic(&file, merged_text.as_bytes())?;
+        let bak = file.with_extension("json.bak");
+        // Copia de seguridad de lo local, con el mismo tratamiento que el original (cifrada si hay llavero).
+        if let Some(old) = &local_bytes {
+            let _ = crate::localcrypt::write_data(&bak, old);
+            restrict_perms(&bak);
+        }
+        crate::localcrypt::write_data(&file, merged_text.as_bytes())?;
         let _ = app.emit("sync-remote", merged_text);
     }
     if merged != remote {
@@ -550,10 +562,36 @@ fn set_error(st: &SyncState, e: Option<String>) {
 
 // ───────────────────────── disco ─────────────────────────
 
-fn write_atomic(path: &PathBuf, bytes: &[u8]) -> Result<(), String> {
+/// Escritura atómica (tmp + rename) con permisos 0600 en Unix.
+pub(crate) fn write_atomic(path: &PathBuf, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, bytes).map_err(|e| format!("No se pudo guardar: {e}"))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("No se pudo guardar: {e}"))
+    let err = |e: std::io::Error| format!("No se pudo guardar: {e}");
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut f = opts.open(&tmp).map_err(err)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = f.set_permissions(std::fs::Permissions::from_mode(0o600)); // el tmp pudo existir con otros permisos
+    }
+    f.write_all(bytes).map_err(err)?;
+    drop(f);
+    std::fs::rename(&tmp, path).map_err(err)
+}
+
+/// Restringe un archivo existente a 0600 (solo Unix).
+pub(crate) fn restrict_perms(_path: &std::path::Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(_path, std::fs::Permissions::from_mode(0o600));
+    }
 }
 
 // ───────────────────────── trabajador de fondo ─────────────────────────
@@ -732,20 +770,26 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
 /// Barrera 2: guarda en disco y levanta la bandera. No toca internet.
 #[tauri::command]
 pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> Result<(), String> {
+    if json.len() > MAX_LOCAL {
+        return Err("Los datos superan el tamaño máximo permitido (20 MiB).".into());
+    }
+    if !serde_json::from_str::<Value>(&json).map(|v| v.is_object()).unwrap_or(false) {
+        return Err("Los datos no son un objeto JSON válido.".into());
+    }
     let path = data_file(&app)?;
-    if std::fs::read(&path).map(|old| old == json.as_bytes()).unwrap_or(false) {
+    if crate::localcrypt::read_data(&path).map(|old| old == json.as_bytes()).unwrap_or(false) {
         return Ok(()); // sin cambios reales: no se levanta la bandera
     }
     // Sin Pro (invitado o cuenta sin pagar): hasta FREE_WORKSPACES espacios de trabajo. No se rompe a quien ya tiene varios (se conservan), solo se impide añadir más.
     if !st.is_pro.load(Ordering::SeqCst) {
         let count = |b: &[u8]| serde_json::from_slice::<Value>(b).ok().and_then(|v| v["workspaces"].as_array().map(|a| a.len())).unwrap_or(0);
         let new_n = count(json.as_bytes());
-        let old_n = std::fs::read(&path).map(|b| count(&b)).unwrap_or(0);
+        let old_n = crate::localcrypt::read_data(&path).map(|b| count(&b)).unwrap_or(0);
         if new_n > FREE_WORKSPACES && new_n > old_n {
             return Err("GUEST_LIMIT_WORKSPACES".into());
         }
     }
-    write_atomic(&path, json.as_bytes())?;
+    crate::localcrypt::write_data(&path, json.as_bytes())?;
     // Solo se marca para subir si hay sesión: un equipo nuevo, sin sesión, no debe pisar la nube con datos vacíos.
     if st.session.lock().map(|g| g.is_some()).unwrap_or(false) {
         st.dirty.store(true, Ordering::SeqCst);
@@ -1042,7 +1086,11 @@ pub async fn sync_link_idp(app: AppHandle, st: tauri::State<'_, SyncState>, prov
         "google.com" => google_post_body(&st).await?,
         "github.com" => {
             let dc = github_begin(&st).await?;
-            let _ = open::that_detached(&dc.verification_uri);
+            let vu = crate::validate_url(&dc.verification_uri)?;
+            if vu.scheme() != "https" || vu.host_str() != Some("github.com") {
+                return Err("URL de verificación de GitHub no válida (se esperaba https://github.com).".into());
+            }
+            let _ = open::that_detached(vu.as_str());
             let (code, interval, expires) = (dc.device_code.clone(), dc.interval, dc.expires_in);
             let _ = app.emit("link-github-code", dc);
             let tok = github_token(&st, &code, interval, expires).await?;

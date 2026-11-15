@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-github-begin"
+description = "Enables the sync_github_begin command without any pre-configured scope."
+commands.allow = ["sync_github_begin"]
+
+[[permission]]
+identifier = "deny-sync-github-begin"
+description = "Denies the sync_github_begin command without any pre-configured scope."
+commands.deny = ["sync_github_begin"]

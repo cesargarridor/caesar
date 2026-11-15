@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pick-text-files"
+description = "Enables the pick_text_files command without any pre-configured scope."
+commands.allow = ["pick_text_files"]
+
+[[permission]]
+identifier = "deny-pick-text-files"
+description = "Denies the pick_text_files command without any pre-configured scope."
+commands.deny = ["pick_text_files"]

@@ -36,6 +36,19 @@ fn normalize(code: &str) -> Result<String, String> {
     Ok(format!("TEAM{body}"))
 }
 
+/// Validación de forma del código antes de cualquier trabajo (la validación fuerte la hace `normalize`).
+fn check_code(code: &str) -> Result<(), String> {
+    let ok = !code.is_empty() && code.len() <= 64 && code.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    ok.then_some(()).ok_or_else(|| "El código no es válido. Tiene la forma TEAM-XXXX-XXXX-XXXX.".to_string())
+}
+
+/// Tope del JSON en claro (se comprime antes de cifrar; el límite fino es MAX_BLOB sobre el sobre cifrado).
+const MAX_JSON: usize = 20 * 1024 * 1024;
+
+fn check_json(json: &str) -> Result<(), String> {
+    (json.len() <= MAX_JSON).then_some(()).ok_or_else(|| "La colección es demasiado grande.".to_string())
+}
+
 fn pretty(norm: &str) -> String {
     let b = &norm[4..];
     format!("TEAM-{}-{}-{}", &b[0..4], &b[4..8], &b[8..12])
@@ -103,6 +116,7 @@ fn http_err(code: u16, what: &str) -> String {
 /// Crea la colección compartida y devuelve el código para invitar al resto.
 #[tauri::command]
 pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Result<String, String> {
+    check_json(&json)?;
     crate::sync::require_pro(&st)?;
     if !crate::limit::allow("team_publish", 1, 60_000) {
         return Err("Has creado un enlace hace un momento. Espera un minuto y vuelve a intentarlo.".into());
@@ -133,6 +147,7 @@ pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Resu
 /// Descarga una colección de equipo con su código.
 #[tauri::command]
 pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<TeamDoc, String> {
+    check_code(&code)?;
     crate::sync::require_pro(&st)?;
     if !crate::limit::allow("team_join", 6, 60_000) {
         return Err("Demasiados intentos seguidos. Espera un minuto.".into());
@@ -155,6 +170,8 @@ pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<
 /// La escritura va condicionada a la hora de actualización leída, así que dos subidas simultáneas no se pisan.
 #[tauri::command]
 pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: String, seen: i64, force: bool) -> Result<i64, String> {
+    check_code(&code)?;
+    check_json(&json)?;
     crate::sync::require_pro(&st)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
@@ -199,6 +216,7 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
 /// Consulta si hay cambios más nuevos que `since`. `None` = nada nuevo. Error "NOT_FOUND" = el dueño la eliminó.
 #[tauri::command]
 pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64) -> Result<Option<TeamDoc>, String> {
+    check_code(&code)?;
     crate::sync::require_pro(&st)?;
     if !crate::limit::allow(&format!("team_pull:{code}"), 6, 60_000) {
         return Ok(None);
@@ -234,6 +252,7 @@ pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64
 /// El dueño deja de compartir: se borra la colección de la nube (las copias locales de cada miembro se quedan).
 #[tauri::command]
 pub async fn team_unshare(st: tauri::State<'_, SyncState>, code: String) -> Result<(), String> {
+    check_code(&code)?;
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
     let (id, _key) = derive(&normalize(&code)?);

@@ -567,6 +567,10 @@ const typeName = (v: V) => (v === null ? "null" : Array.isArray(v) ? "array" : t
 // ───────────────────────────── Intérprete ─────────────────────────────
 
 const MAX_STEPS = 200_000;
+/** Largo máximo de una cadena producida por padStart/padEnd. */
+const MAX_STR = 1_000_000;
+/** Profundidad máxima de llamadas anidadas a funciones del script. */
+const MAX_DEPTH = 200;
 
 export function runScript(source: string, ctx: ScriptContext): ScriptResult {
   const res: ScriptResult = { sets: [], unsets: [], logs: [], tests: [], errors: [] };
@@ -773,8 +777,14 @@ export function runScript(source: string, ctx: ScriptContext): ScriptResult {
   g("NaN", NaN);
   g("Infinity", Infinity);
 
+  const padLen = (n: V): number => {
+    const len = num(n);
+    if (len > MAX_STR) throw new ScriptError(`La cadena resultante supera el límite de ${MAX_STR} caracteres`);
+    return len;
+  };
+
   const errText = (e: V): string =>
-    e instanceof ScriptError || e instanceof Error ? e.message : e instanceof ThrowSignal ? toDisplay(e.value) : String(e);
+    e instanceof RangeError ? "Recursión demasiado profunda" : e instanceof ScriptError || e instanceof Error ? e.message : e instanceof ThrowSignal ? toDisplay(e.value) : String(e);
 
   // ── propiedades y métodos permitidos sobre valores nativos ──
   const getProp = (obj: V, key: V): V => {
@@ -794,7 +804,7 @@ export function runScript(source: string, ctx: ScriptContext): ScriptResult {
         substring: ([a, b]) => s.substring(a as number, b as number | undefined), charAt: ([i]) => s.charAt(num(i)),
         split: ([x]) => (x === undefined ? [s] : s.split(String(x))), concat: (a) => s.concat(...a.map(String)),
         replace: ([a, b]) => s.replace(String(a), String(b)), replaceAll: ([a, b]) => s.split(String(a)).join(String(b)),
-        padStart: ([n, p]) => s.padStart(num(n), p === undefined ? " " : String(p)), padEnd: ([n, p]) => s.padEnd(num(n), p === undefined ? " " : String(p)),
+        padStart: ([n, p]) => s.padStart(padLen(n), p === undefined ? " " : String(p)), padEnd: ([n, p]) => s.padEnd(padLen(n), p === undefined ? " " : String(p)),
       };
       return own(m, k) ? nat(m[k]) : undefined;
     }
@@ -833,20 +843,27 @@ export function runScript(source: string, ctx: ScriptContext): ScriptResult {
     else throw new ScriptError("No se puede asignar esa propiedad");
   };
 
+  let depth = 0;
   const callValue = (fn: V, args: V[]): V => {
     if (fn instanceof Native) return fn.fn(args);
     if (fn instanceof Closure) {
-      const node = fn.node;
-      const env = new Env(fn.env, true);
-      node.params.forEach((p: string, i: number) => env.declare(p, args[i]));
-      if (node.expr) return ev(node.body, env);
+      if (depth >= MAX_DEPTH) throw new ScriptError("Recursión demasiado profunda");
+      depth++;
       try {
-        execBlock(node.body.body, env);
-      } catch (e) {
-        if (e instanceof ReturnSignal) return e.value;
-        throw e;
+        const node = fn.node;
+        const env = new Env(fn.env, true);
+        node.params.forEach((p: string, i: number) => env.declare(p, args[i]));
+        if (node.expr) return ev(node.body, env);
+        try {
+          execBlock(node.body.body, env);
+        } catch (e) {
+          if (e instanceof ReturnSignal) return e.value;
+          throw e;
+        }
+        return undefined;
+      } finally {
+        depth--;
       }
-      return undefined;
     }
     throw new ScriptError("El valor no es una función");
   };

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pairing-begin"
+description = "Enables the pairing_begin command without any pre-configured scope."
+commands.allow = ["pairing_begin"]
+
+[[permission]]
+identifier = "deny-pairing-begin"
+description = "Denies the pairing_begin command without any pre-configured scope."
+commands.deny = ["pairing_begin"]

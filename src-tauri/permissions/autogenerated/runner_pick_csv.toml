@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-runner-pick-csv"
+description = "Enables the runner_pick_csv command without any pre-configured scope."
+commands.allow = ["runner_pick_csv"]
+
+[[permission]]
+identifier = "deny-runner-pick-csv"
+description = "Denies the runner_pick_csv command without any pre-configured scope."
+commands.deny = ["runner_pick_csv"]

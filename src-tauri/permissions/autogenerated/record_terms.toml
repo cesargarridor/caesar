@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-record-terms"
+description = "Enables the record_terms command without any pre-configured scope."
+commands.allow = ["record_terms"]
+
+[[permission]]
+identifier = "deny-record-terms"
+description = "Denies the record_terms command without any pre-configured scope."
+commands.deny = ["record_terms"]

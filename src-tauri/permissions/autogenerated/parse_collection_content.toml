@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-parse-collection-content"
+description = "Enables the parse_collection_content command without any pre-configured scope."
+commands.allow = ["parse_collection_content"]
+
+[[permission]]
+identifier = "deny-parse-collection-content"
+description = "Denies the parse_collection_content command without any pre-configured scope."
+commands.deny = ["parse_collection_content"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-regenerate-key"
+description = "Enables the sync_regenerate_key command without any pre-configured scope."
+commands.allow = ["sync_regenerate_key"]
+
+[[permission]]
+identifier = "deny-sync-regenerate-key"
+description = "Denies the sync_regenerate_key command without any pre-configured scope."
+commands.deny = ["sync_regenerate_key"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-check-trial-and-whitelist"
+description = "Enables the check_trial_and_whitelist command without any pre-configured scope."
+commands.allow = ["check_trial_and_whitelist"]
+
+[[permission]]
+identifier = "deny-check-trial-and-whitelist"
+description = "Denies the check_trial_and_whitelist command without any pre-configured scope."
+commands.deny = ["check_trial_and_whitelist"]

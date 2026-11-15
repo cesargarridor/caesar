@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sync-delete-account"
+description = "Enables the sync_delete_account command without any pre-configured scope."
+commands.allow = ["sync_delete_account"]
+
+[[permission]]
+identifier = "deny-sync-delete-account"
+description = "Denies the sync_delete_account command without any pre-configured scope."
+commands.deny = ["sync_delete_account"]

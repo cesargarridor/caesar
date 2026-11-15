@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vault-rotate"
+description = "Enables the vault_rotate command without any pre-configured scope."
+commands.allow = ["vault_rotate"]
+
+[[permission]]
+identifier = "deny-vault-rotate"
+description = "Denies the vault_rotate command without any pre-configured scope."
+commands.deny = ["vault_rotate"]

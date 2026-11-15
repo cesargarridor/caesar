@@ -52,6 +52,7 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import { useTheme } from "./lib/themes";
 import { generateCurl } from "./lib/curlOut";
 import { emptyRequest, looksLikeCurl, parseCurl } from "./lib/curl";
+import { countLocalRequests, localCollectionWarning, localCurlWarning } from "./lib/importWarn";
 import { buildExecuteArgs, normAuth, requestFromNode, resolveInherit } from "./lib/request";
 import { signRequest, SIGNED_TYPES } from "./lib/authSign";
 import { applyUrlEdit, buildUrl } from "./lib/url";
@@ -580,6 +581,8 @@ export default function App() {
         }
       }
       if (roots.length) {
+        const warn = localCollectionWarning(roots.reduce((n, r) => n + countLocalRequests(r, globals), 0), t);
+        if (warn) toast.show(warn, "info", 9000);
         setCollections((c) => [...c, ...roots]);
         const last = roots[roots.length - 1];
         openFolder(last.type === "folder" ? last.uid : undefined);
@@ -872,9 +875,15 @@ export default function App() {
     }
   };
 
+  const curlWarn = (parsed: RequestState) => {
+    const w = localCurlWarning(parsed.url, parsed.settings.verifySsl, t);
+    if (w) toast.show(w, "info", 9000);
+  };
+
   const handleCurl = (text: string) => {
     try {
       const parsed = parseCurl(text);
+      curlWarn(parsed);
       patchTab(active.id, (t) => ({ ...t, req: { ...parsed, tests: t.req.tests ?? "" }, dirty: true }));
       setResults((r) => ({ ...r, [active.id]: { response: null, error: null } }));
     } catch (e) {
@@ -891,6 +900,7 @@ export default function App() {
   pasteRef.current = (text: string) => {
     try {
       const parsed = parseCurl(text);
+      curlWarn(parsed);
       openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name: `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`, dirty: true });
       setNotice({ kind: "ok", text: t("Petición creada desde el cURL del portapapeles.") });
     } catch (e) {
@@ -1261,6 +1271,7 @@ export default function App() {
           <CurlImportDialog
             onClose={() => setShowCurlImport(false)}
             onAccept={(parsed) => {
+              curlWarn(parsed);
               openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name: `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`, dirty: true });
               setShowCurlImport(false);
             }}

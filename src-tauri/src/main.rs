@@ -5,6 +5,7 @@ mod deeplink;
 mod ai;
 mod history;
 mod keyrole;
+mod localcrypt;
 mod limit;
 mod merge;
 mod oauth;
@@ -943,6 +944,100 @@ impl Tracker {
     }
 }
 
+/// ¿Es una IP de metadatos cloud / link-local? (169.254.0.0/16, fd00:ec2::254 y sus formas IPv4-mapped).
+pub(crate) fn is_metadata_ip(ip: std::net::IpAddr) -> bool {
+    use std::net::IpAddr;
+    match ip {
+        IpAddr::V4(v4) => v4.octets()[0] == 169 && v4.octets()[1] == 254,
+        IpAddr::V6(v6) => {
+            if v6 == "fd00:ec2::254".parse::<std::net::Ipv6Addr>().unwrap() {
+                return true;
+            }
+            match v6.to_ipv4_mapped() {
+                Some(v4) => is_metadata_ip(IpAddr::V4(v4)),
+                None => false,
+            }
+        }
+    }
+}
+
+/// Host de metadatos cloud (usa el enum de `url`, que ya normaliza formas decimal/hex/octal).
+pub(crate) fn is_metadata_host(host: &url::Host<&str>) -> bool {
+    match host {
+        url::Host::Ipv4(a) => is_metadata_ip(std::net::IpAddr::V4(*a)),
+        url::Host::Ipv6(a) => is_metadata_ip(std::net::IpAddr::V6(*a)),
+        url::Host::Domain(d) => {
+            let d = d.trim_end_matches('.').to_ascii_lowercase();
+            d == "metadata.google.internal" || d == "metadata"
+        }
+    }
+}
+
+/// IP de la red interna: loopback, no especificada, privada (RFC1918), link-local, CGNAT 100.64/10, ULA fc00::/7.
+pub(crate) fn is_internal_ip(ip: std::net::IpAddr) -> bool {
+    use std::net::IpAddr;
+    match ip {
+        IpAddr::V4(v4) => {
+            let o = v4.octets();
+            v4.is_loopback()
+                || v4.is_unspecified()
+                || v4.is_private()
+                || v4.is_link_local()
+                || (o[0] == 100 && (o[1] & 0xC0) == 64)
+        }
+        IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return is_internal_ip(IpAddr::V4(v4));
+            }
+            let s0 = v6.segments()[0];
+            v6.is_loopback() || v6.is_unspecified() || (s0 & 0xFE00) == 0xFC00 || (s0 & 0xFFC0) == 0xFE80
+        }
+    }
+}
+
+/// Host de la red interna (IP interna, `localhost`, `*.local`, nombres sin punto y sufijos típicos de LAN).
+pub(crate) fn is_internal_host(host: &url::Host<&str>) -> bool {
+    match host {
+        url::Host::Ipv4(a) => is_internal_ip(std::net::IpAddr::V4(*a)),
+        url::Host::Ipv6(a) => is_internal_ip(std::net::IpAddr::V6(*a)),
+        url::Host::Domain(d) => {
+            let d = d.trim_end_matches('.').to_ascii_lowercase();
+            d == "localhost"
+                || !d.contains('.')
+                || [".localhost", ".local", ".internal", ".lan", ".localdomain", ".home.arpa"].iter().any(|suf| d.ends_with(suf))
+        }
+    }
+}
+
+pub(crate) fn url_is_internal(u: &Url) -> bool {
+    u.host().map_or(false, |h| is_internal_host(&h))
+}
+
+pub(crate) fn url_targets_metadata(u: &Url) -> bool {
+    u.host().map_or(false, |h| is_metadata_host(&h))
+}
+
+/// Resolver DNS que descarta direcciones de metadatos/link-local (anti DNS rebinding).
+struct SafeResolver;
+impl reqwest::dns::Resolve for SafeResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_string();
+        Box::pin(async move {
+            let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host((host.as_str(), 0))
+                .await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?
+                .filter(|a| !is_metadata_ip(a.ip()))
+                .collect();
+            if addrs.is_empty() {
+                return Err(Box::<dyn std::error::Error + Send + Sync>::from(
+                    "El host resuelve solo a direcciones de metadatos/link-local (bloqueado)",
+                ));
+            }
+            Ok(Box::new(addrs.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
+}
+
 /// Validación estática de la URL antes de que llegue a reqwest.
 fn validate_url(raw: &str) -> Result<Url, String> {
     let raw = raw.trim();
@@ -961,6 +1056,9 @@ fn validate_url(raw: &str) -> Result<Url, String> {
     }
     if !url.username().is_empty() || url.password().is_some() {
         return Err("Las credenciales embebidas en la URL no están permitidas".into());
+    }
+    if url_targets_metadata(&url) {
+        return Err("Host de metadatos/link-local bloqueado (169.254.0.0/16, metadata.google.internal)".into());
     }
     Ok(url)
 }
@@ -1089,7 +1187,17 @@ async fn execute_request(
         n => n.min(3600),
     };
     let policy = if args.settings.follow_redirects {
-        redirect::Policy::limited(10)
+        redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 10 {
+                attempt.error("Demasiadas redirecciones (máximo 10)")
+            } else if url_targets_metadata(attempt.url()) {
+                attempt.error("Redirección a host de metadatos/link-local bloqueada")
+            } else if url_is_internal(attempt.url()) && attempt.previous().first().map_or(false, |o| !url_is_internal(o)) {
+                attempt.error("Redirección de un host público a la red interna bloqueada")
+            } else {
+                attempt.follow()
+            }
+        })
     } else {
         redirect::Policy::none()
     };
@@ -1113,6 +1221,7 @@ async fn execute_request(
             builder = builder.timeout(Duration::from_secs(timeout));
             let c = builder
                 .redirect(policy)
+                .dns_resolver(std::sync::Arc::new(SafeResolver))
                 .danger_accept_invalid_certs(!args.settings.verify_ssl)
                 .user_agent(concat!("Caesar/", env!("CARGO_PKG_VERSION")))
                 .build()
@@ -1289,6 +1398,9 @@ async fn execute_request(
 /// Abre un enlace http(s) en el navegador del sistema, tras validarlo.
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
+    if url.len() > 8192 {
+        return Err("Enlace demasiado largo".into());
+    }
     let u = validate_url(&url)?;
     open::that_detached(u.as_str()).map_err(|e| format!("No se pudo abrir el enlace: {e}"))
 }
@@ -1476,5 +1588,60 @@ fn main() {
     if let Err(e) = result {
         eprintln!("Error fatal al iniciar Caesar: {e}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn blocks_metadata() {
+        for u in [
+            "http://169.254.169.254/latest/meta-data",
+            "http://[::ffff:169.254.169.254]/",
+            "http://2852039166/",
+            "http://0xa9fea9fe/",
+            "http://metadata.google.internal/",
+            "http://metadata/",
+            "http://[fd00:ec2::254]/",
+        ] {
+            assert!(validate_url(u).is_err(), "debería bloquear {u}");
+        }
+    }
+
+    #[test]
+    fn allows_local_and_private() {
+        for u in ["http://localhost:3000/", "http://127.0.0.1/", "http://192.168.1.1/", "https://example.com/"] {
+            assert!(validate_url(u).is_ok(), "debería permitir {u}");
+        }
+    }
+
+    #[test]
+    fn open_url_rejects_long() {
+        let long = format!("https://example.com/{}", "a".repeat(9000));
+        assert!(open_url(long).is_err());
+    }
+
+    fn internal(u: &str) -> bool {
+        url_is_internal(&Url::parse(u).unwrap())
+    }
+
+    #[test]
+    fn clasifica_hosts_internos() {
+        for u in [
+            "http://localhost/", "http://LOCALHOST./", "http://api.localhost/", "http://127.0.0.1/", "http://127.5.5.5/", "http://[::1]/",
+            "http://10.0.0.1/", "http://172.16.0.1/", "http://172.31.255.255/", "http://192.168.1.1/", "http://169.254.1.1/",
+            "http://100.64.0.1/", "http://100.127.255.255/", "http://[fd00::1]/", "http://[fc00::1]/", "http://[fe80::1]/",
+            "http://[::ffff:10.0.0.1]/", "http://0.0.0.0/", "http://impresora.local/", "http://nas/", "http://x.internal/", "http://2130706433/",
+        ] {
+            assert!(internal(u), "debería ser interno: {u}");
+        }
+        for u in [
+            "https://example.com/", "http://8.8.8.8/", "http://172.32.0.1/", "http://172.15.0.1/", "http://100.63.255.255/", "http://100.128.0.1/",
+            "http://[2001:db8::1]/", "http://[::ffff:8.8.8.8]/", "http://192.169.0.1/", "https://localhost.example.com/", "https://notlocal.com/",
+        ] {
+            assert!(!internal(u), "debería ser público: {u}");
+        }
     }
 }

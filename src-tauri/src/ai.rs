@@ -43,7 +43,7 @@ pub fn ai_status() -> AiStatus {
 #[tauri::command]
 pub fn ai_set_key(provider: String, key: String) -> Result<(), String> {
     let key = key.trim().to_string();
-    if key.len() < 8 || key.len() > 400 || key.chars().any(char::is_whitespace) {
+    if key.len() < 8 || key.len() > 400 || key.chars().any(|c| c.is_whitespace() || c.is_control()) {
         return Err("La clave no parece válida. Cópiala entera, sin espacios.".into());
     }
     entry(&provider)?.set_password(&key).map_err(|e| format!("No se pudo guardar la clave en el llavero: {e}"))
