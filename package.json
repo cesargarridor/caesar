@@ -2,7 +2,7 @@
   "name": "caesar",
   "private": true,
   "license": "FSL-1.1-MIT",
-  "version": "0.18.10",
+  "version": "0.18.11",
   "type": "module",
   "scripts": {
     "dev": "vite",

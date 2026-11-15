@@ -188,8 +188,8 @@ pub(crate) fn data_file(app: &AppHandle) -> Result<PathBuf, String> {
 
 // ───────────────────────── llavero (token de sesión) ─────────────────────────
 
-fn token_entry() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
+fn token_entry() -> Result<crate::secret::Entry, String> {
+    crate::secret::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
 }
 fn save_refresh(t: &str) {
     if let Ok(e) = token_entry() {
