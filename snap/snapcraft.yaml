@@ -66,6 +66,19 @@ parts:
       - libwebkit2gtk-4.1-0
       - libayatana-appindicator3-1
       - libsecret-1-0
+    # No llevar dentro el Mesa/GPU: la extensión gnome ya lo aporta desde el sistema.
+    # Si va dentro, falla con "libEGL fatal: DRI driver not from this Mesa build".
+    prime:
+      - -usr/lib/*/dri
+      - -usr/lib/*/libEGL*
+      - -usr/lib/*/libGL.so*
+      - -usr/lib/*/libGLX*
+      - -usr/lib/*/libGLdispatch*
+      - -usr/lib/*/libgbm*
+      - -usr/lib/*/libglapi*
+      - -usr/lib/*/libdrm*
+      - -usr/lib/*/libLLVM*
+      - -usr/lib/*/libgallium*
     override-build: |
       dpkg-deb -x "$CRAFT_PART_SRC"/*.deb "$CRAFT_PART_INSTALL"
       # Tauri nombra el binario según productName; se normaliza a usr/bin/caesar
