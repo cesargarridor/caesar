@@ -110,7 +110,7 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 - **Cancelar:** cuando quieras, en Ajustes → Cuenta y suscripción → Gestionar suscripción (Pro hasta el fin del periodo pagado). Borrar la cuenta también cancela la suscripción.
 - **Reembolso:** 14 días desde cualquier cobro.
 - Legal: [Términos](https://cesargarridor.github.io/caesar-legal/terms.html) · [Privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html) · [Reembolsos](https://cesargarridor.github.io/caesar-legal/refunds.html) · [Aviso legal](https://cesargarridor.github.io/caesar-legal/legal.html) · [Borrar datos](https://cesargarridor.github.io/caesar-legal/delete.html) · [Seguridad](https://cesargarridor.github.io/caesar-legal/security.html).
-- En modo Invitado/local tus datos no salen del equipo; con Sync solo se suben bloques cifrados.
+- En modo Invitado/local tus datos no salen del equipo; con la sincronización solo se suben bloques cifrados de extremo a extremo.
 
 ## Seguridad
 
@@ -118,79 +118,31 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 - Rust valida las URLs, solo permite `http`/`https` y limita el tamaño de respuestas y archivos.
 - CSP estricta y permisos mínimos de Tauri.
 
-## Sincronización cifrada de extremo a extremo (en desarrollo)
+## Sincronización cifrada de extremo a extremo
 
-> **Estado:** el cifrado local, la cuenta y la sincronización en segundo plano están hechos (Ajustes → Cuenta y suscripción). Falta la vinculación con QR en pantalla.
+Usa tus peticiones y colecciones en varios ordenadores sin que nadie más pueda leerlas, ni siquiera el autor de Caesar.
 
-### Cómo se sincroniza sin gastar cuota
+- **Cifrado de extremo a extremo:** tus datos se cifran en tu equipo con **AES-256-GCM** antes de salir. Solo se sincronizan
+  bloques cifrados; nadie más tiene la clave.
+- **La clave nunca sale de tu equipo:** se genera de forma aleatoria y se guarda solo en el llavero del sistema operativo
+  (Credential Manager en Windows, Keychain en macOS, Secret Service en Linux). La interfaz nunca la ve.
+- **Vincular un equipo nuevo:** se hace con un código de 6 cifras que compruebas en ambos equipos. La clave viaja cifrada
+  entre ellos con un intercambio X25519 + HKDF-SHA256, y la vinculación caduca a los 10 minutos.
+- **Clave de recuperación:** al activar el cifrado se te muestra una sola vez. Guárdala en un gestor de contraseñas: con ella
+  recuperas tus datos si pierdes todos los equipos.
+- **Solo cuando hay cambios:** la sincronización ocurre en segundo plano; si no has cambiado nada, no se envía nada.
 
-1. **Debounce (React):** hasta que no pasan 2 s sin teclear, no se envía nada a Rust.
-2. **Disco (Rust):** `local_save` escribe `datos.json` de forma atómica y levanta una bandera; no toca internet.
-3. **Trabajador (Rust, tokio):** cada 30 s mira la bandera; si está levantada cifra el archivo y lo sube en una sola
-   petición. Sin cambios no hace ninguna llamada. Cada 5 min comprueba si otro equipo ha subido algo.
-   Conflictos: gana la última escritura; antes de aplicar lo remoto se guarda `datos.json.bak`.
+> Si pierdes todos tus equipos **y** la clave de recuperación, los datos no se pueden recuperar. Es el precio de que nadie más
+> pueda leerlos.
 
-El objetivo es poder usar las mismas peticiones y colecciones en varios ordenadores sin que el servidor pueda leerlas.
-Todo el cifrado ocurre en Rust, en tu equipo; la interfaz nunca ve la clave.
+Qué guarda la app y cómo borrar tus datos: [Seguridad](https://cesargarridor.github.io/caesar-legal/security.html) ·
+[Borrar datos](https://cesargarridor.github.io/caesar-legal/delete.html).
 
-### Qué guarda y dónde
+## Primer uso
 
-- **Clave de datos:** 32 bytes aleatorios generados con el generador seguro del sistema. Se guardan **solo en el llavero
-  del sistema operativo** (Credential Manager en Windows, Keychain en macOS, Secret Service en Linux). Nunca se escriben
-  en un archivo ni se envían en claro.
-- **Cifrado:** AES-256-GCM. Cada bloque lleva un *nonce* nuevo y queda ligado a su contexto (por ejemplo el id de la
-  colección), de modo que no se puede cambiar un bloque por otro ni alterarlo sin que falle el descifrado.
-  Formato del bloque: `c1.<nonce>.<cifrado>` (base64 URL-safe).
-- **Qué ve el servidor:** solo bloques cifrados, identificadores y fechas. Ni el autor de Caesar puede leer tus tokens.
-
-### Pasos de cada operación
-
-**1. Activar el cifrado en el primer ordenador** (`vault_create`)
-1. Se genera la clave de datos y se guarda en el llavero.
-2. Se muestra **una sola vez** la **clave de recuperación** (`CSR-XXXXX-XXXXX-…`): es la misma clave escrita en texto con una
-   suma de comprobación que detecta errores al teclearla. Guárdala en un gestor de contraseñas.
-
-**2. Vincular un ordenador nuevo con un código** (sin contraseña maestra)
-
-| Paso | Equipo | Qué ocurre |
-| --- | --- | --- |
-| 1 | Nuevo | Genera un par de claves efímero (X25519) y muestra su clave pública como enlace/QR (`pairing_begin`). |
-| 2 | Vinculado | Abre el enlace, genera su propio par efímero y muestra un **código de 6 cifras** (`pairing_approve_start`). |
-| 3 | Nuevo | Recibe la clave pública del otro y muestra el mismo código (`pairing_code`). |
-| 4 | Ambos | El usuario **comprueba que los dos códigos coinciden**. Si no, se cancela: alguien se ha interpuesto. |
-| 5 | Vinculado | Cifra la clave de datos para el equipo nuevo (`pairing_approve_confirm`). |
-| 6 | Nuevo | Descifra y guarda la clave en su llavero (`pairing_finish`). |
-
-El secreto compartido sale del intercambio X25519 + HKDF-SHA256 ligado a ambas claves públicas. La vinculación caduca a los
-10 minutos, es de un solo uso y las claves temporales solo existen en memoria. Por el servidor solo viajan claves públicas
-y un bloque cifrado que no puede abrir.
-
-**3. Recuperar si se pierden todos los equipos** (`vault_restore`): se pega la clave de recuperación y se guarda en el llavero.
-
-**4. Quitar la clave de un equipo** (`vault_forget`): borra la clave local. Sin otro equipo vinculado ni clave de recuperación,
-los datos cifrados no se pueden recuperar.
-
-### Límites que conviene conocer
-
-- Si pierdes todos los equipos **y** la clave de recuperación, los datos son irrecuperables. Es el precio de que nadie más
-  pueda leerlos.
-- El llavero protege contra el robo del archivo o del disco, no contra un programa malicioso que ya se ejecute con tu usuario.
-- Revocar un equipo exigirá generar una clave nueva y volver a cifrar los datos (pendiente).
-
-### Pantalla de bienvenida
-
-La primera vez que se abre Caesar (y una sola vez al actualizar desde una versión sin ella) aparece una pantalla con tres
-opciones: **iniciar sesión**, **registrarse** (correo y contraseña, o GitHub si está disponible) o **continuar como
-invitado**. Como invitado los datos se guardan solo en ese dispositivo: si se borran o se cambia de equipo, se pierden. Se
-puede crear la cuenta más tarde desde Ajustes → Cuenta y suscripción sin perder lo local. Si ya hay una sesión iniciada, la
-pantalla no sale. Se recuerda con `caesar.onboarded` en el almacenamiento local. Exige marcar dos casillas sin marcar por defecto («He leído y acepto los Términos y la Política de privacidad» y «Tengo 14 años o más»); la aceptación se guarda en local (`caesar.terms`) y, con sesión, en el servidor. Incluye enlaces a la política de privacidad y a los términos, publicados en el repositorio
-[caesar-legal](https://github.com/cesargarridor/caesar-legal) (https://cesargarridor.github.io/caesar-legal/); las URLs
-están en `src/lib/legal.ts`. Ahí también están el aviso legal, la página de seguridad (qué guarda la app y dónde) y cómo
-borrar los datos, en español e inglés.
-
-### Pendiente
-
-1. Pantallas de vinculación con QR y de recuperación.
+La primera vez que abres Caesar puedes **iniciar sesión**, **registrarte** o **continuar como invitado**. Como invitado los
+datos se guardan solo en ese dispositivo; puedes crear la cuenta más tarde desde Ajustes → Cuenta y suscripción sin perder
+lo local.
 
 ## Desarrollo
 
