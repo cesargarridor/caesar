@@ -1389,6 +1389,8 @@ fn main() {
             sync::sync_github_finish,
             sync::sync_sign_out,
             sync::sync_now,
+            sync::sync_cancel,
+            sync::sync_billing_refresh,
             sync::sync_billing,
             sync::sync_delete_account,
             sync::sync_checkout_url,

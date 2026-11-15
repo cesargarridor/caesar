@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { Eye, EyeOff, KeyRound, LogOut, RefreshCw, X } from "lucide-react";
+import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncBillingRefresh, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import PlanNotice from "./PlanNotice";
-import { acceptedTerms } from "../lib/legal";
+import { acceptedTerms, clearTermsSent } from "../lib/legal";
 import { t } from "../lib/i18n";
 import { openCheckout, planError, useAccount } from "../lib/account";
 
@@ -36,6 +36,8 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const [confirmNew, setConfirmNew] = useState(false);
   const [confirmMaster, setConfirmMaster] = useState(false);
   const [role, setRole] = useState<SyncRole | null>(null);
+  const [roleErr, setRoleErr] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
   const { account, refresh: refreshAccount, setAccount } = useAccount();
   const [copied, setCopied] = useState(false);
   const [bill, setBill] = useState<Billing | null>(null);
@@ -50,7 +52,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
 
   const refresh = useCallback(() => {
     void refreshAccount();
-    syncRole().then(setRole).catch(() => {});
+    syncRole().then((r) => { setRole(r); setRoleErr(null); }).catch((e) => setRoleErr(errText(e)));
     return syncStatus().then(setSt).catch(() => {});
   }, [refreshAccount]);
   useEffect(() => {
@@ -58,6 +60,13 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     const id = setInterval(refresh, 5000);
     return () => clearInterval(id);
   }, [refresh]);
+  // Mientras se sincroniza: estado cada segundo (qué paso va y cuánto lleva).
+  const working = !!st?.phase;
+  useEffect(() => {
+    if (!working) return;
+    const id = setInterval(() => { setNow(Date.now()); void syncStatus().then(setSt).catch(() => {}); }, 1000);
+    return () => clearInterval(id);
+  }, [working]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -99,13 +108,13 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const billingOn = st?.billing ?? false;
   // Si el cobro ya consta como activo pero la cuenta sigue en limbo, se reevalúa el plan contra la red (account_state es solo caché).
   const checkBilling = useCallback(
-    () =>
-      syncBilling()
+    (force = false) =>
+      (force ? syncBillingRefresh() : syncBilling())
         .then((b) => setBill(b))
         .catch(() => {})
         // Reevalúa el plan siempre que no sea Pro: cubre tanto un pago como un alta en la lista blanca.
         .then(async () => {
-          if (account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
+          if (force || account.mode !== "pro") setAccount(await checkTrialAndWhitelist());
         })
         .catch(() => {}),
     [account.mode, setAccount],
@@ -113,7 +122,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   useEffect(() => {
     if (!signedIn || !billingOn) return;
     checkBilling();
-    const id = setInterval(checkBilling, 60000);
+    const id = setInterval(() => checkBilling(), 60000);
     return () => clearInterval(id);
   }, [signedIn, billingOn, checkBilling]);
 
@@ -297,6 +306,20 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
         </section>
       )}
 
+      {/* Aviso bien visible: falta la clave de cifrado en este equipo */}
+      {st.signed_in && account.mode === "pro" && role && (role.role === "needs_key" || role.role === "revoked") && (
+        <div className="flex max-w-md items-start gap-3 rounded-xl bg-deep p-4 ring-1 ring-amber-400/50" role="alert">
+          <KeyRound size={18} className="mt-0.5 shrink-0 text-amber-400" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-mist">{role.role === "revoked" ? t("La clave de cifrado ha cambiado") : t("Falta la clave de cifrado en este equipo")}</p>
+            <p className="text-xs text-slate">{t("Pégala abajo, en «Clave de cifrado». Hasta entonces este equipo no sincroniza.")}</p>
+          </div>
+        </div>
+      )}
+      {st.signed_in && account.mode === "pro" && !role && roleErr && (
+        <p className="max-w-md text-xs text-red-400">{t("No se pudo comprobar la clave de cifrado")}: {roleErr}</p>
+      )}
+
       {/* 2. Clave de cifrado (según el rol de este equipo) */}
       {st.signed_in && account.mode === "pro" && role && (
       <section className="space-y-3">
@@ -420,7 +443,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                 >
                   {t("Suscribirme")}
                 </button>
-                <button className={ghostCls} onClick={() => checkBilling()}>{t("Ya he pagado, comprobar")}</button>
+                <button className={ghostCls} disabled={busy} onClick={() => run(async () => { await checkBilling(true); })}>{t("Ya he pagado, comprobar")}</button>
               </div>
             </div>
           )}
@@ -431,14 +454,32 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
       {st.signed_in && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <button className={ghostCls} disabled={busy || !st.has_key || account.mode !== "pro"} onClick={() => run(syncNow)}>
-              <RefreshCw size={14} className="mr-2 inline" />
-              {t("Sincronizar ahora")}
+            <button className={ghostCls} disabled={busy || working || account.mode !== "pro"} onClick={() => run(syncNow)}>
+              <RefreshCw size={14} className={`mr-2 inline ${working ? "animate-spin" : ""}`} />
+              {working ? t("Sincronizando…") : t("Sincronizar ahora")}
             </button>
-            <span className="text-xs text-slate">
-              {!account.is_pro ? t("Sin Pro no se sincroniza: tus datos quedan solo en este equipo.") : st.dirty ? t("Cambios pendientes de subir (se suben solos cada 30 s).") : st.last_sync ? `${t("Última sincronización")}: ${new Date(st.last_sync).toLocaleTimeString()}` : t("Al día")}
-            </span>
+            {working && (
+              <button className={ghostCls} onClick={() => { void syncCancel().catch(() => {}); }} title={t("Cancelar")} aria-label={t("Cancelar sincronización")}>
+                <X size={14} className="mr-1 inline" />
+                {t("Cancelar")}
+              </button>
+            )}
+            {!working && (
+              <span className="text-xs text-slate">
+                {!account.is_pro ? t("Sin Pro no se sincroniza: tus datos quedan solo en este equipo.") : !st.has_key ? t("Falta la clave de cifrado en este equipo.") : st.error ? t("La última sincronización falló.") : st.dirty ? t("Cambios pendientes de subir (se suben solos cada 30 s).") : st.last_sync ? `${t("Última sincronización")}: ${new Date(st.last_sync).toLocaleTimeString()}` : t("Al día")}
+              </span>
+            )}
           </div>
+          {working && (
+            <div className="max-w-md space-y-1" role="status" aria-live="polite">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-fg/10">
+                <div className="h-full w-1/3 animate-[caesar-sync-slide_1.2s_ease-in-out_infinite] rounded-full bg-[var(--t-iris)]" />
+              </div>
+              <p className="text-xs text-slate">
+                {t(st.phase ?? "")}{st.phase_since ? ` · ${Math.max(0, Math.round((now - st.phase_since) / 1000))} s` : ""}
+              </p>
+            </div>
+          )}
           {st.error && <p className="text-xs text-red-400">{st.error}</p>}
         </section>
       )}
@@ -461,7 +502,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                 <button
                   className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                   disabled={busy}
-                  onClick={() => run(async () => { await syncDeleteAccount(); setConfirmDel(false); setBill(null); })}
+                  onClick={() => run(async () => { await syncDeleteAccount(); clearTermsSent(); setConfirmDel(false); setBill(null); setShownKey(null); setRole(null); })}
                 >
                   {t("Sí, borrar mi cuenta")}
                 </button>

@@ -97,6 +97,12 @@ pub struct SyncState {
     last_error: Mutex<Option<String>>,
     /// Entrada con GitHub/Google pendiente de vincular a una cuenta que ya existe: (postBody, correo).
     pending_link: Mutex<Option<(String, String)>>,
+    /// Qué está haciendo la sincronización ahora mismo (texto para la interfaz) y desde cuándo (ms).
+    phase: Mutex<Option<(String, i64)>>,
+    /// Para cancelar una sincronización manual en curso.
+    abort: Mutex<Option<tokio::task::AbortHandle>>,
+    /// Una sola sincronización a la vez (la manual y la de fondo no se pisan).
+    sync_lock: tokio::sync::Mutex<()>,
     pub(crate) client: reqwest::Client,
 }
 
@@ -123,6 +129,12 @@ impl SyncState {
             *g = mode.to_string();
         }
         self.is_pro.store(pro, Ordering::SeqCst);
+    }
+    /// Anota qué se está haciendo (None = nada).
+    pub(crate) fn set_phase(&self, text: Option<&str>) {
+        if let Ok(mut g) = self.phase.lock() {
+            *g = text.map(|t| (t.to_string(), now_ms()));
+        }
     }
     /// Vuelve al estado de invitado (sin sesión).
     pub(crate) fn reset_account(&self) {
@@ -156,6 +168,9 @@ impl Default for SyncState {
             last_sync: Mutex::new(0),
             last_error: Mutex::new(None),
             pending_link: Mutex::new(None),
+            phase: Mutex::new(None),
+            abort: Mutex::new(None),
+            sync_lock: tokio::sync::Mutex::new(()),
             client,
         }
     }
@@ -424,6 +439,7 @@ pub(crate) fn drop_local_session(st: &SyncState) {
 /// Sube el archivo local (cifrado) en una sola petición.
 pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     require_pro(st)?;
+    st.set_phase(Some("Preparando los datos…"));
     let (uid, tok) = valid_token(st).await?;
     let plain = std::fs::read(data_file(app)?).map_err(|e| format!("No se pudo leer datos.json: {e}"))?;
     let key = vault::load_key()?.ok_or("Activa el cifrado (clave de recuperación) antes de sincronizar.")?;
@@ -433,10 +449,12 @@ pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> 
         return Err("Tus colecciones superan el límite de la nube gratuita (~650 KB). Exporta o divide las colecciones.".into());
     }
     // Un equipo con clave revocada (otro Master rotó la clave) no debe pisar la nube con sus datos.
+    st.set_phase(Some("Comprobando la clave…"));
     if !crate::keyrole::key_is_current(st, &uid, &tok, &key).await? {
         return Err("La clave de este equipo ya no es la vigente: introduce la clave nueva en Ajustes → Sincronización.".into());
     }
     let stamp = now_ms();
+    st.set_phase(Some("Subiendo cambios…"));
     put_main(st, &uid, &tok, &blob, stamp).await?;
     st.blocked.store(false, Ordering::SeqCst);
     *st.last_remote.lock().map_err(|_| "Estado bloqueado")? = stamp;
@@ -447,6 +465,7 @@ pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> 
 /// Baja el documento remoto; si es más nuevo y no hay cambios locales pendientes, lo aplica y avisa a la interfaz.
 pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     require_pro(st)?;
+    st.set_phase(Some("Buscando cambios en la nube…"));
     let (uid, tok) = valid_token(st).await?;
     let url = doc_url(&uid).ok_or("Sincronización no configurada.")?;
     // 1) Solo la fecha (unos bytes). El documento entero se descarga únicamente si hay algo más nuevo.
@@ -464,6 +483,7 @@ pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> 
             return Ok(());
         }
     }
+    st.set_phase(Some("Descargando datos…"));
     let res = st
         .client
         .get(url)
@@ -489,6 +509,7 @@ pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> 
         return Ok(()); // nada nuevo
     }
     let blob = v["fields"]["blob"]["stringValue"].as_str().ok_or("El documento remoto no tiene datos.")?;
+    st.set_phase(Some("Descifrando y combinando…"));
     let key = vault::load_key()?.ok_or("Falta la clave de cifrado en este equipo: vincúlalo o restaura la clave de recuperación.")?;
     // Los datos antiguos (cifrados sin comprimir) y los nuevos (comprimidos con gzip) se leen igual.
     let plain = crate::pack::unpack(vault::decrypt_any(&key, &context(&uid), blob)?)?;
@@ -579,6 +600,8 @@ pub fn start_worker(app: AppHandle) {
             if !st.is_pro.load(Ordering::SeqCst) {
                 continue;
             }
+            // Si hay una sincronización manual en curso, este despertar se salta.
+            let Ok(_guard) = st.sync_lock.try_lock() else { continue };
             let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 20 == 0) {
                 // Baja la bandera ANTES de subir: si el usuario edita durante la subida, vuelve a levantarse.
                 st.dirty.store(false, Ordering::SeqCst);
@@ -592,6 +615,7 @@ pub fn start_worker(app: AppHandle) {
             } else {
                 Ok(())
             };
+            st.set_phase(None);
             set_error(&st, r.err());
         }
     });
@@ -677,6 +701,9 @@ pub struct SyncStatus {
     dirty: bool,
     last_sync: i64,
     error: Option<String>,
+    /// Lo que está haciendo la sincronización ahora mismo (None = reposo) y desde cuándo (ms).
+    phase: Option<String>,
+    phase_since: i64,
 }
 
 #[tauri::command]
@@ -698,6 +725,8 @@ pub fn sync_status(st: tauri::State<SyncState>) -> SyncStatus {
         dirty: st.dirty.load(Ordering::SeqCst),
         last_sync: st.last_sync.lock().map(|g| *g).unwrap_or(0),
         error: st.last_error.lock().ok().and_then(|g| g.clone()),
+        phase: st.phase.lock().ok().and_then(|g| g.as_ref().map(|p| p.0.clone())),
+        phase_since: st.phase.lock().ok().and_then(|g| g.as_ref().map(|p| p.1)).unwrap_or(0),
     }
 }
 
@@ -1144,7 +1173,7 @@ pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
     crate::team::delete_owned(st, &uid, &tok).await?;
     // Si hay suscripción viva, se cancela en Lemon Squeezy antes de borrar nada (si no, seguirían cobrando).
     close_remote(st, &c, &uid, &tok).await?;
-    for doc in ["sync/main", "billing/status"] {
+    for doc in ["sync/main", "sync/meta", "billing/status"] {
         let url = format!(
             "https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}/{doc}",
             c.project_id
@@ -1176,6 +1205,9 @@ pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
         });
     }
     clear_refresh();
+    // La clave de cifrado era de esta cuenta: no debe colarse en la siguiente que se cree en este equipo.
+    let _ = crate::vault::vault_forget();
+    crate::account::forget_cached();
     st.reset_account();
     *st.session.lock().map_err(|_| "Estado bloqueado")? = None;
     st.dirty.store(false, Ordering::SeqCst);
@@ -1210,20 +1242,95 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
     Ok(())
 }
 
-/// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos.
-#[tauri::command]
-pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
-    require_pro(&st)?;
+/// Tiempo máximo de una sincronización manual: pasado este plazo se corta y se avisa (antes se quedaba «pensando»).
+const SYNC_NOW_TIMEOUT: Duration = Duration::from_secs(90);
+
+async fn sync_now_inner(app: &AppHandle, st: &SyncState) -> Result<(), String> {
+    let _guard = st.sync_lock.lock().await;
     st.blocked.store(false, Ordering::SeqCst);
     if st.dirty.load(Ordering::SeqCst) {
         st.dirty.store(false, Ordering::SeqCst);
-        if let Err(e) = push(&app, &st).await {
+        if let Err(e) = push(app, st).await {
             st.dirty.store(true, Ordering::SeqCst);
-            set_error(&st, Some(e.clone()));
             return Err(e);
         }
     }
-    let r = pull(&app, &st).await;
-    set_error(&st, r.clone().err());
+    pull(app, st).await
+}
+
+/// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos. Se puede cancelar con `sync_cancel` y se corta a los 90 s.
+#[tauri::command]
+pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    require_pro(&st)?;
+    if st.abort.lock().map(|g| g.is_some()).unwrap_or(false) {
+        return Err("Ya hay una sincronización en curso.".into());
+    }
+    let was_dirty = st.dirty.load(Ordering::SeqCst);
+    st.set_phase(Some("Empezando…"));
+    let app2 = app.clone();
+    let handle = tokio::spawn(async move {
+        let st = app2.state::<SyncState>();
+        sync_now_inner(&app2, &st).await
+    });
+    if let Ok(mut g) = st.abort.lock() {
+        *g = Some(handle.abort_handle());
+    }
+    let r = match tokio::time::timeout(SYNC_NOW_TIMEOUT, handle).await {
+        Ok(Ok(r)) => r,
+        Ok(Err(e)) if e.is_cancelled() => Err("Sincronización cancelada.".to_string()),
+        Ok(Err(_)) => Err("La sincronización falló de forma inesperada.".to_string()),
+        Err(_) => {
+            if let Ok(g) = st.abort.lock() {
+                if let Some(h) = g.as_ref() {
+                    h.abort();
+                }
+            }
+            Err("La sincronización tardó demasiado y se ha cortado. Revisa tu conexión e inténtalo de nuevo.".to_string())
+        }
+    };
+    if let Ok(mut g) = st.abort.lock() {
+        *g = None;
+    }
+    st.set_phase(None);
+    if r.is_err() && was_dirty {
+        st.dirty.store(true, Ordering::SeqCst); // lo pendiente sigue pendiente aunque se cortara la subida
+    }
+    // Una cancelación del usuario no es un error de sincronización.
+    set_error(&st, r.clone().err().filter(|e| e != "Sincronización cancelada."));
     r
+}
+
+/// Cancela la sincronización manual en curso (la cruz junto a la barra de progreso).
+#[tauri::command]
+pub fn sync_cancel(st: tauri::State<'_, SyncState>) {
+    if let Ok(g) = st.abort.lock() {
+        if let Some(h) = g.as_ref() {
+            h.abort();
+        }
+    }
+}
+
+/// Pide al Worker que compare con Lemon Squeezy y deje bien el estado de la suscripción (por si un aviso se perdió o llegó mal).
+/// Sin Worker o sin sesión no hace nada. Los errores no se propagan: es una ayuda, no un requisito.
+pub(crate) async fn refresh_billing_remote(st: &SyncState) {
+    let Some(c) = cfg() else { return };
+    if c.worker_url.is_empty() || !st.has_session() {
+        return;
+    }
+    let Ok((_uid, tok)) = valid_token(st).await else { return };
+    let Ok(body) = serde_json::to_vec(&json!({ "idToken": tok })) else { return };
+    let _ = st
+        .client
+        .post(format!("{}/billing/refresh", c.worker_url.trim_end_matches('/')))
+        .header("content-type", "application/json")
+        .body(body)
+        .send()
+        .await;
+}
+
+/// «Ya he pagado, comprobar»: reconcilia con Lemon Squeezy y lee el estado resultante.
+#[tauri::command]
+pub async fn sync_billing_refresh(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
+    refresh_billing_remote(&st).await;
+    billing_status(&st).await
 }

@@ -159,3 +159,5 @@ select option { background: var(--t-kelp); color: var(--t-mist); }
 @keyframes cat-heart { 0% { opacity: 0; transform: translateY(4px) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px) scale(1.1); } }
 [data-cat-static] .cat-logo, .cat-static .cat-logo { animation: none !important; transform: none !important; }
 [data-cat-static] .cat-bounce { animation: none; }
+
+@keyframes caesar-sync-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
