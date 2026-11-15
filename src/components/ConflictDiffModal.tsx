@@ -95,8 +95,8 @@ export default function ConflictDiffModal({ name, cloud, local, onKeepCloud, onF
   const { rows, changes, truncated } = useMemo(() => buildRows(cloud, local), [cloud, local]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-6" onMouseDown={onClose}>
-      <div role="dialog" aria-label={t("Conflicto de sincronización")} className="glass flex h-full max-h-[90vh] w-full max-w-5xl flex-col gap-3 rounded-2xl bg-kelp p-6" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep/90 p-3 sm:p-6" onMouseDown={onClose}>
+      <div role="dialog" aria-label={t("Conflicto de sincronización")} className="glass flex max-h-full min-h-0 w-full max-w-[min(64rem,100%)] flex-col gap-3 overflow-hidden rounded-2xl bg-kelp p-4 sm:p-5" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <GitCompare size={18} className="text-amber-300" />
           <h2 className="min-w-0 flex-1 truncate text-lg text-mist">
@@ -111,11 +111,11 @@ export default function ConflictDiffModal({ name, cloud, local, onKeepCloud, onF
           <div className="rounded-lg bg-deep px-3 py-1.5 text-rose">{t("Versión de la nube")}</div>
           <div className="rounded-lg bg-deep px-3 py-1.5 text-leaf">{t("Tu versión local")}</div>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-deep font-mono text-[11px] leading-5">
+        <div className="min-h-24 flex-1 overflow-y-auto overflow-x-hidden rounded-xl bg-deep font-mono text-[11px] leading-5">
           {changes === 0 ? (
             <p className="p-4 text-slate">{t("No hay diferencias visibles: las dos versiones tienen el mismo contenido.")}</p>
           ) : (
-            <div className="min-w-max">
+            <div>
               {rows.map((row, i) =>
                 "gap" in row ? (
                   <div key={i} className="bg-kelp/60 px-3 py-0.5 text-center text-slate">{t("… {0} líneas sin cambios …", String(row.gap))}</div>
