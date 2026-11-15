@@ -26,7 +26,7 @@ interface Props {
   onShareLink?: () => void;
   codegenOpen?: boolean;
   /** Botón que acaba de completar su acción (muestra un check unos segundos). */
-  flash?: "save" | "curl" | null;
+  flash?: "save" | "curl" | "link" | null;
   /** Botones extra elegidos por el usuario (Ajustes → Edición y atajos). */
   extra?: { id: string; label: string }[];
   onCommand?: (id: string) => void;
@@ -86,8 +86,8 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
           </button>
         )}
         {onShareLink && (
-          <button onClick={onShareLink} className={icon} title={t("Copiar enlace para compartir")} aria-label={t("Copiar enlace")}>
-            <Link2 size={14} />
+          <button onClick={onShareLink} className={flash === "link" ? `${icon} !text-leaf !ring-leaf/70 bg-leaf/10` : icon} title={t("Copiar enlace para compartir")} aria-label={t("Copiar enlace")}>
+            {flash === "link" ? <Check size={14} /> : <Link2 size={14} />}
           </button>
         )}
         <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
