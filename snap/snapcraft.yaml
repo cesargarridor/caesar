@@ -46,6 +46,10 @@ apps:
     command: usr/bin/caesar
     extensions: [gnome]
     desktop: usr/share/applications/Caesar.desktop
+    # WebKit busca sus procesos auxiliares en /usr/lib/...; dentro del snap están bajo $SNAP.
+    environment:
+      WEBKIT_EXEC_PATH: $SNAP/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+      WEBKIT_INJECTED_BUNDLE_PATH: $SNAP/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle
     plugs:
       - network
       - network-bind              # callback local del login con Google
