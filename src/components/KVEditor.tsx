@@ -14,7 +14,7 @@ interface Props {
 }
 
 const input =
-  "w-full bg-kelp border border-fg/10 rounded-md px-2 py-1 text-sm focus:outline-none focus:border-aqua";
+  "w-full rounded-md border border-gray-800 bg-transparent px-2 py-1 text-sm placeholder:text-gray-600 transition-colors hover:border-gray-700 focus:border-orange-500/50 focus:outline-none focus:ring-1 focus:ring-orange-500/50";
 
 export default function KVEditor({ rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", suggestions }: Props) {
   const listId = useId();
@@ -36,7 +36,7 @@ export default function KVEditor({ rows, onChange, keyPlaceholder = "Key", value
             type="checkbox"
             checked={row.enabled}
             onChange={(e) => update(i, { enabled: e.target.checked })}
-            className="accent-[var(--t-accent)]"
+            className="accent-orange-500"
           />
           <VarInput
             className={input}

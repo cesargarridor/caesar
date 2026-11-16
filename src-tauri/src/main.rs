@@ -1492,6 +1492,10 @@ fn main() {
         })
         .setup(|app| {
             {
+                use tauri::Manager;
+                if let Ok(dir) = app.path().app_data_dir() { secret::init(dir); }
+            }
+            {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let h = app.handle().clone();
                 // Enlace con el que se abrió la app (arranque en frío) y enlaces con la app ya abierta (macOS).

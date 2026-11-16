@@ -1,149 +1,168 @@
-//! Almacén de secretos: el llavero del sistema, con un único respaldo en archivo SOLO dentro de un Snap.
+//! Almacén de secretos local SIN llavero del sistema (cero diálogos del sistema operativo).
 //!
-//! En un Snap con confinamiento estricto, AppArmor bloquea el acceso al llavero (`org.freedesktop.secrets`) hasta que el usuario
-//! ejecuta `snap connect caesar:password-manager-service`, y la tienda no lo conecta sola. Para que la app funcione sin ese paso,
-//! si estamos en un Snap y el llavero falla, el secreto se guarda en un archivo con permisos 0600 en `$SNAP_USER_COMMON`.
-//! Es menos seguro (la clave queda junto a los datos), por eso fuera de Snap (.deb, AppImage, macOS, Windows) NUNCA se usa.
-//! Si luego el llavero funciona, el secreto vuelve a él y el archivo se borra.
+//! Cada secreto (claves de IA, token de sync, clave E2E, id de dispositivo…) es un archivo `<datos>/secrets/<servicio>-<cuenta>.bin`
+//! cifrado con AES-256-GCM. La clave se deriva del identificador de hardware de la máquina (`machine_key`): si alguien copia la
+//! carpeta de datos a otro equipo, el identificador cambia y nada se puede descifrar.
+//!
+//! Límite honesto: el identificador de máquina no es secreto para otros procesos del MISMO equipo y usuario; esto protege los
+//! datos copiados o robados del disco, no frente a malware que ya se ejecuta en esa cuenta.
 
+use std::fmt;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-/// Tras el primer fallo del llavero en un Snap no se vuelve a intentar en esta ejecución.
-static KEYRING_BROKEN: AtomicBool = AtomicBool::new(false);
+use aes_gcm::{
+    aead::{rand_core::RngCore, Aead, KeyInit, OsRng, Payload},
+    Aes256Gcm, Nonce,
+};
+use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
+
+pub(crate) type Key = Zeroizing<[u8; 32]>;
+
+const SALT: &[u8] = b"caesar_local_salt_v1";
+const MAGIC: &[u8] = b"CAESAR-SEC1\n";
+const NONCE_LEN: usize = 12;
+
+#[derive(Debug)]
+pub enum Error {
+    /// No hay ningún secreto guardado con ese nombre.
+    NoEntry,
+    Other(String),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::NoEntry => write!(f, "no hay ningún secreto guardado"),
+            Error::Other(m) => write!(f, "{m}"),
+        }
+    }
+}
+
+fn other(m: impl Into<String>) -> Error {
+    Error::Other(m.into())
+}
+
+// ───────────────────────── clave de la máquina ─────────────────────────
+
+static KEY_CACHE: Mutex<Option<[u8; 32]>> = Mutex::new(None);
+
+/// SHA-256(salt ‖ identificador de hardware). Silenciosa: no abre ningún diálogo del sistema. Se calcula una vez por ejecución.
+pub(crate) fn machine_key() -> Result<Key, String> {
+    if let Some(a) = KEY_CACHE.lock().ok().and_then(|g| *g) {
+        return Ok(Zeroizing::new(a));
+    }
+    let id = machine_uid::get().map_err(|e| format!("No se pudo obtener el identificador de la máquina: {e}"))?;
+    if id.trim().is_empty() {
+        return Err("El identificador de la máquina está vacío.".into());
+    }
+    let mut h = Sha256::new();
+    h.update(SALT);
+    h.update(b"\0");
+    h.update(id.trim().as_bytes());
+    let a: [u8; 32] = h.finalize().into();
+    if let Ok(mut g) = KEY_CACHE.lock() {
+        *g = Some(a);
+    }
+    Ok(Zeroizing::new(a))
+}
+
+// ───────────────────────── almacén de archivos ─────────────────────────
+
+static DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Se llama una vez al arrancar con la carpeta de datos de la app.
+pub fn init(dir: PathBuf) {
+    let _ = DIR.set(dir.join("secrets"));
+}
 
 pub struct Entry {
-    inner: Result<keyring::Entry, keyring::Error>,
-    account: String,
-}
-
-fn in_snap() -> bool {
-    std::env::var_os("SNAP").is_some()
-}
-
-fn file_for(account: &str) -> Option<PathBuf> {
-    let base = std::env::var_os("SNAP_USER_COMMON")
-        .or_else(|| std::env::var_os("SNAP_USER_DATA"))
-        .map(PathBuf::from)?;
-    let safe: String = account.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
-    Some(base.join("secrets").join(safe))
-}
-
-fn io_err(e: std::io::Error) -> keyring::Error {
-    keyring::Error::PlatformFailure(Box::new(e))
-}
-
-fn write_file(account: &str, bytes: &[u8]) -> Result<(), keyring::Error> {
-    let path = file_for(account).ok_or(keyring::Error::NoEntry)?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(io_err)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
-        }
-    }
-    let tmp = path.with_extension("tmp");
-    {
-        use std::io::Write;
-        let mut opts = std::fs::OpenOptions::new();
-        opts.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            opts.mode(0o600);
-        }
-        let mut f = opts.open(&tmp).map_err(io_err)?;
-        f.write_all(bytes).map_err(io_err)?;
-        f.sync_all().map_err(io_err)?;
-    }
-    std::fs::rename(&tmp, &path).map_err(io_err)
-}
-
-fn read_file(account: &str) -> Result<Vec<u8>, keyring::Error> {
-    let path = file_for(account).ok_or(keyring::Error::NoEntry)?;
-    match std::fs::read(path) {
-        Ok(b) => Ok(b),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(keyring::Error::NoEntry),
-        Err(e) => Err(io_err(e)),
-    }
-}
-
-fn remove_file(account: &str) {
-    if let Some(p) = file_for(account) {
-        let _ = std::fs::remove_file(p);
-    }
+    path: PathBuf,
+    /// Se liga al texto cifrado (AAD): un secreto no se puede pasar por otro nombre.
+    name: String,
 }
 
 impl Entry {
-    pub fn new(service: &str, account: &str) -> Result<Self, keyring::Error> {
-        Ok(Self { inner: keyring::Entry::new(service, account), account: account.to_string() })
+    pub fn new(service: &str, account: &str) -> Result<Self, Error> {
+        let dir = DIR.get().ok_or_else(|| other("El almacén de secretos no está inicializado."))?;
+        let name = format!("{service}-{account}");
+        let safe: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
+        Ok(Self { path: dir.join(format!("{safe}.bin")), name })
     }
 
-    fn use_file(&self) -> bool {
-        in_snap() && KEYRING_BROKEN.load(Ordering::Relaxed)
+    pub fn get_secret(&self) -> Result<Vec<u8>, Error> {
+        let raw = match std::fs::read(&self.path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(Error::NoEntry),
+            Err(e) => return Err(other(format!("No se pudo leer el secreto: {e}"))),
+        };
+        let body = raw.strip_prefix(MAGIC).filter(|b| b.len() >= NONCE_LEN + 16).ok_or_else(|| other("El secreto guardado está dañado."))?;
+        let (nonce, ct) = body.split_at(NONCE_LEN);
+        let key = machine_key().map_err(Error::Other)?;
+        Aes256Gcm::new(key.as_slice().into())
+            .decrypt(Nonce::from_slice(nonce), Payload { msg: ct, aad: self.name.as_bytes() })
+            .map_err(|_| other("No se pudo descifrar el secreto (¿se copió desde otro equipo?)."))
     }
 
-    pub fn get_secret(&self) -> Result<Vec<u8>, keyring::Error> {
-        if !self.use_file() {
-            let res = match &self.inner {
-                Ok(e) => e.get_secret(),
-                Err(_) => Err(keyring::Error::NoEntry),
-            };
-            match res {
-                Ok(v) => return Ok(v),
-                Err(keyring::Error::NoEntry) if !in_snap() => return Err(keyring::Error::NoEntry),
-                Err(keyring::Error::NoEntry) => {} // en Snap puede estar en el archivo de una sesión anterior
-                Err(e) => {
-                    if !in_snap() {
-                        return Err(e);
-                    }
-                    KEYRING_BROKEN.store(true, Ordering::Relaxed);
-                }
+    pub fn set_secret(&self, bytes: &[u8]) -> Result<(), Error> {
+        let key = machine_key().map_err(Error::Other)?;
+        let mut nonce = [0u8; NONCE_LEN];
+        OsRng.fill_bytes(&mut nonce);
+        let ct = Aes256Gcm::new(key.as_slice().into())
+            .encrypt(Nonce::from_slice(&nonce), Payload { msg: bytes, aad: self.name.as_bytes() })
+            .map_err(|_| other("No se pudo cifrar el secreto."))?;
+        let mut out = Vec::with_capacity(MAGIC.len() + NONCE_LEN + ct.len());
+        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(&nonce);
+        out.extend_from_slice(&ct);
+        if let Some(dir) = self.path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| other(format!("No se pudo crear la carpeta de secretos: {e}")))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
             }
         }
-        read_file(&self.account)
+        crate::sync::write_atomic(&self.path, &out).map_err(Error::Other)
     }
 
-    pub fn set_secret(&self, bytes: &[u8]) -> Result<(), keyring::Error> {
-        if !self.use_file() {
-            let res = match &self.inner {
-                Ok(e) => e.set_secret(bytes),
-                Err(_) => Err(keyring::Error::NoEntry),
-            };
-            match res {
-                Ok(()) => {
-                    if in_snap() {
-                        remove_file(&self.account);
-                    }
-                    return Ok(());
-                }
-                Err(e) if !in_snap() => return Err(e),
-                Err(_) => KEYRING_BROKEN.store(true, Ordering::Relaxed),
-            }
-        }
-        write_file(&self.account, bytes)
+    pub fn get_password(&self) -> Result<String, Error> {
+        String::from_utf8(self.get_secret()?).map_err(|_| other("El secreto guardado no es texto válido."))
     }
 
-    pub fn get_password(&self) -> Result<String, keyring::Error> {
-        let b = self.get_secret()?;
-        String::from_utf8(b).map_err(|e| keyring::Error::BadEncoding(e.into_bytes()))
-    }
-
-    pub fn set_password(&self, p: &str) -> Result<(), keyring::Error> {
+    pub fn set_password(&self, p: &str) -> Result<(), Error> {
         self.set_secret(p.as_bytes())
     }
 
-    pub fn delete_credential(&self) -> Result<(), keyring::Error> {
-        let res = match &self.inner {
-            Ok(e) if !self.use_file() => e.delete_credential(),
-            _ => Err(keyring::Error::NoEntry),
-        };
-        if in_snap() {
-            // Snap: se borra también el archivo de respaldo; si el llavero no responde, no es un error.
-            remove_file(&self.account);
-            return Ok(());
+    pub fn delete_credential(&self) -> Result<(), Error> {
+        match std::fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(Error::NoEntry),
+            Err(e) => Err(other(format!("No se pudo borrar el secreto: {e}"))),
         }
-        res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn roundtrip_y_aad() {
+        let d = std::env::temp_dir().join(format!("caesar-sec-{}", std::process::id()));
+        init(d.clone());
+        let e = Entry::new("Caesar", "t-a").unwrap();
+        assert!(matches!(e.get_secret(), Err(Error::NoEntry)));
+        e.set_secret(b"hola").unwrap();
+        assert_eq!(e.get_secret().unwrap(), b"hola");
+        let raw = std::fs::read(&e.path).unwrap();
+        assert!(!raw.windows(4).any(|w| w == b"hola"));
+        // Un archivo copiado bajo otro nombre no descifra (AAD distinto).
+        let f = Entry::new("Caesar", "t-b").unwrap();
+        std::fs::copy(&e.path, &f.path).unwrap();
+        assert!(f.get_secret().is_err());
+        e.delete_credential().unwrap();
+        assert!(matches!(e.delete_credential(), Err(Error::NoEntry)));
     }
 }

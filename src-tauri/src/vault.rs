@@ -1,7 +1,7 @@
 //! Bóveda local de Caesar: clave de datos, cifrado de extremo a extremo y vinculación de dispositivos.
 //!
-//! - Hay una **clave de datos** aleatoria de 256 bits. Vive solo en el llavero del sistema operativo
-//!   (Credential Manager / Keychain / Secret Service) y nunca se escribe en disco ni se envía en claro.
+//! - Hay una **clave de datos** aleatoria de 256 bits. Vive solo en el almacén local cifrado con la clave
+//!   de hardware de la máquina (`secret.rs`, sin llavero del sistema) y nunca se escribe en disco ni se envía en claro.
 //! - Todo lo que se sincroniza se cifra aquí con AES-256-GCM antes de salir del equipo.
 //! - La **clave de recuperación** es esa misma clave escrita en texto con una suma de comprobación.
 //! - Un ordenador nuevo recibe la clave de otro ya vinculado mediante un intercambio X25519 efímero
@@ -188,7 +188,7 @@ pub(crate) fn load_key() -> Result<Option<Key>, String> {
             let arr: [u8; 32] = v.try_into().map_err(|_| "La clave guardada está dañada.".to_string())?;
             Ok(Some(Zeroizing::new(arr)))
         }
-        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(crate::secret::Error::NoEntry) => Ok(None),
         Err(e) => Err(format!("No se pudo leer el llavero: {e}")),
     }
 }
@@ -322,7 +322,7 @@ pub fn vault_replace(recovery: String, sync: tauri::State<crate::sync::SyncState
 #[tauri::command]
 pub fn vault_forget() -> Result<(), String> {
     match entry()?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Ok(()) | Err(crate::secret::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("No se pudo borrar la clave: {e}")),
     }
 }

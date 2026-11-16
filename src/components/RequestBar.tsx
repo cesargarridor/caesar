@@ -1,4 +1,6 @@
-import { Check, Code2, Link2, Save, Send, Terminal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Code2, Link2, Save, Send, Settings2, Terminal } from "lucide-react";
+import type { Settings } from "../types";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import VarInput from "./VarInput";
@@ -31,6 +33,29 @@ interface Props {
   /** Botones extra elegidos por el usuario (Ajustes → Edición y atajos). */
   extra?: { id: string; label: string }[];
   onCommand?: (id: string) => void;
+  /** Opciones de red de la petición (SSL y redirecciones). */
+  settings?: Settings;
+  onSettings?: (s: Settings) => void;
+}
+
+function Toggle({ on, onChange, label, hint, warn }: { on: boolean; onChange: (v: boolean) => void; label: string; hint?: string; warn?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="flex w-full items-start gap-3 rounded-lg px-2 py-2 text-left hover:bg-fg/5"
+    >
+      <span className={`mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors ${on ? "bg-aqua" : "bg-fg/20"}`}>
+        <span className={`h-3 w-3 rounded-full bg-white transition-transform ${on ? "translate-x-3" : ""}`} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm text-mist">{label}</span>
+        {hint && <span className={`block text-xs ${warn ? "text-lav" : "text-slate"}`}>{hint}</span>}
+      </span>
+    </button>
+  );
 }
 
 const ghost =
@@ -39,7 +64,17 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand }: Props) {
+export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand, settings, onSettings }: Props) {
+  const [netOpen, setNetOpen] = useState(false);
+  const netRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!netOpen) return;
+    const close = (e: MouseEvent) => { if (!netRef.current?.contains(e.target as Node)) setNetOpen(false); };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setNetOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [netOpen]);
   const options = methods.includes(method) ? methods : [method, ...methods];
   const icon = "flex items-center rounded-[10px] px-3 py-2 text-slate hover:bg-fg/10 hover:text-mist";
   return (
@@ -94,6 +129,37 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
         <button onClick={onSave} className={flash === "save" ? done : ghost} title={t("Guardar en la colección (Ctrl+S)")}>
           {flash === "save" ? <Check size={14} /> : <Save size={14} />} {flash === "save" ? t("Guardado") : t("Guardar")}
         </button>
+        {settings && onSettings && (
+          <div ref={netRef} className="relative flex">
+            <button
+              onClick={() => setNetOpen((o) => !o)}
+              className={`${icon} ${!settings.verifySsl || !settings.followRedirects ? "!text-aqua" : ""}`}
+              title={t("Opciones de red")}
+              aria-label={t("Opciones de red")}
+              aria-expanded={netOpen}
+            >
+              <Settings2 size={14} />
+            </button>
+            {netOpen && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-xl bg-kelp p-2 shadow-xl ring-1 ring-fg/10">
+                <p className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate">{t("Opciones de red")}</p>
+                <Toggle
+                  on={!settings.verifySsl}
+                  onChange={(v) => onSettings({ ...settings, verifySsl: !v })}
+                  label={t("Ignorar SSL")}
+                  hint={settings.verifySsl ? t("Acepta certificados autofirmados (localhost)") : t("⚠ desactivado: solo para pruebas")}
+                  warn={!settings.verifySsl}
+                />
+                <Toggle
+                  on={settings.followRedirects}
+                  onChange={(v) => onSettings({ ...settings, followRedirects: v })}
+                  label={t("Seguir redirecciones")}
+                  hint={settings.followRedirects ? undefined : t("Verás el 301/302 original")}
+                />
+              </div>
+            )}
+          </div>
+        )}
         <button onClick={onSend} disabled={sending} className="btn-aurora flex items-center gap-2 px-6 py-2 font-semibold disabled:opacity-50">
           <Send size={14} /> {sending ? t("Enviando…") : t("Enviar")}
         </button>

@@ -1,16 +1,17 @@
-//! Cifrado en reposo de `datos.json` (AES-256-GCM) con una clave local aleatoria guardada en el llavero (cuenta `local-data-key`).
+//! Cifrado en reposo de `datos.json` (AES-256-GCM) con una clave derivada del identificador de hardware de la máquina
+//! (SHA-256 de un salt estático + el id; ver `secret::machine_key`). No usa el llavero del sistema: cero diálogos de contraseña.
+//! Un `datos.json` copiado a otro equipo no se puede descifrar porque allí el identificador es otro.
 //! Es independiente de la clave de sincronización (`vault`): un usuario sin cuenta Pro también tiene cifrado local.
 //!
 //! Formato: `CAESAR-ENC1\n` + nonce (12 bytes) + texto cifrado (con etiqueta GCM). Un archivo que no empieza así es JSON plano
 //! (versiones anteriores) y se lee igual; se reescribe cifrado en el siguiente guardado (migración perezosa).
 //!
 //! Reglas de seguridad de los datos:
-//! - Si el llavero no está disponible, NUNCA se pierden datos ni se fuerza el cifrado: se escribe JSON plano (0600) y se registra el motivo.
-//! - Si el archivo ya está cifrado y falta la clave, se devuelve un error claro y el archivo NO se toca.
-//! - Si el archivo está cifrado, la clave existe pero no descifra (estropeado), se aparta como `*.corrupt` (no se borra) antes de escribir.
+//! - Si no hay identificador de máquina, NUNCA se pierden datos ni se fuerza el cifrado: se escribe JSON plano (0600) y se registra el motivo.
+//! - Un archivo cifrado con la clave antigua del llavero (versiones previas) o de otro equipo no descifra: se aparta como `*.corrupt`
+//!   (no se borra) y se empieza de cero.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use aes_gcm::{
     aead::{rand_core::RngCore, Aead, KeyInit, OsRng, Payload},
@@ -21,15 +22,13 @@ use crate::vault::Key;
 
 const MAGIC: &[u8] = b"CAESAR-ENC1\n";
 const NONCE_LEN: usize = 12;
-const SERVICE: &str = "Caesar";
-const ACCOUNT: &str = "local-data-key";
 
 /// Resultado de pedir la clave local.
 pub(crate) enum KeyState {
     Ok(Key),
-    /// El llavero funciona pero no hay clave guardada.
+    /// No hay clave (solo se usa en tests).
     Missing,
-    /// El llavero falló (o la clave guardada es inválida).
+    /// No se pudo obtener el identificador de la máquina.
     Unavailable(String),
 }
 
@@ -61,75 +60,19 @@ pub(crate) fn decrypt_bytes(key: &Key, bytes: &[u8]) -> Result<Vec<u8>, String> 
         .map_err(|_| "No se pudo descifrar el archivo de datos (clave distinta o archivo estropeado).".to_string())
 }
 
-// ───────────────────────── clave en el llavero ─────────────────────────
+// ───────────────────────── clave derivada del hardware ─────────────────────────
 
-static KEY_CACHE: Mutex<Option<[u8; 32]>> = Mutex::new(None);
-static KEY_LOCK: Mutex<()> = Mutex::new(());
-
-fn entry() -> Result<crate::secret::Entry, String> {
-    crate::secret::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Llavero no disponible: {e}"))
-}
-
-fn to_key(b: &[u8]) -> Option<Key> {
-    let a: [u8; 32] = b.try_into().ok()?;
-    Some(zeroize::Zeroizing::new(a))
-}
-
-fn cached() -> Option<Key> {
-    KEY_CACHE.lock().ok().and_then(|g| g.map(|a| zeroize::Zeroizing::new(a)))
-}
-
-fn remember(k: &Key) {
-    if let Ok(mut g) = KEY_CACHE.lock() {
-        *g = Some(**k);
-    }
-}
-
-/// Lee la clave del llavero sin crearla.
+/// La clave es SHA-256(salt ‖ id de hardware) (ver `secret::machine_key`): determinista, silenciosa y sin diálogos del sistema.
+/// Nunca falta (`Missing` ya no ocurre en producción); solo falla si el sistema no da identificador de máquina.
 pub(crate) fn existing_key() -> KeyState {
-    if let Some(k) = cached() {
-        return KeyState::Ok(k);
-    }
-    let e = match entry() {
-        Ok(e) => e,
-        Err(m) => return KeyState::Unavailable(m),
-    };
-    match e.get_secret() {
-        Ok(b) => match to_key(&b) {
-            Some(k) => {
-                remember(&k);
-                KeyState::Ok(k)
-            }
-            None => KeyState::Unavailable("La clave local del llavero tiene un formato inválido.".into()),
-        },
-        Err(keyring::Error::NoEntry) => KeyState::Missing,
-        Err(err) => KeyState::Unavailable(format!("Llavero no disponible: {err}")),
+    match crate::secret::machine_key() {
+        Ok(k) => KeyState::Ok(k),
+        Err(m) => KeyState::Unavailable(m),
     }
 }
 
-/// Lee la clave o, si no hay ninguna, crea una aleatoria de 256 bits y la guarda (comprobando que se pudo releer).
 pub(crate) fn key_or_create() -> KeyState {
-    let _g = KEY_LOCK.lock();
-    match existing_key() {
-        KeyState::Missing => {}
-        other => return other,
-    }
-    let e = match entry() {
-        Ok(e) => e,
-        Err(m) => return KeyState::Unavailable(m),
-    };
-    let k = crate::vault::new_key();
-    if let Err(err) = e.set_secret(&k[..]) {
-        return KeyState::Unavailable(format!("No se pudo guardar la clave local en el llavero: {err}"));
-    }
-    // Un llavero que acepta pero no conserva la clave dejaría los datos cifrados sin clave: se verifica antes de usarla.
-    match e.get_secret() {
-        Ok(b) if b.as_slice() == &k[..] => {
-            remember(&k);
-            KeyState::Ok(k)
-        }
-        _ => KeyState::Unavailable("El llavero no conservó la clave local.".into()),
-    }
+    existing_key()
 }
 
 // ───────────────────────── lectura / escritura ─────────────────────────
@@ -145,13 +88,20 @@ pub(crate) fn read_data_with(path: &Path, existing: &dyn Fn() -> KeyState) -> Re
         return Ok(raw);
     }
     match existing() {
-        KeyState::Ok(k) => decrypt_bytes(&k, &raw),
+        KeyState::Ok(k) => decrypt_bytes(&k, &raw).map_err(|e| {
+            // Cifrado con la clave del llavero antigua o copiado de otro equipo: se aparta (no se borra) para no bloquear el arranque.
+            let side = path.with_extension("json.corrupt");
+            if std::fs::rename(path, &side).is_ok() {
+                eprintln!("[datos] {} no se pudo descifrar; apartado como {}", file_name(path), file_name(&side));
+            }
+            e
+        }),
         KeyState::Missing => Err(missing_msg(path)),
         KeyState::Unavailable(m) => Err(format!("{} está cifrado y no se pudo leer la clave local ({m}). No se modificó el archivo.", file_name(path))),
     }
 }
 
-/// Guarda `plain` de forma atómica: cifrado si hay llavero; JSON plano (0600) si no. Nunca pierde datos.
+/// Guarda `plain` de forma atómica: cifrado si hay identificador de máquina; JSON plano (0600) si no. Nunca pierde datos.
 pub(crate) fn write_data(path: &PathBuf, plain: &[u8]) -> Result<(), String> {
     write_data_with(path, plain, &existing_key, &key_or_create)
 }
@@ -180,7 +130,7 @@ pub(crate) fn write_data_with(path: &PathBuf, plain: &[u8], existing: &dyn Fn() 
             KeyState::Ok(k) => Some(k),
             KeyState::Missing => None,
             KeyState::Unavailable(m) => {
-                eprintln!("[datos] llavero no disponible, se guarda {} sin cifrar: {m}", file_name(path));
+                eprintln!("[datos] clave local no disponible, se guarda {} sin cifrar: {m}", file_name(path));
                 None
             }
         }
@@ -204,7 +154,7 @@ fn file_name(p: &Path) -> String {
 
 fn missing_msg(path: &Path) -> String {
     format!(
-        "{} está cifrado pero no se encontró la clave local en el llavero del sistema. No se modificó el archivo: restaura el llavero o recupera los datos desde la nube.",
+        "{} está cifrado pero no se encontró la clave local. No se modificó el archivo: recupera los datos desde la nube.",
         file_name(path)
     )
 }

@@ -1381,6 +1381,8 @@ export default function App() {
         ) : (
         <RequestBar
           onShareLink={copyShareLink}
+          settings={req.settings}
+          onSettings={(settings) => patch({ settings })}
           method={req.method}
           methods={[...BASE_METHODS, ...extraMethods]}
           onMore={() => { setSettingsSection("edit"); setShowSettings(true); }}

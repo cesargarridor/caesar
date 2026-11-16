@@ -48,30 +48,33 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        {MODES.map((m) => (
-          <label key={m.id} className="flex cursor-pointer items-center gap-1.5">
-            <input
-              type="radio"
-              name="body-mode"
-              checked={body.mode === m.id}
-              onChange={() => {
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div role="tablist" aria-label="Body" className="inline-flex items-center gap-0.5 rounded-md bg-[#1a1a1a] p-1">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              role="tab"
+              aria-selected={body.mode === m.id}
+              onClick={() => {
                 setError(null);
                 onChange({ ...body, mode: m.id });
                 // GraphQL va por POST: si estaba en GET se cambia solo.
                 if (m.id === "graphql" && req.method === "GET") onMethod?.("POST");
               }}
-              className="accent-[var(--t-accent)]"
-            />
-            {m.label}
-          </label>
-        ))}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-orange-500/50 ${
+                body.mode === m.id ? "bg-[#2a2a2a] text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
         {(onAi || body.mode === "json") && (
           <span className="ml-auto flex gap-2">
             {onAi && (
               <button
                 onClick={onAi}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate hover:bg-fg/10 hover:text-mist"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100"
                 title={t("Asistente de IA (con tu propia clave)")}
               >
                 <WandSparkles size={13} /> {t("Asistente de IA")}
