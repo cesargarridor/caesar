@@ -1,0 +1,429 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caesar 指南：每项功能，附 GIF 演示 | Caesar</title>
+<meta name="description" content="Caesar 完整指南：本地优先、速度极快的桌面 API 客户端。涵盖请求、cURL、认证、变量与配置档案、测试、GraphQL、WebSocket、代码生成器、导入导出、快捷键、主题和团队协作，每项功能都配有 GIF 演示。">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#272822">
+<link rel="canonical" href="https://cesargarridor.github.io/caesar/zh-CN/features.html">
+<link rel="alternate" hreflang="es" href="https://cesargarridor.github.io/caesar/funciones.html">
+<link rel="alternate" hreflang="en" href="https://cesargarridor.github.io/caesar/en/features.html">
+<link rel="alternate" hreflang="de" href="https://cesargarridor.github.io/caesar/de/features.html">
+<link rel="alternate" hreflang="fr" href="https://cesargarridor.github.io/caesar/fr/features.html">
+<link rel="alternate" hreflang="it" href="https://cesargarridor.github.io/caesar/it/features.html">
+<link rel="alternate" hreflang="pt-BR" href="https://cesargarridor.github.io/caesar/pt-BR/features.html">
+<link rel="alternate" hreflang="zh-CN" href="https://cesargarridor.github.io/caesar/zh-CN/features.html">
+<link rel="alternate" hreflang="ja" href="https://cesargarridor.github.io/caesar/ja/features.html">
+<link rel="alternate" hreflang="ru" href="https://cesargarridor.github.io/caesar/ru/features.html">
+<link rel="alternate" hreflang="x-default" href="https://cesargarridor.github.io/caesar/en/features.html">
+
+
+
+
+
+
+
+
+
+
+
+
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Caesar">
+<meta property="og:title" content="Caesar 指南：每项功能，附 GIF 演示">
+<meta property="og:description" content="请求、cURL、认证、变量与配置档案、测试、GraphQL、WebSocket、代码生成器、导入导出、快捷键和团队协作，逐项功能详解。">
+<meta property="og:url" content="https://cesargarridor.github.io/caesar/zh-CN/features.html"><meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cesargarridor.github.io/caesar/og.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<a class="skip" href="#contenido">跳到正文</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="./"><img src="../logo.png" alt="" width="32" height="32"><span><b>C</b>aesar</span></a>
+<nav class="main" aria-label="栏目"><a href="index.html#features">功能</a><a href="features.html" aria-current="page">指南</a><a href="download.html">下载</a><a href="index.html#faq">常见问题</a><a href="index.html#pricing">价格</a><a href="index.html#license">许可证</a></nav>
+<details class="lang-dd"><summary aria-label="Idioma / Language"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"></path></svg>中文</summary><div><a href="../funciones.html" hreflang="es" lang="es">Español</a><a href="../en/features.html" hreflang="en" lang="en">English</a><a href="../de/features.html" hreflang="de" lang="de">Deutsch</a><a href="../fr/features.html" hreflang="fr" lang="fr">Français</a><a href="../it/features.html" hreflang="it" lang="it">Italiano</a><a href="../pt-BR/features.html" hreflang="pt-BR" lang="pt-BR">Português (Brasil)</a><span aria-current="true">简体中文</span><a href="../ja/features.html" hreflang="ja" lang="ja">日本語</a><a href="../ru/features.html" hreflang="ru" lang="ru">Русский</a></div></details>
+</div></header>
+<main id="contenido"><div class="wrap guide">
+
+<p class="crumbs"><a href="./">首页</a> › 功能指南</p>
+<h1>Caesar 指南：逐项详解每个功能</h1>
+<p class="lead">Caesar 是一款追求速度的桌面 API 客户端：即开即用，所有内容都保存在你的机器上，无需账号即可上手。本指南逐项讲解每个功能，并附上真实效果的 GIF，从你的第一个请求，到测试、GraphQL、WebSocket 和团队协作。</p>
+<p class="meta">阅读时间：约 15 分钟 · 每次发布都会更新 · <a href="download.html">下载 Caesar</a></p>
+
+<nav class="toc" aria-label="指南目录"><b>本指南内容</b>
+<ol>
+<li><a href="#what-is">什么是 Caesar？</a></li>
+<li><a href="#why-fast">为什么这么快</a></li>
+<li><a href="#install">安装 Caesar</a></li>
+<li><a href="#first-request">你的第一个请求</a></li>
+<li><a href="#params-headers">参数和请求头</a></li>
+<li><a href="#body">请求体</a></li>
+<li><a href="#response">查看响应</a></li>
+<li><a href="#curl">粘贴和复制 cURL</a></li>
+<li><a href="#auth">认证</a></li>
+<li><a href="#variables">变量与配置档案</a></li>
+<li><a href="#tests">测试与脚本</a></li>
+<li><a href="#chaining">串联请求</a></li>
+<li><a href="#collections">集合和文件夹</a></li>
+<li><a href="#import-export">导入与导出</a></li>
+<li><a href="#code-generator">代码生成器</a></li>
+<li><a href="#graphql">GraphQL</a></li>
+<li><a href="#websocket">WebSocket</a></li>
+<li><a href="#tabs">标签页和搜索</a></li>
+<li><a href="#workspaces">工作区</a></li>
+<li><a href="#shortcuts">键盘快捷键</a></li>
+<li><a href="#themes">主题、字体和语言</a></li>
+<li><a href="#network-settings">网络设置</a></li>
+<li><a href="#teams">同步和团队</a></li>
+<li><a href="#plans">访客、账号和 Pro</a></li>
+<li><a href="#privacy">隐私和安全</a></li>
+<li><a href="#updates">更新</a></li>
+<li><a href="#best-practices">最佳实践</a></li>
+<li><a href="#troubleshooting">故障排查</a></li>
+<li><a href="#faq">常见问题</a></li>
+</ol></nav>
+
+<section id="what-is"><h2>什么是 Caesar？</h2>
+<p>Caesar 是适用于 Windows、macOS 和 Linux 的桌面 API 客户端。你可以<strong>构建、发送和测试 HTTP 请求</strong>、GraphQL 和 WebSocket，把它们整理成集合并与团队共享，而这一切都在一个简洁的界面中完成，色彩和键盘帮你省下大量点击。</p>
+<ul>
+<li><strong>本地优先：</strong>在访客模式下，你的集合保存在你的设备上。可离线使用，无需账号。</li>
+<li><strong>真正快速：</strong>基于 Rust 和 Tauri 构建，而不是打包一个浏览器。</li>
+<li><strong>轻松上手：</strong>如果你来自 Postman 或 Insomnia，可以导入你的集合，你的 <code>pm.*</code> 脚本照常可用。</li>
+<li><strong>Fair Source（FSL）：</strong>代码公开，可免费使用。它不是开源软件：禁止出售。</li>
+</ul>
+<div class="box"><p><strong>适合谁用？</strong>适合每天测试 API 的人（后端、前端、QA、移动端），想要一款轻量、私密、无摩擦的工具。也适合需要与团队共享集合、又不想搭建基础设施的人。</p></div>
+</section>
+
+<section id="why-fast"><h2>为什么这么快</h2>
+<p>Caesar 的速度并非靠取巧：它源于自身的构建方式。</p>
+<div class="cards">
+<div class="card"><b>用 Rust，而不是打包的浏览器</b><span>请求由 Rust 内核执行，窗口使用系统自带的 Web 引擎。结果是：瞬间启动，内存占用低。</span></div>
+<div class="card"><b>你的数据就在身边</b><span>集合、变量和标签页都直接从你的磁盘读取，无需等待任何服务器。打开 Caesar 不依赖你的网络连接。</span></div>
+<div class="card"><b>启动时无需加载任何东西</b><span>没有强制登录界面，没有遥测，后台也没有任何数据分析在运行。</span></div>
+<div class="card"><b>更少点击，更多键盘</b><span>每个命令都有快捷键，并且可以修改。粘贴一个 cURL，请求就已经构建好了。</span></div>
+</div>
+</section>
+
+<section id="install"><h2>安装 Caesar</h2>
+<p>从<a href="download.html">下载页面</a>或你的应用商店下载适合你系统的安装程序：</p>
+<table><thead><tr><th>系统</th><th>文件 / 商店</th></tr></thead><tbody>
+<tr><td>Windows</td><td>64 位 <code>.exe</code> 安装程序（也提供 <code>.msi</code>）· <strong>Microsoft Store 版本即将推出</strong></td></tr>
+<tr><td>macOS（Intel 和 Apple Silicon）</td><td>通用版 <code>.dmg</code>，已通过 Apple 签名和公证</td></tr>
+<tr><td>Ubuntu（Snap Store）</td><td><code>sudo snap install caesar</code>，或通过 <a href="https://snapcraft.io/caesar">Ubuntu App Center（Snap Store）</a>安装</td></tr>
+<tr><td>Linux</td><td><code>.deb</code>（Debian/Ubuntu）或 <code>AppImage</code>（任意发行版）</td></tr>
+</tbody></table>
+<p>首次运行时，可能会出现系统警告，尤其是在 Windows（SmartScreen）上。这对新项目来说很正常，<a href="index.html#warnings">警告指南</a>会说明该点击什么。之后，Caesar 会<a href="#updates">自动更新</a>。</p>
+<div class="box"><p><strong>无需命令行。</strong>Caesar 是桌面应用：使用它不需要 Node、Docker 或任何额外安装。</p></div>
+</section>
+
+<section id="first-request"><h2>你的第一个请求</h2>
+<p>打开 Caesar，点击<strong>新建标签页</strong>（<kbd>Ctrl</kbd>+<kbd>T</kbd>）。选择方法（GET、POST、PUT、PATCH、DELETE、HEAD 或 OPTIONS），输入 URL，然后点击<strong>发送</strong>或按 <kbd>Ctrl</kbd>+<kbd>Enter</kbd>。</p>
+<ol>
+<li>在顶部栏中输入 URL。</li>
+<li>点击<strong>发送</strong>。你会看到请求各步骤的动画（解析域名、建立连接、发送、接收）。</li>
+<li>在下方查看响应：状态、耗时、大小和正文。</li>
+<li>按 <kbd>Ctrl</kbd>+<kbd>S</kbd> 将其保存到集合。</li>
+</ol>
+<figure class="gif"><img src="../media/gifs/enviar-peticion.gif" alt="输入 URL，点击发送，即可看到包含状态、耗时和格式化正文的响应" loading="lazy"><figcaption>一个请求的完整流程：URL、发送和格式化的响应。</figcaption></figure>
+<p>除了这七种常用方法，你还可以在<a href="#network-settings">设置</a>中添加<strong>额外方法</strong>（例如 WebDAV 的方法）。只有 <code>CONNECT</code> 和 <code>TRACE</code> 会被拒绝。</p>
+</section>
+
+<section id="params-headers"><h2>参数和请求头</h2>
+<p><strong>Params</strong> 和 <strong>Headers</strong> 标签页使用键值编辑器：你可以添加行，通过复选框启用或禁用而无需删除，URL 会自动更新。</p>
+<figure class="gif"><img src="../media/gifs/params-headers.gif" alt="在键值编辑器中添加查询参数和请求头，并观察 URL 随之更新" loading="lazy"><figcaption>参数会即时反映在 URL 中，请求头通过复选框启用或禁用。</figcaption></figure>
+<ul>
+<li>取消勾选某一行，即可在没有它的情况下测试，而且不会丢失它。</li>
+<li>你可以在键和值中使用 <code>{{variables}}</code>（参见<a href="#variables">变量和配置档案</a>）。</li>
+<li>如果你粘贴带有 <code>?a=1&amp;b=2</code> 的 URL，参数会出现在对应的表格中。</li>
+</ul>
+</section>
+
+<section id="body"><h2>请求体</h2>
+<p>在 <strong>Body</strong> 标签页中，选择你的 API 所需的格式：</p>
+<table><thead><tr><th>类型</th><th>使用场景</th></tr></thead><tbody>
+<tr><td>JSON</td><td>现代 REST API。带语法检查和语法高亮的编辑器。</td></tr>
+<tr><td>文本</td><td>XML、纯文本或其他原始内容。</td></tr>
+<tr><td>Form-data</td><td>带文件附件的表单（每个文件最大 100 MB）。</td></tr>
+<tr><td>x-www-form-urlencoded</td><td>经典表单。</td></tr>
+<tr><td>GraphQL</td><td>专用的 Query 和 Variables 编辑器（参见 <a href="#graphql">GraphQL</a>）。</td></tr>
+</tbody></table>
+<figure class="gif"><img src="../media/gifs/cuerpo.gif" alt="选择 JSON 请求体，编写并发送；再浏览其他请求体类型" loading="lazy"><figcaption>JSON 请求体及其他可用格式。</figcaption></figure>
+<p>出于安全考虑，Caesar 只会附加<strong>你在系统文件选择器中选定</strong>的文件。</p>
+</section>
+
+<section id="response"><h2>查看响应</h2>
+<p>响应会显示<strong>状态</strong>（以颜色区分）、<strong>耗时</strong>和<strong>大小</strong>，并提供三种视图：</p>
+<ul>
+<li><strong>Pretty：</strong>格式化、带颜色的 JSON。你可以隐藏空值以便阅读。</li>
+<li><strong>Raw：</strong>原样显示收到的文本。</li>
+<li><strong>Timeline：</strong>各请求步骤及其耗时。</li>
+</ul>
+<p>使用 <strong>JSONPath 过滤器</strong>，只保留你关心的部分，例如 <code>$.data[0].id</code>。使用 <kbd>Ctrl</kbd>+<kbd>F</kbd> 可在响应中搜索（参见<a href="#tabs">标签页和搜索</a>）。</p>
+<div class="box"><p>响应最多读取 10 MB；如果更大，Caesar 会截断并提示你，以免窗口卡死。</p></div>
+</section>
+
+<section id="curl"><h2>粘贴和复制 cURL</h2>
+<p>如果有人给你一条 <code>curl</code> 命令（来自 API 文档、浏览器开发者工具或同事），<strong>直接粘贴到 URL 栏</strong>即可。Caesar 会创建包含方法、请求头和请求体的请求。</p>
+<figure class="gif"><img src="../media/gifs/pegar-curl.gif" alt="将 curl 命令粘贴到 URL 栏，即可看到包含方法、请求头和请求体的请求被创建" loading="lazy"><figcaption>粘贴 cURL，请求就构建好了。</figcaption></figure>
+<p>反过来也一样：<strong>将任意请求复制为 cURL</strong>，贴到工单里分享，或在终端中运行。为此有专门的命令（没有默认快捷键，你可以自行指定）。</p>
+</section>
+
+<section id="auth"><h2>认证</h2>
+<p>在 <strong>Authorization</strong> 标签页中选择身份验证方式。Caesar 支持以下类型：</p>
+<div class="chips"><span>无认证</span><span>继承</span><span>Bearer</span><span>Basic</span><span>API Key</span><span>Digest</span><span>NTLM</span><span>OAuth 1.0</span><span>OAuth 2.0</span><span>WSSE</span><span>AWS Signature v4</span><span>Akamai EdgeGrid</span></div>
+<figure class="gif"><img src="../media/gifs/autenticacion.gif" alt="打开授权标签页，选择 Bearer 并填写令牌" loading="lazy"><figcaption>选择认证类型并填写相应字段。</figcaption></figure>
+<p><strong>继承</strong>选项最方便：在集合或文件夹上定义一次认证，里面的每个请求都会使用它。令牌变了，只需在一处修改。</p>
+<div class="box good"><p><strong>提示：</strong>把令牌存放在变量（<code>{{token}}</code>）中，并在认证里使用该变量；这样就不必把它粘贴到每个请求里。</p></div>
+</section>
+
+<section id="variables"><h2>变量与配置档案</h2>
+<p>变量让你可以写 <code>{{baseUrl}}</code>，而不是固定的 URL。共有三个层级：</p>
+<ul>
+<li><strong>全局变量：</strong>对你所有的集合有效。</li>
+<li><strong>集合变量：</strong>仅对该集合或文件夹有效。</li>
+<li><strong>变量配置档案：</strong>命名的变量集（Development、Staging、Production……），通过<strong>发送</strong>旁边的选择器激活。相当于 Postman 的 <em>Environments</em>。</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="在 URL 中使用 baseUrl，并通过选择器切换配置档案，使解析后的 URL 随之变化" loading="lazy"><figcaption>切换配置档案后，同一个请求就会指向另一台服务器。</figcaption></figure>
+<ul>
+<li><code>{{x}}</code> 变量在 URL、请求头、参数和认证中会以<strong>不同的颜色</strong>显示，不会有任何遗漏。</li>
+<li>按住 <kbd>Ctrl</kbd> 点击变量，可查看并编辑它的值，无需离开当前请求。</li>
+<li><kbd>Ctrl</kbd>+<kbd>Space</kbd> 打开变量选择器。</li>
+<li>你可以将变量标记为<strong>机密</strong>，使其不会一眼就被看到。</li>
+<li>从 Postman 导入时，它的 environments 会变成<strong>配置档案</strong>，它的 globals 会变成全局变量。</li>
+</ul>
+</section>
+
+<section id="tests"><h2>测试与脚本</h2>
+<p><strong>Scripts</strong> 标签页会在响应到达时运行脚本（结果显示在响应面板的一个标签页中）。它使用 Postman 风格的语法（<code>pm.*</code>），所以你已有的知识可以直接沿用：</p>
+<pre><code>pm.test("responds 200", () =&gt; {
+  pm.expect(pm.response.code).to.equal(200);
+});
+
+const data = pm.response.json();
+pm.test("returns users", () =&gt; {
+  pm.expect(data.length).to.be.above(0);
+});</code></pre>
+<figure class="gif"><img src="../media/gifs/tests.gif" alt="编写测试脚本，发送请求，并以绿色和红色查看结果" loading="lazy"><figcaption>测试会随响应一起运行，并以绿色或红色显示。</figcaption></figure>
+<ul>
+<li><code>pm.test</code> 和 <code>pm.expect</code> 用于检查状态、请求头和正文。</li>
+<li><code>pm.response.json()</code> 用于读取已解析的正文。</li>
+<li><code>pm.environment.set</code>、<code>pm.collectionVariables.set</code> 和 <code>pm.globals.set</code> 用于存储值。</li>
+</ul>
+<div class="box warn"><p><strong>天生安全。</strong>脚本在专用解释器中运行，仅支持 JavaScript 的一个子集：无网络、无文件系统访问，也没有 <code>eval</code>。因此导入的脚本无法在自身作用域之外做任何事。</p></div>
+</section>
+
+<section id="chaining"><h2>串联请求</h2>
+<p>典型场景：登录后，在其他请求中使用令牌。在登录请求中加入一个测试：</p>
+<pre><code>const r = pm.response.json();
+pm.environment.set("token", r.access_token);</code></pre>
+<p>此后，任何请求都可以在请求头或 Bearer 认证中使用 <code>{{token}}</code>。你只需运行一次登录，其余请求就都已认证，无需复制粘贴。</p>
+</section>
+
+<section id="collections"><h2>集合和文件夹</h2>
+<p>集合就是存放请求的笔记本。在侧边栏中创建集合，在文件夹里嵌套文件夹，并通过<strong>拖放</strong>调整顺序。</p>
+<figure class="gif"><img src="../media/gifs/colecciones.gif" alt="创建包含文件夹和请求的集合，并通过拖动调整顺序" loading="lazy"><figcaption>用鼠标创建、嵌套和重新排序。</figcaption></figure>
+<ul>
+<li>每个集合或文件夹都可以拥有自己的<strong>变量</strong>和<strong>授权</strong>，其中包含的内容都会继承它们。</li>
+<li>自动保存：Caesar 会自动保存，并在你关闭时保留你的标签页和草稿。</li>
+<li>你可以与团队共享集合（参见<a href="#teams">同步和团队</a>）。</li>
+</ul>
+</section>
+
+<section id="import-export"><h2>导入与导出</h2>
+<p>你不必从零开始。Caesar 可以导入你已有的内容，并随时导出：</p>
+<table><thead><tr><th>格式</th><th>导入</th><th>导出</th></tr></thead><tbody>
+<tr><td>Postman（v2.1 集合和 environments）</td><td>支持</td><td>支持（JSON）</td></tr>
+<tr><td>Insomnia</td><td>支持</td><td>–</td></tr>
+<tr><td>Caesar JSON</td><td>支持</td><td>支持</td></tr>
+<tr><td>YAML</td><td>支持</td><td>支持</td></tr>
+<tr><td>HAR（来自浏览器）</td><td>支持</td><td>支持</td></tr>
+<tr><td>cURL</td><td>粘贴到 URL 栏</td><td>复制为 cURL</td></tr>
+</tbody></table>
+<figure class="gif"><img src="../media/gifs/importar-exportar.gif" alt="从文件导入集合，并导出为 JSON、YAML 或 HAR" loading="lazy"><figcaption>通过文件选择器导入，并以你选择的格式导出。</figcaption></figure>
+<p>共享集合之前，Caesar 可以先做一份备份，确保你不会丢失任何内容。</p>
+</section>
+
+<section id="code-generator"><h2>代码生成器</h2>
+<p>通过 <strong>&lt;/&gt;</strong> 按钮，可将当前请求转换为可直接粘贴到项目中的代码。支持 <strong>20 种语言和库</strong>，包括 cURL、Python（Requests）、JavaScript（Fetch、XHR）、Node.js（Axios）、Go、Rust、Java、Kotlin、C#、PHP、Ruby、PowerShell、Swift 和 Dart。</p>
+<figure class="gif"><img src="../media/gifs/codigo.gif" alt="打开代码生成器，在 cURL、Python、JavaScript 和 Go 之间切换" loading="lazy"><figcaption>同一个请求转换为不同语言。</figcaption></figure>
+<p>你可以调整缩进、超时或是否跟随重定向等选项，并一键复制结果。</p>
+</section>
+
+<section id="graphql"><h2>GraphQL</h2>
+<p>选择 <strong>GraphQL</strong> 请求体，Caesar 会提供一个 <em>Query</em> 编辑器和一个 <em>Variables</em> 编辑器，与 Postman 一样：</p>
+<ul>
+<li>通过内省<strong>加载 schema</strong>。</li>
+<li>输入时对字段和类型<strong>自动补全</strong>。</li>
+<li><strong>Schema 浏览器</strong>，用于浏览类型和字段。</li>
+<li><strong>美化</strong>，一键格式化查询。</li>
+<li>根据查询<strong>生成变量</strong>，存在多个操作时提供<strong>操作选择器</strong>。</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/graphql.gif" alt="编写带自动补全的 GraphQL 查询，加载 schema 并发送" loading="lazy"><figcaption>带自动补全并已加载 schema 的查询。</figcaption></figure>
+<p>GraphQL 请求可随 Postman 一起导入和导出。</p>
+</section>
+
+<section id="websocket"><h2>WebSocket</h2>
+<p>创建 WebSocket 请求，连接后在<strong>时间线</strong>中查看对话：你发送的和收到的内容，并带有时间和大小。</p>
+<figure class="gif"><img src="../media/gifs/websocket.gif" alt="连接 WebSocket，发送消息，并查看消息时间线" loading="lazy"><figcaption>连接、发送，并在时间线中查看消息。</figcaption></figure>
+<ul>
+<li>URL 以 <code>ws://</code> 或 <code>wss://</code> 开头（如果你使用 <code>http(s)</code>，会自动转换）。</li>
+<li>你可以设置<strong>子协议</strong>，以逗号分隔。</li>
+<li>发送<strong>文本</strong>或<strong>二进制</strong>消息（十六进制或 base64），并以十六进制转储查看二进制内容。</li>
+<li>URL 中支持 <code>{{variables}}</code>。</li>
+</ul>
+</section>
+
+<section id="tabs"><h2>标签页和搜索</h2>
+<p>想开多少标签页都行。Caesar 会记住你打开过的标签页，并在下次启动时原样恢复。</p>
+<figure class="gif"><img src="../media/gifs/pestanas-buscar.gif" alt="同时打开多个标签页，以及响应内的搜索栏" loading="lazy"><figcaption>在标签页之间切换，并在响应内搜索。</figcaption></figure>
+<ul>
+<li><kbd>Ctrl</kbd>+<kbd>T</kbd> 新建，<kbd>Ctrl</kbd>+<kbd>W</kbd> 关闭，<kbd>Ctrl</kbd>+<kbd>1…9</kbd> 跳转到第 N 个标签页。</li>
+<li><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> 返回之前或之后访问过的标签页。</li>
+<li><kbd>Ctrl</kbd>+<kbd>F</kbd> 在响应或编辑器中搜索。</li>
+<li>右键点击或按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> 可全部关闭，并回到带小猫的主屏幕。</li>
+</ul>
+<p>在 macOS 上，<kbd>Ctrl</kbd> 换成 <kbd>Cmd</kbd>。</p>
+</section>
+
+<section id="workspaces"><h2>工作区</h2>
+<p><strong>工作区</strong>是一组独立的集合、变量和标签页：一个用于工作，一个用于个人项目，每位客户再各一个。你可以通过侧边栏的选择器切换。</p>
+<figure class="gif"><img src="../media/gifs/espacios.gif" alt="创建工作区并在工作区之间切换" loading="lazy"><figcaption>每个工作区都有自己的集合和变量。</figcaption></figure>
+<p>访客模式和未开通 Pro 的账号包含<strong>一个工作区</strong>；开通 Pro 后可以拥有任意多个。</p>
+</section>
+
+<section id="shortcuts"><h2>键盘快捷键</h2>
+<p>Caesar 的每个命令都有快捷键，而且<strong>你可以全部修改</strong>。按 <kbd>Ctrl</kbd>+<kbd>/</kbd> 打开编辑器。</p>
+<figure class="gif"><img src="../media/gifs/atajos.gif" alt="打开快捷键编辑器，修改某个命令的组合键" loading="lazy"><figcaption>修改或添加组合键；每个命令可以设置多个。</figcaption></figure>
+<table><thead><tr><th>操作</th><th>默认快捷键</th></tr></thead><tbody>
+<tr><td>发送请求</td><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td></tr>
+<tr><td>保存到集合</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+<tr><td>新建标签页 / 关闭标签页</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></td></tr>
+<tr><td>跳转到 URL 栏</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td></tr>
+<tr><td>搜索</td><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td></tr>
+<tr><td>选择变量</td><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td></tr>
+<tr><td>打开设置</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td></tr>
+<tr><td>查看和编辑快捷键</td><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td></tr>
+</tbody></table>
+<p>你还可以创建<strong>自定义操作</strong>，串联多个命令，并在 URL 旁放置<strong>你选择的按钮</strong>。</p>
+</section>
+
+<section id="themes"><h2>主题、字体和语言</h2>
+<p>Caesar 内置六款主题：<strong>Monokai</strong>（默认）、<strong>Dracula</strong>、<strong>Tokyo Night</strong>、<strong>Nord</strong>、<strong>One Dark</strong>，以及适合偏爱浅色背景用户的 <strong>GitHub Light</strong>。</p>
+<figure class="gif"><img src="../media/gifs/temas.gif" alt="在 Monokai、Dracula、Tokyo Night、Nord、One Dark 和 GitHub Light 主题之间切换" loading="lazy"><figcaption>在设置中即时切换主题。</figcaption></figure>
+<p>你还可以选择字体和文字大小、关闭动画，并调整侧边栏宽度。界面提供<strong>西班牙语、英语、德语、法语和意大利语</strong>。</p>
+</section>
+
+<section id="network-settings"><h2>网络设置</h2>
+<p>在<strong>设置</strong>中，你可以控制请求的发送方式：</p>
+<table><thead><tr><th>设置项</th><th>作用</th></tr></thead><tbody>
+<tr><td>跟随重定向</td><td>最多跟随 10 次重定向，或完全不跟随。</td></tr>
+<tr><td>超时</td><td>默认 30 秒。设为 <code>0</code> 或超过 1 小时时，将使用 3600 秒的上限，便于调试而不会触发超时错误。</td></tr>
+<tr><td>验证 SSL</td><td>仅在测试使用自签名证书的服务器时关闭。</td></tr>
+<tr><td>HTTP 版本</td><td>自动、HTTP/1.1 或 HTTP/2。</td></tr>
+<tr><td>额外方法</td><td>在常用方法之外添加自定义方法。</td></tr>
+</tbody></table>
+</section>
+
+<section id="teams"><h2>同步和团队</h2>
+<p>开通 Pro 账号后，你可以在<strong>多台电脑</strong>上使用同一批集合，并与他人共享。</p>
+<ul>
+<li><strong>个人同步：</strong>你的集合、变量和配置档案会出现在你所有的设备上。更改按条目合并，因此两台设备不会互相覆盖对方的工作。</li>
+<li><strong>在你的设备上加密：</strong>上传的内容从你的电脑就已加密；服务端只存储无法读取的数据。</li>
+<li><strong>恢复密钥：</strong>由你自己保管，丢失设备时可用它找回数据。</li>
+<li><strong>关联新设备：</strong>通过你的另一台设备批准，在两个屏幕上比对一个六位数字验证码即可。</li>
+<li><strong>团队：</strong>用一个<strong>代码</strong>共享集合或工作区；输入代码的人即可加入并看到更改。</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/compartir-equipo.gif" alt="通过团队代码共享集合，并用该代码加入" loading="lazy"><figcaption>用代码共享集合，并从另一台设备加入。</figcaption></figure>
+<div class="box warn"><p><strong>重要：</strong>在共享集合中，任何拥有代码的人都可以读取和修改其内容；没有角色之分。请只把代码分享给应当拥有编辑权限的人。</p></div>
+</section>
+
+<section id="plans"><h2>访客、账号和 Pro</h2>
+<table><thead><tr><th>模式</th><th>包含内容</th></tr></thead><tbody>
+<tr><td><strong>访客</strong>（免费）</td><td>全部请求功能、测试、GraphQL、WebSocket、导入/导出和代码生成器。数据仅保存在你的设备上，1 个工作区。</td></tr>
+<tr><td><strong>账号</strong>（7 天试用）</td><td>与访客模式相同，在本地使用，供你决定是否激活 Pro。7 天内未开通 Pro，账号将被删除。</td></tr>
+<tr><td><strong>Pro</strong>（订阅）</td><td>加密同步、团队与共享集合，以及无限工作区。</td></tr>
+</tbody></table>
+<p>价格、计费周期和税费会在付款前的结账页面中显示。你可以随时在<em>设置 → 账户和订阅 → 管理订阅</em>中取消，并可在 14 天内退款。更多详情请见<a href="index.html#pricing">价格与订阅</a>。</p>
+</section>
+
+<section id="privacy"><h2>隐私和安全</h2>
+<ul>
+<li><strong>无遥测，无数据分析。</strong>Caesar 不会发送使用数据。</li>
+<li><strong>界面本身不发起任何网络请求：</strong>请求由 Rust 内核执行，它会校验 URL、只允许 http 和 https，并限制响应和文件的大小。</li>
+<li><strong>你的密钥永不离开系统：</strong>加密密钥保存在你操作系统的钥匙串中。</li>
+<li>应用采用<strong>最小权限和严格的安全策略</strong>。</li>
+<li>在访客模式下，你的数据<strong>永远不会离开你的设备</strong>。</li>
+</ul>
+<p>更多内容请见<a href="index.html#privacy">安全与隐私</a>以及<a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">隐私政策</a>。</p>
+</section>
+
+<section id="updates"><h2>更新</h2>
+<p>Caesar 会自动更新：启动时检查是否有新版本，如有则下载、安装并重启。<strong>你的标签页和草稿会被保留。</strong>每个安装包都经过签名，应用会在安装前验证签名。</p>
+<ul>
+<li>在<em>设置 → 更新</em>中，你可以关闭自动更新，或点击<strong>检查更新</strong>。</li>
+<li>在 Linux 上，如果你通过 <strong>Snap Store</strong>（<code>sudo snap install caesar</code> 或 Ubuntu App Center）安装 Caesar，Snap 会自动更新；使用 AppImage 时可在应用内更新；<code>.deb</code> 则需手动重新安装。</li>
+</ul>
+</section>
+
+<section id="best-practices"><h2>最佳实践</h2>
+<ol>
+<li><strong>对会变化的内容使用变量</strong>（服务器、版本、令牌），并为每个环境使用配置档案。</li>
+<li><strong>在集合上定义认证</strong>，并让请求保持“继承”。</li>
+<li><strong>为每个重要请求至少添加一个测试</strong>：检查状态和正文。</li>
+<li><strong>用“动词 + 资源”命名请求</strong>（“List users”“Create order”），并用文件夹分组。</li>
+<li><strong>不时导出一份副本</strong>，备份你重要的集合。</li>
+<li><strong>不要把机密留在 URL 中</strong>：请使用机密变量或认证。</li>
+<li><strong>每个项目或客户使用一个工作区</strong>，避免变量混淆。</li>
+</ol>
+</section>
+
+<section id="troubleshooting"><h2>故障排查</h2>
+<h3>请求无法连接</h3>
+<p>检查 URL 是否以 <code>http://</code> 或 <code>https://</code> 开头、是否存在未解析的变量（会以不同颜色显示），以及你是否已联网。查看响应时间线：它会告诉你哪一步失败了。</p>
+<h3>SSL 证书错误</h3>
+<p>如果你在测试使用自签名证书的本地服务器，请在设置中关闭<strong>验证 SSL</strong>。访问真实 API 时再重新开启。</p>
+<h3>我收到 401 或 403</h3>
+<p>检查 Authorization 标签页：如果设为“继承”，请检查集合上的设置。确认令牌未过期，并且该变量存在于<strong>当前激活的配置档案</strong>中。</p>
+<h3>请求超时</h3>
+<p>在设置中调高超时时间。设为 <code>0</code> 时使用最大值（1 小时），仅用于调试。</p>
+<h3>我的测试没有任何反应</h3>
+<p>测试在收到响应<strong>之后</strong>才会运行，所以你需要先发送请求。如果脚本中有错误，会显示在结果旁边。</p>
+<h3>我无法同步或共享</h3>
+<p>这些功能需要 Pro。在访客模式下或账号试用期内，Caesar 仅在本地工作。如果你已经付款，请在<em>账户和订阅</em>中点击<strong>我已付款，请检查</strong>。</p>
+</section>
+
+<section id="faq"><h2>常见问题</h2>
+<h3>Caesar 适合测试 API 吗？</h3>
+<p>适合：它涵盖 REST、GraphQL 和 WebSocket，支持测试、变量、配置档案、Postman 导入和代码生成，是一款可离线运行的轻量应用。</p>
+<h3>它免费且开源吗？</h3>
+<p>访客模式免费，代码也是公开的，但它<strong>不是开源软件</strong>：它采用 FSL 许可，禁止出售。每个版本在两年后转为 MIT。</p>
+<h3>我的集合存储在哪里？</h3>
+<p>在你的设备上。只有当你开启同步或与团队共享时，它们才会离开设备，而且那时会经过加密。</p>
+<h3>我可以导入我的 Postman 集合吗？</h3>
+<p>可以。在侧边栏中导入集合文件（以及会变成配置档案的 environments）。</p>
+<h3>我的 Postman 脚本能用吗？</h3>
+<p>使用 <code>pm.test</code>、<code>pm.expect</code>、<code>pm.response.json()</code> 的测试以及存储变量的函数都可以。Caesar 使用的是仅支持 JavaScript 子集的安全解释器，因此依赖外部库或网络的脚本无法运行。</p>
+<h3>有命令行或 CI 集成吗？</h3>
+<p>目前 Caesar 是桌面应用。你可以把请求导出为 cURL 或代码，用在你的脚本中。</p>
+<h3>我需要账号吗？</h3>
+<p>不需要。只有同步和团队协作才需要账号。</p>
+<h3>它支持哪些系统？</h3>
+<p>Windows（<code>.exe</code> 和 <code>.msi</code>；Microsoft Store 版本即将推出）、macOS（Intel 和 Apple Silicon）以及 Linux（Ubuntu App Center / Snap Store：<code>sudo snap install caesar</code>，另有 <code>.deb</code> 和 <code>AppImage</code>）。</p>
+</section>
+
+<div class="why"><h3 style="margin-top:0">立即体验</h3><p>免费下载，无需账号。如果缺少某些功能或你发现了 bug，请在 <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a> 上告诉我们。</p><p><a class="btn" href="download.html">下载 Caesar</a></p></div>
+
+</div></main>
+<footer><div class="wrap">
+<p>Caesar 采用 <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a> 许可，属于 Fair Source：不是开源软件，且禁止出售。静态网站，无 Cookie，无追踪。</p><p class="mt-3 text-xs leading-relaxed text-zinc-500"><strong>免责声明（按现状提供）：</strong>Caesar 按“现状”和“可用”状态提供，不附带任何形式的保证。在法律允许的最大范围内，作者不对数据或密钥丢失、服务中断、损失、利润损失，或你通过本应用发送的请求承担责任。请做好备份。这不会限制你作为消费者的法定权利，也不影响 Pro 的 14 天退款。<a class="underline transition hover:text-white" href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">许可证</a></p>
+<p><a href="https://github.com/cesargarridor/caesar">GitHub</a> · <a href="https://github.com/cesargarridor/caesar/issues">问题反馈</a> · <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a></p>
+<p><a href="https://cesargarridor.github.io/caesar-legal/en/terms.html">条款</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">隐私</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/cookies.html">Cookie</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/legal.html">法律声明</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/refunds.html">退款</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/security.html">安全</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/delete.html">删除我的数据</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/support.html">支持</a></p>
+</div></footer>
+
+
+</body></html>

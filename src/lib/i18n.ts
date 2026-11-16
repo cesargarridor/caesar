@@ -1,8 +1,9 @@
-/** Idiomas de la interfaz. El texto original (clave) está en español; cada entrada trae [en-GB, de, fr, it]. */
+/** Idiomas de la interfaz. El texto original (clave) está en español; cada entrada trae [en-GB, de, fr, it] (los demás idiomas, en i18nExtra.ts). */
 import { useSyncExternalStore } from "react";
 import { WS_D } from "./i18nWs";
+import { EXTRA_D } from "./i18nExtra";
 
-export type Lang = "es" | "en-GB" | "de" | "fr" | "it";
+export type Lang = "es" | "en-GB" | "de" | "fr" | "it" | "pt-BR" | "zh-CN" | "ja" | "ru";
 
 export const LANGS: { id: Lang; name: string }[] = [
   { id: "es", name: "Español" },
@@ -10,10 +11,15 @@ export const LANGS: { id: Lang; name: string }[] = [
   { id: "de", name: "Deutsch" },
   { id: "fr", name: "Français" },
   { id: "it", name: "Italiano" },
+  { id: "pt-BR", name: "Português (Brasil)" },
+  { id: "zh-CN", name: "简体中文" },
+  { id: "ja", name: "日本語" },
+  { id: "ru", name: "Русский" },
 ];
 
 const KEY = "caesar.lang";
 const ORDER: Lang[] = ["en-GB", "de", "fr", "it"];
+const ORDER_EXTRA: Lang[] = ["pt-BR", "zh-CN", "ja", "ru"];
 
 function detect(): Lang {
   try {
@@ -27,6 +33,10 @@ function detect(): Lang {
   if (nav.startsWith("de")) return "de";
   if (nav.startsWith("fr")) return "fr";
   if (nav.startsWith("it")) return "it";
+  if (nav.startsWith("pt")) return "pt-BR";
+  if (nav.startsWith("zh")) return "zh-CN";
+  if (nav.startsWith("ja")) return "ja";
+  if (nav.startsWith("ru")) return "ru";
   return "en-GB";
 }
 
@@ -61,8 +71,16 @@ export function useLang(): Lang {
 export function t(key: string, ...args: (string | number)[]): string {
   let s = key;
   if (current !== "es") {
-    const row = D[key] ?? WS_D[key];
-    if (row) s = row[ORDER.indexOf(current)] ?? key;
+    const xi = ORDER_EXTRA.indexOf(current);
+    if (xi >= 0) {
+      // idiomas adicionales; si falta la entrada se usa el inglés
+      const x = EXTRA_D[key];
+      const en = (D[key] ?? WS_D[key])?.[0];
+      s = x?.[xi] ?? en ?? key;
+    } else {
+      const row = D[key] ?? WS_D[key];
+      if (row) s = row[ORDER.indexOf(current)] ?? key;
+    }
   }
   return args.length ? s.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? "")) : s;
 }

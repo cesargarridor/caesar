@@ -176,12 +176,28 @@ jobs:
       - name: Versión del snap = tag
         run: |
           sed -i "s|^version: .*|version: '${GITHUB_REF_NAME#v}'|" snap/snapcraft.yaml
+      # La Snap Store a veces rechaza conexiones al instalar snapcraft/lxd (error transitorio de red):
+      # se reintenta hasta 3 veces con espera entre intentos.
       - uses: snapcore/action-build@v1
-        id: build
+        id: build1
+        continue-on-error: true
+      - name: Espera antes de reintentar el build del snap
+        if: steps.build1.outcome == 'failure'
+        run: sleep 120
+      - uses: snapcore/action-build@v1
+        id: build2
+        if: steps.build1.outcome == 'failure'
+        continue-on-error: true
+      - name: Espera antes del último reintento
+        if: steps.build1.outcome == 'failure' && steps.build2.outcome == 'failure'
+        run: sleep 240
+      - uses: snapcore/action-build@v1
+        id: build3
+        if: steps.build1.outcome == 'failure' && steps.build2.outcome == 'failure'
       - name: Subir a Snap Store (stable)
         if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
         env:
-          SNAP: ${{ steps.build.outputs.snap }}
+          SNAP: ${{ steps.build1.outputs.snap || steps.build2.outputs.snap || steps.build3.outputs.snap }}
         run: |
           for attempt in 1 2 3; do
             if snapcraft upload "$SNAP" --release stable; then

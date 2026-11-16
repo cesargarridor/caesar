@@ -1,0 +1,429 @@
+<!DOCTYPE html><html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Руководство по Caesar: все функции с GIF-анимациями | Caesar</title>
+<meta name="description" content="Полное руководство по Caesar — быстрому настольному API-клиенту с приоритетом локальных данных: запросы, cURL, аутентификация, переменные и профили, тесты, GraphQL, WebSockets, генератор кода, импорт и экспорт, горячие клавиши, темы и команды. С GIF для каждой функции.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#272822">
+<link rel="canonical" href="https://cesargarridor.github.io/caesar/ru/features.html">
+<link rel="alternate" hreflang="es" href="https://cesargarridor.github.io/caesar/funciones.html">
+<link rel="alternate" hreflang="en" href="https://cesargarridor.github.io/caesar/en/features.html">
+<link rel="alternate" hreflang="de" href="https://cesargarridor.github.io/caesar/de/features.html">
+<link rel="alternate" hreflang="fr" href="https://cesargarridor.github.io/caesar/fr/features.html">
+<link rel="alternate" hreflang="it" href="https://cesargarridor.github.io/caesar/it/features.html">
+<link rel="alternate" hreflang="pt-BR" href="https://cesargarridor.github.io/caesar/pt-BR/features.html">
+<link rel="alternate" hreflang="zh-CN" href="https://cesargarridor.github.io/caesar/zh-CN/features.html">
+<link rel="alternate" hreflang="ja" href="https://cesargarridor.github.io/caesar/ja/features.html">
+<link rel="alternate" hreflang="ru" href="https://cesargarridor.github.io/caesar/ru/features.html">
+<link rel="alternate" hreflang="x-default" href="https://cesargarridor.github.io/caesar/en/features.html">
+
+
+
+
+
+
+
+
+
+
+
+
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Caesar">
+<meta property="og:title" content="Руководство по Caesar: все функции с GIF-анимациями">
+<meta property="og:description" content="Запросы, cURL, аутентификация, переменные и профили, тесты, GraphQL, WebSockets, генератор кода, импорт и экспорт, горячие клавиши и команды — подробно, функция за функцией.">
+<meta property="og:url" content="https://cesargarridor.github.io/caesar/ru/features.html"><meta property="og:locale" content="ru_RU">
+<meta property="og:image" content="https://cesargarridor.github.io/caesar/og.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<a class="skip" href="#contenido">Перейти к содержимому</a>
+<header class="top"><div class="wrap">
+<a class="brand" href="./"><img src="../logo.png" alt="" width="32" height="32"><span><b>C</b>aesar</span></a>
+<nav class="main" aria-label="Разделы"><a href="index.html#features">Возможности</a><a href="features.html" aria-current="page">Руководство</a><a href="download.html">Скачать</a><a href="index.html#faq">FAQ</a><a href="index.html#pricing">Цены</a><a href="index.html#license">Лицензия</a></nav>
+<details class="lang-dd"><summary aria-label="Idioma / Language"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"></path></svg>RU</summary><div><a href="../funciones.html" hreflang="es" lang="es">Español</a><a href="../en/features.html" hreflang="en" lang="en">English</a><a href="../de/features.html" hreflang="de" lang="de">Deutsch</a><a href="../fr/features.html" hreflang="fr" lang="fr">Français</a><a href="../it/features.html" hreflang="it" lang="it">Italiano</a><a href="../pt-BR/features.html" hreflang="pt-BR" lang="pt-BR">Português (Brasil)</a><a href="../zh-CN/features.html" hreflang="zh-CN" lang="zh-CN">简体中文</a><a href="../ja/features.html" hreflang="ja" lang="ja">日本語</a><span aria-current="true">Русский</span></div></details>
+</div></header>
+<main id="contenido"><div class="wrap guide">
+
+<p class="crumbs"><a href="./">Главная</a> › Руководство по функциям</p>
+<h1>Руководство по Caesar: все функции по порядку</h1>
+<p class="lead">Caesar — настольный API-клиент, созданный для скорости: он запускается мгновенно, хранит всё на вашем компьютере и не требует аккаунта для начала работы. В этом руководстве разобрана каждая функция с GIF реального результата — от первого запроса до тестов, GraphQL, WebSockets и командной работы.</p>
+<p class="meta">Время чтения: около 15 минут · Обновляется с каждым релизом · <a href="download.html">Скачать Caesar</a></p>
+
+<nav class="toc" aria-label="Содержание руководства"><b>В этом руководстве</b>
+<ol>
+<li><a href="#what-is">Что такое Caesar?</a></li>
+<li><a href="#why-fast">Почему он такой быстрый</a></li>
+<li><a href="#install">Установка Caesar</a></li>
+<li><a href="#first-request">Ваш первый запрос</a></li>
+<li><a href="#params-headers">Параметры и заголовки</a></li>
+<li><a href="#body">Тело запроса</a></li>
+<li><a href="#response">Чтение ответа</a></li>
+<li><a href="#curl">Вставка и копирование cURL</a></li>
+<li><a href="#auth">Аутентификация</a></li>
+<li><a href="#variables">Переменные и профили</a></li>
+<li><a href="#tests">Тесты и скрипты</a></li>
+<li><a href="#chaining">Цепочки запросов</a></li>
+<li><a href="#collections">Коллекции и папки</a></li>
+<li><a href="#import-export">Импорт и экспорт</a></li>
+<li><a href="#code-generator">Генератор кода</a></li>
+<li><a href="#graphql">GraphQL</a></li>
+<li><a href="#websocket">WebSockets</a></li>
+<li><a href="#tabs">Вкладки и поиск</a></li>
+<li><a href="#workspaces">Рабочие пространства</a></li>
+<li><a href="#shortcuts">Горячие клавиши</a></li>
+<li><a href="#themes">Темы, шрифты и языки</a></li>
+<li><a href="#network-settings">Сетевые настройки</a></li>
+<li><a href="#teams">Синхронизация и команды</a></li>
+<li><a href="#plans">Гость, аккаунт и Pro</a></li>
+<li><a href="#privacy">Конфиденциальность и безопасность</a></li>
+<li><a href="#updates">Обновления</a></li>
+<li><a href="#best-practices">Лучшие практики</a></li>
+<li><a href="#troubleshooting">Устранение неполадок</a></li>
+<li><a href="#faq">Часто задаваемые вопросы</a></li>
+</ol></nav>
+
+<section id="what-is"><h2>Что такое Caesar?</h2>
+<p>Caesar — настольный API-клиент для Windows, macOS и Linux. Он позволяет <strong>создавать, отправлять и тестировать HTTP-запросы</strong>, GraphQL и WebSocket, организовывать их в коллекции и делиться ими с командой — всё в чистом интерфейсе, где цвет и клавиатура экономят клики.</p>
+<ul>
+<li><strong>Local-first:</strong> в гостевом режиме ваши коллекции хранятся на вашем устройстве. Работает офлайн и без аккаунта.</li>
+<li><strong>Действительно быстрый:</strong> он написан на Rust и Tauri, без встроенного браузера.</li>
+<li><strong>Знакомый:</strong> если вы пришли из Postman или Insomnia, можно импортировать свои коллекции, а скрипты <code>pm.*</code> продолжат работать.</li>
+<li><strong>Fair Source (FSL):</strong> код открыт и бесплатен для использования. Это не open source: продавать его запрещено.</li>
+</ul>
+<div class="box"><p><strong>Для кого он?</strong> Для всех, кто ежедневно тестирует API (бэкенд, фронтенд, QA, мобильная разработка) и хочет лёгкий, приватный инструмент без лишних сложностей. А также для тех, кому нужно делиться коллекциями с командой без развёртывания инфраструктуры.</p></div>
+</section>
+
+<section id="why-fast"><h2>Почему он такой быстрый</h2>
+<p>Скорость Caesar — не трюк: она следует из того, как он устроен.</p>
+<div class="cards">
+<div class="card"><b>Rust вместо встроенного браузера</b><span>Запросы выполняет ядро на Rust, а окно использует веб-движок, уже входящий в вашу систему. Результат: мгновенный запуск и низкое потребление памяти.</span></div>
+<div class="card"><b>Ваши данные рядом с вами</b><span>Коллекции, переменные и вкладки читаются с вашего диска, без ожидания какого-либо сервера. Открытие Caesar не зависит от вашего подключения.</span></div>
+<div class="card"><b>Ничего не нужно загружать при запуске</b><span>Никакого обязательного экрана входа, никакой телеметрии и никакой аналитики, работающей в фоне.</span></div>
+<div class="card"><b>Меньше кликов, больше клавиатуры</b><span>У каждой команды есть сочетание клавиш, и его можно изменить. Вставьте cURL — и запрос уже собран.</span></div>
+</div>
+</section>
+
+<section id="install"><h2>Установка Caesar</h2>
+<p>Скачайте установщик для своей системы на <a href="download.html">странице загрузки</a> или в магазине приложений:</p>
+<table><thead><tr><th>Система</th><th>Файл / магазин</th></tr></thead><tbody>
+<tr><td>Windows</td><td>64-разрядный установщик <code>.exe</code> (также <code>.msi</code>) · <strong>Скоро в Microsoft Store</strong></td></tr>
+<tr><td>macOS (Intel и Apple Silicon)</td><td>Универсальный <code>.dmg</code>, подписан и нотаризован Apple</td></tr>
+<tr><td>Ubuntu (Snap Store)</td><td><code>sudo snap install caesar</code> или из <a href="https://snapcraft.io/caesar">Ubuntu App Center (Snap Store)</a></td></tr>
+<tr><td>Linux</td><td><code>.deb</code> (Debian/Ubuntu) или <code>AppImage</code> (любой дистрибутив)</td></tr>
+</tbody></table>
+<p>При первом запуске может появиться системное предупреждение, особенно в Windows (SmartScreen). Это нормально для нового проекта, а <a href="index.html#warnings">руководство по предупреждениям</a> объясняет, на что нажимать. После этого Caesar <a href="#updates">обновляется сам</a>.</p>
+<div class="box"><p><strong>Никакой командной строки.</strong> Caesar — настольное приложение: для его использования не нужны ни Node, ни Docker, ни какие-либо дополнительные установки.</p></div>
+</section>
+
+<section id="first-request"><h2>Ваш первый запрос</h2>
+<p>Откройте Caesar и нажмите <strong>Новая вкладка</strong> (<kbd>Ctrl</kbd>+<kbd>T</kbd>). Выберите метод (GET, POST, PUT, PATCH, DELETE, HEAD или OPTIONS), введите URL и нажмите <strong>Отправить</strong> или <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</p>
+<ol>
+<li>Введите URL в верхней строке.</li>
+<li>Нажмите <strong>Отправить</strong>. Вы увидите анимацию этапов запроса (разрешение имени, подключение, отправка, получение).</li>
+<li>Читайте ответ ниже: статус, время, размер и тело.</li>
+<li>Нажмите <kbd>Ctrl</kbd>+<kbd>S</kbd>, чтобы сохранить его в коллекцию.</li>
+</ol>
+<figure class="gif"><img src="../media/gifs/enviar-peticion.gif" alt="Ввод URL, нажатие «Отправить» и просмотр ответа со статусом, временем и отформатированным телом" loading="lazy"><figcaption>Запрос от начала до конца: URL, отправка и отформатированный ответ.</figcaption></figure>
+<p>Помимо семи обычных методов, в <a href="#network-settings">настройках</a> можно добавить <strong>дополнительные методы</strong> (например, методы WebDAV). Отклоняются только <code>CONNECT</code> и <code>TRACE</code>.</p>
+</section>
+
+<section id="params-headers"><h2>Параметры и заголовки</h2>
+<p>Вкладки <strong>Params</strong> и <strong>Headers</strong> используют редактор «ключ/значение»: вы добавляете строки, включаете и отключаете их флажком, не удаляя, а URL обновляется сам.</p>
+<figure class="gif"><img src="../media/gifs/params-headers.gif" alt="Добавление параметров запроса и заголовков в редакторе «ключ-значение» и обновление URL на глазах" loading="lazy"><figcaption>Параметры мгновенно отражаются в URL, а заголовки включаются и отключаются флажком.</figcaption></figure>
+<ul>
+<li>Снимите флажок со строки, чтобы протестировать без неё и не потерять её.</li>
+<li>В ключах и значениях можно использовать <code>{{variables}}</code> (см. <a href="#variables">Переменные и профили</a>).</li>
+<li>Если вставить URL с <code>?a=1&amp;b=2</code>, параметры появятся в своей таблице.</li>
+</ul>
+</section>
+
+<section id="body"><h2>Тело запроса</h2>
+<p>На вкладке <strong>Body</strong> вы выбираете формат, который нужен вашему API:</p>
+<table><thead><tr><th>Тип</th><th>Когда использовать</th></tr></thead><tbody>
+<tr><td>JSON</td><td>Современные REST API. Редактор с проверкой синтаксиса и подсветкой.</td></tr>
+<tr><td>Text</td><td>XML, обычный текст или другое «сырое» содержимое.</td></tr>
+<tr><td>Form-data</td><td>Формы с прикреплёнными файлами (до 100 МБ на файл).</td></tr>
+<tr><td>x-www-form-urlencoded</td><td>Классические формы.</td></tr>
+<tr><td>GraphQL</td><td>Отдельный редактор запроса и переменных (см. <a href="#graphql">GraphQL</a>).</td></tr>
+</tbody></table>
+<figure class="gif"><img src="../media/gifs/cuerpo.gif" alt="Выбор тела JSON, его написание и отправка; затем обзор других типов тела" loading="lazy"><figcaption>Тело JSON и другие доступные форматы.</figcaption></figure>
+<p>В целях безопасности Caesar прикрепляет только те файлы, которые <strong>вы выбрали</strong> в системном диалоге выбора файлов.</p>
+</section>
+
+<section id="response"><h2>Чтение ответа</h2>
+<p>Ответ отображается со <strong>статусом</strong> (с цветовой кодировкой), <strong>временем</strong> и <strong>размером</strong> в трёх представлениях:</p>
+<ul>
+<li><strong>Pretty:</strong> отформатированный JSON с подсветкой. Пустые значения можно скрыть для удобства чтения.</li>
+<li><strong>Raw:</strong> текст в точности в том виде, в каком он пришёл.</li>
+<li><strong>Timeline:</strong> этапы запроса с их длительностью.</li>
+</ul>
+<p>С помощью <strong>фильтра JSONPath</strong> вы оставляете только нужную часть, например <code>$.data[0].id</code>. А по <kbd>Ctrl</kbd>+<kbd>F</kbd> можно искать внутри ответа (см. <a href="#tabs">Вкладки и поиск</a>).</p>
+<div class="box"><p>Ответы читаются до 10 МБ; если ответ больше, Caesar обрезает его и предупреждает вас, чтобы окно не зависло.</p></div>
+</section>
+
+<section id="curl"><h2>Вставка и копирование cURL</h2>
+<p>Если кто-то передал вам команду <code>curl</code> (из документации API, из инструментов разработчика в браузере или от коллеги), <strong>вставьте её прямо в строку URL</strong>. Caesar создаст запрос с его методом, заголовками и телом.</p>
+<figure class="gif"><img src="../media/gifs/pegar-curl.gif" alt="Вставка команды curl в строку URL и создание запроса с методом, заголовками и телом" loading="lazy"><figcaption>Вставьте cURL — и запрос собран.</figcaption></figure>
+<p>И наоборот: <strong>скопируйте любой запрос как cURL</strong>, чтобы поделиться им в тикете или выполнить в терминале. Для этого есть команда (сочетания клавиш по умолчанию нет, вы можете назначить своё).</p>
+</section>
+
+<section id="auth"><h2>Аутентификация</h2>
+<p>На вкладке <strong>Authorization</strong> вы выбираете способ идентификации. Caesar поддерживает такие типы:</p>
+<div class="chips"><span>Без аутентификации</span><span>Наследовать</span><span>Bearer</span><span>Basic</span><span>API Key</span><span>Digest</span><span>NTLM</span><span>OAuth 1.0</span><span>OAuth 2.0</span><span>WSSE</span><span>AWS Signature v4</span><span>Akamai EdgeGrid</span></div>
+<figure class="gif"><img src="../media/gifs/autenticacion.gif" alt="Открытие вкладки авторизации, выбор Bearer и ввод токена" loading="lazy"><figcaption>Выберите тип аутентификации и заполните его поля.</figcaption></figure>
+<p>Вариант <strong>Inherit</strong> (наследовать) — самый удобный: вы задаёте аутентификацию один раз для коллекции или папки, и её использует каждый вложенный запрос. Если токен меняется, вы меняете его в одном месте.</p>
+<div class="box good"><p><strong>Совет:</strong> храните токен в переменной (<code>{{token}}</code>) и используйте эту переменную в аутентификации; так вам не придётся вставлять его в каждый запрос.</p></div>
+</section>
+
+<section id="variables"><h2>Переменные и профили</h2>
+<p>Переменные позволяют писать <code>{{baseUrl}}</code> вместо фиксированного URL. Есть три уровня:</p>
+<ul>
+<li><strong>Глобальные переменные:</strong> действуют во всех ваших коллекциях.</li>
+<li><strong>Переменные коллекции:</strong> только для этой коллекции или папки.</li>
+<li><strong>Профили переменных:</strong> именованные наборы (Development, Staging, Production...), которые вы активируете селектором рядом с кнопкой <strong>Отправить</strong>. Это аналог <em>Environments</em> в Postman.</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="Использование baseUrl в URL и переключение профиля селектором, при котором меняется итоговый URL" loading="lazy"><figcaption>Вы переключаете профиль, и тот же запрос обращается к другому серверу.</figcaption></figure>
+<ul>
+<li>Переменные <code>{{x}}</code> отображаются <strong>другим цветом</strong> в URL, заголовках, параметрах и аутентификации, поэтому ни одна не ускользнёт от вас.</li>
+<li><kbd>Ctrl</kbd>+клик по переменной открывает её значение для просмотра и редактирования, не покидая запрос.</li>
+<li><kbd>Ctrl</kbd>+<kbd>Space</kbd> открывает выбор переменных.</li>
+<li>Переменные можно пометить как <strong>секретные</strong>, чтобы они не были видны с первого взгляда.</li>
+<li>При импорте из Postman его окружения становятся <strong>профилями</strong>, а глобальные переменные — глобальными переменными.</li>
+</ul>
+</section>
+
+<section id="tests"><h2>Тесты и скрипты</h2>
+<p>Вкладка <strong>Scripts</strong> запускает скрипт при получении ответа (его результаты появляются на вкладке панели ответа). Используется синтаксис в стиле Postman (<code>pm.*</code>), так что всё, что вы уже знаете, работает:</p>
+<pre><code>pm.test("responds 200", () =&gt; {
+  pm.expect(pm.response.code).to.equal(200);
+});
+
+const data = pm.response.json();
+pm.test("returns users", () =&gt; {
+  pm.expect(data.length).to.be.above(0);
+});</code></pre>
+<figure class="gif"><img src="../media/gifs/tests.gif" alt="Написание тестового скрипта, отправка запроса и просмотр результатов зелёным и красным цветом" loading="lazy"><figcaption>Тесты выполняются вместе с ответом и отображаются зелёным или красным.</figcaption></figure>
+<ul>
+<li><code>pm.test</code> и <code>pm.expect</code> для проверки статуса, заголовков и тела.</li>
+<li><code>pm.response.json()</code> для чтения уже разобранного тела.</li>
+<li><code>pm.environment.set</code>, <code>pm.collectionVariables.set</code> и <code>pm.globals.set</code> для сохранения значений.</li>
+</ul>
+<div class="box warn"><p><strong>Безопасность по умолчанию.</strong> Скрипты выполняются в отдельном интерпретаторе подмножества JavaScript: без сети, без доступа к файловой системе и без <code>eval</code>. Поэтому импортированный скрипт не может ничего сделать за пределами своей области.</p></div>
+</section>
+
+<section id="chaining"><h2>Цепочки запросов</h2>
+<p>Типичный случай: войти в систему и использовать токен в остальных запросах. С тестом в запросе входа:</p>
+<pre><code>const r = pm.response.json();
+pm.environment.set("token", r.access_token);</code></pre>
+<p>После этого любой запрос может использовать <code>{{token}}</code> в заголовке или в Bearer-аутентификации. Вы выполняете вход один раз, а остальные запросы аутентифицированы — без копирования и вставки.</p>
+</section>
+
+<section id="collections"><h2>Коллекции и папки</h2>
+<p>Коллекции — это блокнот, где вы храните свои запросы. Создайте коллекцию на боковой панели, добавляйте папки внутри папок и <strong>перетаскивайте</strong> элементы, чтобы изменить порядок.</p>
+<figure class="gif"><img src="../media/gifs/colecciones.gif" alt="Создание коллекции с папками и запросами и изменение их порядка перетаскиванием" loading="lazy"><figcaption>Создавайте, вкладывайте и переупорядочивайте мышью.</figcaption></figure>
+<ul>
+<li>У каждой коллекции или папки могут быть свои <strong>переменные</strong> и <strong>авторизация</strong>, которые наследуются всем содержимым.</li>
+<li>Сохраняется само: Caesar автоматически сохраняет и помнит ваши вкладки и черновики при закрытии.</li>
+<li>Коллекцией можно поделиться с командой (см. <a href="#teams">Синхронизация и команды</a>).</li>
+</ul>
+</section>
+
+<section id="import-export"><h2>Импорт и экспорт</h2>
+<p>Начинать с нуля не нужно. Caesar импортирует то, что у вас уже есть, и экспортирует, когда захотите:</p>
+<table><thead><tr><th>Формат</th><th>Импорт</th><th>Экспорт</th></tr></thead><tbody>
+<tr><td>Postman (коллекции и окружения v2.1)</td><td>Да</td><td>Да (JSON)</td></tr>
+<tr><td>Insomnia</td><td>Да</td><td>–</td></tr>
+<tr><td>Caesar JSON</td><td>Да</td><td>Да</td></tr>
+<tr><td>YAML</td><td>Да</td><td>Да</td></tr>
+<tr><td>HAR (из браузера)</td><td>Да</td><td>Да</td></tr>
+<tr><td>cURL</td><td>Вставка в строку URL</td><td>Копировать как cURL</td></tr>
+</tbody></table>
+<figure class="gif"><img src="../media/gifs/importar-exportar.gif" alt="Импорт коллекции из файла и экспорт в JSON, YAML или HAR" loading="lazy"><figcaption>Импортируйте через диалог выбора файла и экспортируйте в выбранном формате.</figcaption></figure>
+<p>Перед тем как поделиться коллекцией, Caesar может сделать резервную копию, чтобы вы ничего не потеряли.</p>
+</section>
+
+<section id="code-generator"><h2>Генератор кода</h2>
+<p>Кнопкой <strong>&lt;/&gt;</strong> вы превращаете активный запрос в код, готовый к вставке в ваш проект. Доступно <strong>20 языков и библиотек</strong>, включая cURL, Python (Requests), JavaScript (Fetch, XHR), Node.js (Axios), Go, Rust, Java, Kotlin, C#, PHP, Ruby, PowerShell, Swift и Dart.</p>
+<figure class="gif"><img src="../media/gifs/codigo.gif" alt="Открытие генератора кода и переключение между cURL, Python, JavaScript и Go" loading="lazy"><figcaption>Один и тот же запрос, преобразованный в разные языки.</figcaption></figure>
+<p>Можно настроить такие параметры, как отступы, тайм-аут или следование редиректам, и скопировать результат одним кликом.</p>
+</section>
+
+<section id="graphql"><h2>GraphQL</h2>
+<p>Выберите тело <strong>GraphQL</strong>, и Caesar предоставит редактор <em>Query</em> и отдельный для <em>Variables</em>, как в Postman:</p>
+<ul>
+<li><strong>Загрузка схемы</strong> через интроспекцию.</li>
+<li><strong>Автодополнение</strong> полей и типов по мере ввода.</li>
+<li><strong>Обозреватель схемы</strong> для просмотра типов и полей.</li>
+<li><strong>Beautify</strong> для форматирования запроса.</li>
+<li><strong>Генерация переменных</strong> из запроса и <strong>выбор операции</strong>, если их несколько.</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/graphql.gif" alt="Написание GraphQL-запроса с автодополнением, загрузка схемы и отправка" loading="lazy"><figcaption>Запрос с автодополнением и загруженной схемой.</figcaption></figure>
+<p>GraphQL-запросы импортируются и экспортируются вместе с Postman.</p>
+</section>
+
+<section id="websocket"><h2>WebSockets</h2>
+<p>Создайте WebSocket-запрос, подключитесь и наблюдайте за диалогом на <strong>временной шкале</strong>: что вы отправляете и что получаете, со временем и размером.</p>
+<figure class="gif"><img src="../media/gifs/websocket.gif" alt="Подключение к WebSocket, отправка сообщения и просмотр хронологии сообщений" loading="lazy"><figcaption>Подключайтесь, отправляйте и смотрите сообщения на временной шкале.</figcaption></figure>
+<ul>
+<li>Введите URL с <code>ws://</code> или <code>wss://</code> (если вы используете <code>http(s)</code>, он будет преобразован).</li>
+<li>Можно указать <strong>субпротоколы</strong> через запятую.</li>
+<li>Отправляйте <strong>текстовые</strong> или <strong>двоичные</strong> сообщения (в шестнадцатеричном виде или base64) и просматривайте двоичные данные в hex-дампе.</li>
+<li>Поддерживает <code>{{variables}}</code> в URL.</li>
+</ul>
+</section>
+
+<section id="tabs"><h2>Вкладки и поиск</h2>
+<p>Работайте с таким количеством вкладок, сколько нужно. Caesar запоминает открытые вкладки и восстанавливает их в точности такими, какими они были, при следующем запуске.</p>
+<figure class="gif"><img src="../media/gifs/pestanas-buscar.gif" alt="Несколько открытых вкладок и строка поиска внутри ответа" loading="lazy"><figcaption>Переключайтесь между вкладками и ищите внутри ответа.</figcaption></figure>
+<ul>
+<li><kbd>Ctrl</kbd>+<kbd>T</kbd> новая, <kbd>Ctrl</kbd>+<kbd>W</kbd> закрыть, <kbd>Ctrl</kbd>+<kbd>1…9</kbd> перейти на вкладку N.</li>
+<li><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> возвращает к вкладке, которую вы посещали раньше или позже.</li>
+<li><kbd>Ctrl</kbd>+<kbd>F</kbd> ищет в ответе или в редакторе.</li>
+<li>Правый клик или <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> закрывает все вкладки и возвращает на главный экран с котом.</li>
+</ul>
+<p>В macOS <kbd>Ctrl</kbd> заменяется на <kbd>Cmd</kbd>.</p>
+</section>
+
+<section id="workspaces"><h2>Рабочие пространства</h2>
+<p><strong>Рабочее пространство</strong> — это отдельный набор коллекций, переменных и вкладок: одно для работы, другое для личных проектов, ещё одно на каждого клиента. Переключаться можно селектором на боковой панели.</p>
+<figure class="gif"><img src="../media/gifs/espacios.gif" alt="Создание рабочего пространства и переключение между пространствами" loading="lazy"><figcaption>У каждого рабочего пространства свои коллекции и переменные.</figcaption></figure>
+<p>Гостевой режим и аккаунты без Pro включают <strong>одно рабочее пространство</strong>; с Pro их может быть сколько угодно.</p>
+</section>
+
+<section id="shortcuts"><h2>Горячие клавиши</h2>
+<p>У каждой команды Caesar есть сочетание клавиш, и <strong>изменить можно любое из них</strong>. Откройте редактор по <kbd>Ctrl</kbd>+<kbd>/</kbd>.</p>
+<figure class="gif"><img src="../media/gifs/atajos.gif" alt="Открытие редактора сочетаний клавиш и изменение комбинации клавиш команды" loading="lazy"><figcaption>Изменяйте или добавляйте комбинации; каждая команда принимает несколько.</figcaption></figure>
+<table><thead><tr><th>Действие</th><th>Сочетание по умолчанию</th></tr></thead><tbody>
+<tr><td>Отправить запрос</td><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td></tr>
+<tr><td>Сохранить в коллекцию</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+<tr><td>Новая вкладка / Закрыть вкладку</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></td></tr>
+<tr><td>Перейти в строку URL</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td></tr>
+<tr><td>Поиск</td><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td></tr>
+<tr><td>Выбрать переменную</td><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td></tr>
+<tr><td>Открыть настройки</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td></tr>
+<tr><td>Просмотр и изменение сочетаний клавиш</td><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td></tr>
+</tbody></table>
+<p>Также можно создавать <strong>пользовательские действия</strong>, объединяющие несколько команд, и размещать <strong>кнопки на ваш выбор</strong> рядом с URL.</p>
+</section>
+
+<section id="themes"><h2>Темы, шрифты и языки</h2>
+<p>В Caesar шесть тем: <strong>Monokai</strong> (по умолчанию), <strong>Dracula</strong>, <strong>Tokyo Night</strong>, <strong>Nord</strong>, <strong>One Dark</strong> и <strong>GitHub Light</strong> для тех, кто предпочитает светлый фон.</p>
+<figure class="gif"><img src="../media/gifs/temas.gif" alt="Переключение между темами Monokai, Dracula, Tokyo Night, Nord, One Dark и GitHub Light" loading="lazy"><figcaption>Меняйте тему мгновенно в настройках.</figcaption></figure>
+<p>Также можно выбрать шрифт и размер текста, отключить анимации и настроить ширину боковой панели. Интерфейс доступен на <strong>испанском, английском, немецком, французском и итальянском</strong> языках.</p>
+</section>
+
+<section id="network-settings"><h2>Сетевые настройки</h2>
+<p>В <strong>Настройках</strong> вы управляете тем, как отправляются запросы:</p>
+<table><thead><tr><th>Параметр</th><th>Что делает</th></tr></thead><tbody>
+<tr><td>Следовать редиректам</td><td>Следует не более чем за 10 редиректами или не следует вовсе.</td></tr>
+<tr><td>Тайм-аут</td><td>По умолчанию 30 секунд. При значении <code>0</code> или более 1 часа используется максимум 3600 с — удобно для отладки, чтобы ошибка не срабатывала.</td></tr>
+<tr><td>Проверка SSL</td><td>Отключайте только для тестирования серверов с самоподписанными сертификатами.</td></tr>
+<tr><td>Версия HTTP</td><td>Автоматически, HTTP/1.1 или HTTP/2.</td></tr>
+<tr><td>Дополнительные методы</td><td>Добавляет пользовательские методы к обычным.</td></tr>
+</tbody></table>
+</section>
+
+<section id="teams"><h2>Синхронизация и команды</h2>
+<p>С аккаунтом Pro вы можете использовать одни и те же коллекции на <strong>нескольких компьютерах</strong> и делиться ими с другими людьми.</p>
+<ul>
+<li><strong>Личная синхронизация:</strong> ваши коллекции, переменные и профили появляются на всех ваших устройствах. Изменения объединяются по элементам, поэтому два устройства не перезаписывают работу друг друга.</li>
+<li><strong>Шифрование на вашем устройстве:</strong> всё, что загружается, шифруется на вашем компьютере; сервис хранит только нечитаемые данные.</li>
+<li><strong>Ключ восстановления:</strong> он хранится у вас и позволяет восстановить данные, если вы потеряете устройство.</li>
+<li><strong>Привязка нового устройства:</strong> подтверждается с другого вашего устройства шестизначным кодом, который вы сверяете на обоих экранах.</li>
+<li><strong>Команды:</strong> делитесь коллекцией или рабочим пространством по <strong>коду</strong>; тот, кто его вводит, присоединяется и видит изменения.</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/compartir-equipo.gif" alt="Общий доступ к коллекции по командному коду и присоединение по этому коду" loading="lazy"><figcaption>Поделитесь коллекцией по коду и присоединитесь с другого устройства.</figcaption></figure>
+<div class="box warn"><p><strong>Важно:</strong> в общей коллекции любой, у кого есть код, может читать и изменять её содержимое; ролей нет. Делитесь кодом только с теми, кто должен иметь право редактировать.</p></div>
+</section>
+
+<section id="plans"><h2>Гость, аккаунт и Pro</h2>
+<table><thead><tr><th>Режим</th><th>Включает</th></tr></thead><tbody>
+<tr><td><strong>Гость</strong> (бесплатно)</td><td>Все функции запросов, тесты, GraphQL, WebSockets, импорт/экспорт и генератор кода. Данные только на вашем устройстве, 1 рабочее пространство.</td></tr>
+<tr><td><strong>Аккаунт</strong> (7-дневный пробный период)</td><td>То же, что в гостевом режиме, локально, пока вы решаете, активировать ли Pro. Через 7 дней без Pro аккаунт удаляется.</td></tr>
+<tr><td><strong>Pro</strong> (подписка)</td><td>Зашифрованная синхронизация, команды и общие коллекции, а также неограниченное число рабочих пространств.</td></tr>
+</tbody></table>
+<p>Цена, период оплаты и налоги показываются на странице оплаты до того, как вы заплатите. Вы можете отменить подписку в любой момент через <em>Настройки → Аккаунт и подписка → Управление подпиской</em>, а возврат возможен в течение 14 дней. Подробнее — в разделе <a href="index.html#pricing">Цены и подписка</a>.</p>
+</section>
+
+<section id="privacy"><h2>Конфиденциальность и безопасность</h2>
+<ul>
+<li><strong>Никакой телеметрии и аналитики.</strong> Caesar не отправляет данные об использовании.</li>
+<li><strong>Интерфейс не выполняет сетевых запросов</strong>: их выполняет ядро на Rust, которое проверяет URL, разрешает только http и https и ограничивает размер ответов и файлов.</li>
+<li><strong>Ваши ключи никогда не покидают систему:</strong> ключ шифрования хранится в связке ключей вашей операционной системы.</li>
+<li><strong>Минимальные разрешения и строгая политика безопасности</strong> в приложении.</li>
+<li>В гостевом режиме ваши данные <strong>никогда не покидают ваше устройство</strong>.</li>
+</ul>
+<p>Подробнее — в разделе <a href="index.html#privacy">Безопасность и конфиденциальность</a> и в <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">политике конфиденциальности</a>.</p>
+</section>
+
+<section id="updates"><h2>Обновления</h2>
+<p>Caesar обновляется сам: при запуске он ищет новую версию и, если она есть, скачивает её, устанавливает и перезапускается. <strong>Ваши вкладки и черновики сохраняются.</strong> Каждый пакет подписан, и приложение проверяет подпись перед установкой.</p>
+<ul>
+<li>В разделе <em>Настройки → Обновления</em> их можно отключить или нажать <strong>Проверить обновления</strong>.</li>
+<li>В Linux, если вы устанавливаете Caesar из <strong>Snap Store</strong> (<code>sudo snap install caesar</code> или Ubuntu App Center), Snap обновляет его автоматически; с AppImage обновление происходит внутри приложения, а <code>.deb</code> переустанавливается вручную.</li>
+</ul>
+</section>
+
+<section id="best-practices"><h2>Лучшие практики</h2>
+<ol>
+<li><strong>Используйте переменные для всего, что меняется</strong> (сервер, версия, токены), а профили — для каждого окружения.</li>
+<li><strong>Задавайте аутентификацию на уровне коллекции</strong> и оставляйте запросы в режиме «Inherit».</li>
+<li><strong>Добавляйте хотя бы один тест к каждому важному запросу</strong>: статус и проверку тела.</li>
+<li><strong>Называйте запросы глаголом и ресурсом</strong> («Список пользователей», «Создать заказ») и группируйте их в папки.</li>
+<li><strong>Время от времени экспортируйте копию</strong> важных коллекций.</li>
+<li><strong>Не оставляйте секреты в URL</strong>: используйте секретные переменные или аутентификацию.</li>
+<li><strong>Используйте отдельное рабочее пространство для каждого проекта или клиента</strong>, чтобы переменные не смешивались.</li>
+</ol>
+</section>
+
+<section id="troubleshooting"><h2>Устранение неполадок</h2>
+<h3>Запрос не подключается</h3>
+<p>Проверьте, что URL начинается с <code>http://</code> или <code>https://</code>, что нет неразрешённых переменных (они отображаются другим цветом) и что у вас есть подключение. Посмотрите временную шкалу ответа: она покажет, на каком шаге происходит сбой.</p>
+<h3>Ошибка SSL-сертификата</h3>
+<p>Если вы тестируете локальный сервер с самоподписанным сертификатом, отключите <strong>Проверку SSL</strong> в настройках. Для реальных API включите её обратно.</p>
+<h3>Я получаю 401 или 403</h3>
+<p>Проверьте вкладку Authorization: если выбрано «Inherit», проверьте настройки коллекции. Убедитесь, что токен не истёк и что переменная существует в <strong>активном профиле</strong>.</p>
+<h3>Запрос завершается по тайм-ауту</h3>
+<p>Увеличьте тайм-аут в настройках. При значении <code>0</code> используется максимум (1 час), предназначенный для отладки.</p>
+<h3>Мои тесты ничего не делают</h3>
+<p>Тесты выполняются <strong>после</strong> получения ответа, поэтому запрос нужно отправить. Если в скрипте есть ошибка, она показывается рядом с результатами.</p>
+<h3>Не получается синхронизировать или поделиться</h3>
+<p>Эти функции требуют Pro. В гостевом режиме или с аккаунтом на пробном периоде Caesar работает локально. Если вы уже заплатили, нажмите <strong>Я уже оплатил, проверить</strong> в разделе <em>Аккаунт и подписка</em>.</p>
+</section>
+
+<section id="faq"><h2>Часто задаваемые вопросы</h2>
+<h3>Подходит ли Caesar для тестирования API?</h3>
+<p>Да: он охватывает REST, GraphQL и WebSocket с тестами, переменными, профилями, импортом из Postman и генерацией кода — в лёгком приложении, работающем офлайн.</p>
+<h3>Он бесплатный и с открытым кодом?</h3>
+<p>Он бесплатен в гостевом режиме, и его код открыт, но он <strong>не является open source</strong>: используется лицензия FSL, и продавать его запрещено. Каждая версия становится MIT через два года.</p>
+<h3>Где хранятся мои коллекции?</h3>
+<p>На вашем устройстве. Они покидают его только если вы включаете синхронизацию или делитесь с командой, и в этом случае они зашифрованы.</p>
+<h3>Можно ли перенести коллекции из Postman?</h3>
+<p>Да. Импортируйте файл коллекции (и окружения, которые станут профилями) с боковой панели.</p>
+<h3>Работают ли мои скрипты Postman?</h3>
+<p>Тесты с <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> и функции сохранения переменных — да. Caesar использует безопасный интерпретатор подмножества JavaScript, поэтому скрипт, зависящий от внешних библиотек или сети, не запустится.</p>
+<h3>Есть ли командная строка или интеграция с CI?</h3>
+<p>Пока Caesar — настольное приложение. Вы можете экспортировать запросы как cURL или код для использования в своих скриптах.</p>
+<h3>Нужен ли мне аккаунт?</h3>
+<p>Нет. Аккаунт нужен только для синхронизации и командной работы.</p>
+<h3>На каких системах он работает?</h3>
+<p>Windows (<code>.exe</code> и <code>.msi</code>; скоро в Microsoft Store), macOS (Intel и Apple Silicon) и Linux (Ubuntu App Center / Snap Store через <code>sudo snap install caesar</code>, <code>.deb</code> и <code>AppImage</code>).</p>
+</section>
+
+<div class="why"><h3 style="margin-top:0">Попробуйте сейчас</h3><p>Скачать его можно бесплатно, и аккаунт не нужен. Если чего-то не хватает или вы нашли ошибку, сообщите нам на <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">Скачать Caesar</a></p></div>
+
+</div></main>
+<footer><div class="wrap">
+<p>Caesar — Fair Source по лицензии <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a>: это не open source, и продавать его запрещено. Статический сайт, без cookie и трекинга.</p><p class="mt-3 text-xs leading-relaxed text-zinc-500"><strong>Отказ от ответственности (как есть):</strong> Caesar предоставляется «как есть» и «по мере доступности», без каких-либо гарантий. В максимально допустимой законом степени автор не несёт ответственности за потерю данных или ключей, простои, ущерб, упущенную выгоду, а также за запросы, которые вы отправляете с помощью приложения. Делайте резервные копии. Это не ограничивает ваши законные права потребителя и 14-дневный срок возврата для Pro. <a class="underline transition hover:text-white" href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">Лицензия</a></p>
+<p><a href="https://github.com/cesargarridor/caesar">GitHub</a> · <a href="https://github.com/cesargarridor/caesar/issues">Issues</a> · <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a></p>
+<p><a href="https://cesargarridor.github.io/caesar-legal/en/terms.html">Условия</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">Конфиденциальность</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/cookies.html">Cookie</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/legal.html">Правовая информация</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/refunds.html">Возвраты</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/security.html">Безопасность</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/delete.html">Удалить мои данные</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/support.html">Поддержка</a></p>
+</div></footer>
+
+
+</body></html>

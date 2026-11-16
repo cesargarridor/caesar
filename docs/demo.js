@@ -2,7 +2,7 @@
 (function () {
   var root = document.getElementById("demo"); if (!root) return;
   var fallbackHTML = root.innerHTML; // imagen de respaldo (sin JS o si algo falla)
-  var en = (document.documentElement.lang || "es").slice(0, 2) === "en";
+  var en = (document.documentElement.lang || "es").slice(0, 2) !== "es"; // es o inglés (el resto de idiomas usa el inglés)
   var T = en ? {
     col: "Cafe API", f1: "Auth", f2: "Orders", f3: "Other", send: "Send", sending: "Sending…", params: "Params", headers: "Headers", body: "Body", timeline: "Timeline",
     noBody: "This request has no body.", noParams: "No query parameters. Add ?key=value to the URL.", empty: "Press Send to see the response.", nobody: "(no body)",

@@ -250,3 +250,13 @@ kbd{background:var(--panel);border:1px solid var(--line);border-bottom-width:2px
 .guide .btn:hover{color:var(--btn-text);filter:brightness(1.08)}
 .guide table{display:block;overflow-x:auto;min-width:0;max-width:100%}
 .guide td,.guide th{vertical-align:top}
+
+/* selector de idioma desplegable */
+.lang-dd{position:relative;font-size:.82rem;font-family:ui-monospace,Menlo,monospace}
+.lang-dd summary{display:flex;align-items:center;gap:6px;list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--muted)}
+.lang-dd summary::-webkit-details-marker{display:none}
+.lang-dd summary:hover{color:var(--text)}
+.lang-dd>div{position:absolute;left:0;top:calc(100% + 6px);z-index:60;min-width:11rem;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,.35)}
+.lang-dd a,.lang-dd span{display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--muted);font-family:inherit}
+.lang-dd a:hover{background:var(--deep);color:var(--text)}
+.lang-dd span{background:var(--btn);color:var(--btn-text);font-weight:700}
