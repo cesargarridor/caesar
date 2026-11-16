@@ -277,7 +277,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                   {busy ? t("Un momento…") : reg ? t("Crear cuenta") : t("Iniciar sesión")}
                 </button>
               </form>
-              {(st.google || st.github) && <p className="text-xs text-slate">{t("o")}</p>}
+              {(st.google || st.github) && <p className="text-center text-xs text-slate">{t("o")}</p>}
               <SocialButtons st={st} busy={busy} run={run} reg={reg} onSuccess={done} />
             </div>
           );
