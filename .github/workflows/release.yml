@@ -176,13 +176,27 @@ jobs:
       - name: Versión del snap = tag
         run: |
           sed -i "s|^version: .*|version: '${GITHUB_REF_NAME#v}'|" snap/snapcraft.yaml
+      # Snapcraft is installed from the Snap Store by this action. Retry the
+      # complete setup/build when the store has a transient connectivity error.
       - uses: snapcore/action-build@v1
-        id: build
+        id: build1
+        continue-on-error: true
+      - uses: snapcore/action-build@v1
+        id: build2
+        if: steps.build1.outcome != 'success'
+        continue-on-error: true
+      - uses: snapcore/action-build@v1
+        id: build3
+        if: steps.build1.outcome != 'success' && steps.build2.outcome != 'success'
       - name: Subir a Snap Store (stable)
         if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
         env:
-          SNAP: ${{ steps.build.outputs.snap }}
+          SNAP: ${{ steps.build1.outputs.snap || steps.build2.outputs.snap || steps.build3.outputs.snap }}
         run: |
+          if [ -z "$SNAP" ]; then
+            echo "::error::Snap build failed after 3 attempts."
+            exit 1
+          fi
           for attempt in 1 2 3; do
             if snapcraft upload "$SNAP" --release stable; then
               exit 0
