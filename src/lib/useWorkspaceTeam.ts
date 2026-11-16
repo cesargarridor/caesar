@@ -64,6 +64,7 @@ export function useWorkspaceTeam(args: {
   const conflictRef = useRef(false);
   conflictRef.current = conflict;
   const lastFocus = useRef(0);
+  const refreshHits = useRef<number[]>([]);
 
   const patch = (id: string, p: Partial<NonNullable<WsMeta["team"]>>) =>
     a.current.setWsList((list) => list.map((w) => (w.id === id && w.team ? { ...w, team: { ...w.team, ...p } } : w)));
@@ -233,8 +234,16 @@ export function useWorkspaceTeam(args: {
     flush: async () => {
       await run(false);
     },
+    /** Sincroniza (sube o baja) el espacio compartido actual si hace falta, sin mostrar aviso de «ya actualizado». */
+    sync: async () => {
+      await run(true, true);
+    },
     /** Rueda de actualizar. */
     refresh: async () => {
+      const now = Date.now();
+      refreshHits.current = refreshHits.current.filter((x) => now - x < 60_000);
+      if (refreshHits.current.length >= 3) return;
+      refreshHits.current.push(now);
       setRefreshing(true);
       try {
         const r = await run(true);

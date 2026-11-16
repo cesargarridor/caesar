@@ -92,10 +92,11 @@
 </section>
 
 <section id="install"><h2>Install Caesar</h2>
-<p>Download the installer for your system from the <a href="download.html">download page</a>:</p>
-<table><thead><tr><th>System</th><th>File</th></tr></thead><tbody>
-<tr><td>Windows</td><td>64-bit <code>.exe</code> installer (also <code>.msi</code>)</td></tr>
+<p>Download the installer for your system from the <a href="download.html">download page</a> or from your app store:</p>
+<table><thead><tr><th>System</th><th>File / Store</th></tr></thead><tbody>
+<tr><td>Windows</td><td>64-bit <code>.exe</code> installer (also <code>.msi</code>) · <strong>Coming soon to the Microsoft Store</strong></td></tr>
 <tr><td>macOS (Intel and Apple Silicon)</td><td>Universal <code>.dmg</code>, signed and notarized by Apple</td></tr>
+<tr><td>Ubuntu (Snap Store)</td><td><code>sudo snap install caesar</code> or from the <a href="https://snapcraft.io/caesar">Ubuntu App Center (Snap Store)</a></td></tr>
 <tr><td>Linux</td><td><code>.deb</code> (Debian/Ubuntu) or <code>AppImage</code> (any distro)</td></tr>
 </tbody></table>
 <p>The first time, a system warning may appear, especially on Windows (SmartScreen). That is normal for a new project, and the <a href="index.html#warnings">warnings guide</a> explains what to click. After that, Caesar <a href="#updates">updates itself</a>.</p>
@@ -347,7 +348,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <p>Caesar updates itself: on startup it looks for a new version and, if there is one, downloads it, installs it and restarts. <strong>Your tabs and drafts are kept.</strong> Every package is signed and the application verifies the signature before installing it.</p>
 <ul>
 <li>In <em>Settings → Updates</em> you can turn them off or click <strong>Check for updates</strong>.</li>
-<li>On Linux, automatic updating works with the AppImage; the <code>.deb</code> is reinstalled manually.</li>
+<li>On Linux, if you install Caesar from the <strong>Snap Store</strong> (<code>sudo snap install caesar</code> or the Ubuntu App Center), Snap updates it automatically; with the AppImage it updates inside the app, and the <code>.deb</code> is reinstalled manually.</li>
 </ul>
 </section>
 
@@ -394,7 +395,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <h3>Do I need an account?</h3>
 <p>No. An account is only needed to sync and work as a team.</p>
 <h3>Which systems does it run on?</h3>
-<p>Windows, macOS (Intel and Apple Silicon) and Linux (.deb and AppImage).</p>
+<p>Windows (<code>.exe</code> and <code>.msi</code>; coming soon to the Microsoft Store), macOS (Intel and Apple Silicon) and Linux (Ubuntu App Center / Snap Store with <code>sudo snap install caesar</code>, <code>.deb</code> and <code>AppImage</code>).</p>
 </section>
 
 <div class="why"><h3 style="margin-top:0">Try it now</h3><p>It is free to download and you do not need an account. If something is missing or you find a bug, tell us on <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">Download Caesar</a></p></div>

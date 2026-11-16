@@ -366,6 +366,10 @@ function UpdateControls({ u }: { u: UpdatesProps }) {
         )}
         {s.phase === "error" && <p className="whitespace-pre-wrap text-sm text-rose">{s.message}</p>}
       </div>
+
+      <p className="text-xs text-slate">
+        {t("En Ubuntu puedes instalar Caesar desde la tienda de aplicaciones (Snap Store) o con «sudo snap install caesar» (se actualiza solo desde la tienda). Próximamente también estará disponible en la Microsoft Store para Windows.")}
+      </p>
     </div>
   );
 }
