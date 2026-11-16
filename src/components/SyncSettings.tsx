@@ -7,10 +7,12 @@ import { acceptedTerms, clearTermsSent } from "../lib/legal";
 import { t } from "../lib/i18n";
 import { onAccountChanged } from "../api";
 import { openCheckout, planError, useAccount } from "../lib/account";
+import { markWiping } from "../lib/workspaces";
 
 /** Tierra quemada local: borra datos.json en Rust, vacía lo que Caesar guarda en el navegador y recarga en blanco. */
 const wipeLocalAndReload = async () => {
-  await localWipe();
+  markWiping();
+  try { await localWipe(); } catch { /* aunque falle en disco, se vacía el almacenamiento de la interfaz */ }
   try {
     const ks: string[] = [];
     for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("caesar.")) ks.push(k); }
@@ -204,6 +206,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                     disabled={busy}
                     onClick={() =>
                       run(async () => {
+                        if (wipeOut) markWiping();
                         try { await onBeforeSignOut(); } catch { /* sin red: no bloquea el cierre */ }
                         await syncSignOut();
                         if (wipeOut) { await wipeLocalAndReload(); return; }
@@ -556,6 +559,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                   className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                   disabled={busy || delPhrase.trim().toLowerCase() !== DEL_PHRASE}
                   onClick={() => run(async () => {
+                    if (wipeDel) markWiping();
                     await syncDeleteAccount();
                     clearTermsSent();
                     if (wipeDel) { await wipeLocalAndReload(); return; }

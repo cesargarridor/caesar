@@ -34,7 +34,7 @@ import { NewCollectionDialog, ShareDialog, ShareWorkspaceDialog, TeamInfoDialog 
 import { hashJson, normCode, teamJson, useTeamSync } from "./lib/useTeamSync";
 import { hasTeamCollections, parseWsPayload, useWorkspaceTeam, wsPayloadJson } from "./lib/useWorkspaceTeam";
 import {
-  DEFAULT_WS, FREE_WORKSPACES, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
+  DEFAULT_WS, FREE_WORKSPACES, addTombstones, canCreateWorkspace, collectNodeIds, isWiping, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
   appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncNow, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
@@ -106,6 +106,7 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 function save(key: string, value: unknown) {
+  if (isWiping()) return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
@@ -290,6 +291,7 @@ export default function App() {
   // Barrera 1: 2 s sin cambios antes de pasar los datos a Rust (que los guarda en disco y avisa al trabajador de sincronización).
   useEffect(() => {
     const id = setTimeout(() => {
+      if (isWiping()) return;
       localSave(JSON.stringify(snapshotAll(wsList, wsId, collections, vars, profiles))).catch(() => {});
     }, 2000);
     return () => clearTimeout(id);
@@ -808,7 +810,7 @@ export default function App() {
     for (const w of shared) removeWsData(w.id);
     return shared.length;
   };
-  const purgeAll = () => purgeShared() + purgeWs();
+  const purgeAll = () => (isWiping() ? 0 : purgeShared() + purgeWs());
   const purgeRef = useRef(purgeAll);
   purgeRef.current = purgeAll;
 
