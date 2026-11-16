@@ -54,7 +54,7 @@ pub(crate) struct Cfg {
     google_client_id: String,
     #[serde(rename = "googleClientSecret", default)]
     google_client_secret: String,
-    /// Enlace de compra de Lemon Squeezy (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
+    /// Enlace de compra de Polar (vacío = sin cobro: la sincronización es gratuita y no se exige suscripción).
     #[serde(rename = "checkoutUrl", default)]
     checkout_url: String,
     /// URL del Worker de Cloudflare (valida los códigos de Pro para siempre en `/redeem`). Vacío = no se puede canjear.
@@ -1133,7 +1133,7 @@ pub struct Billing {
     portal: String,
 }
 
-/// Estado de la suscripción (lo escribe el Worker de Cloudflare cuando Lemon Squeezy avisa de un pago).
+/// Estado de la suscripción (lo escribe el Worker de Cloudflare cuando Polar avisa de un pago).
 #[tauri::command]
 pub async fn sync_billing(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
     billing_status(&st).await
@@ -1168,19 +1168,20 @@ pub(crate) async fn billing_status(st: &SyncState) -> Result<Billing, String> {
     })
 }
 
-/// Enlace de pago de Lemon Squeezy con el uid de la cuenta (así el Worker sabe a quién activar). No se envía el correo.
+/// Enlace de pago de Polar con el uid de la cuenta (así el Worker sabe a quién activar). No se envía el correo.
 #[tauri::command]
 pub fn sync_checkout_url(st: tauri::State<SyncState>) -> Result<String, String> {
     let base = cfg().map(|c| c.checkout_url).filter(|u| !u.is_empty()).ok_or("El cobro no está configurado.")?;
     let uid = st.session.lock().map_err(|_| "Estado bloqueado")?.as_ref().map(|s| s.uid.clone()).filter(|u| !u.is_empty()).ok_or("Inicia sesión primero.")?;
     let sep = if base.contains('?') { '&' } else { '?' };
     AWAITING_PAYMENT_UNTIL.store(now_ms() + PAYMENT_WINDOW_MS, Ordering::SeqCst);
-    Ok(format!("{base}{sep}checkout%5Bcustom%5D%5Buid%5D={uid}"))
+    // Polar copia `reference_id` a los metadatos de la suscripción; el Worker lo lee para saber a quién activar.
+    Ok(format!("{base}{sep}reference_id={uid}"))
 }
 
-/// ¿Un estado de Lemon Squeezy implica que la suscripción puede seguir cobrando?
+/// ¿Un estado de Polar implica que la suscripción puede seguir cobrando?
 pub(crate) fn billing_live(status: &str) -> bool {
-    matches!(status, "active" | "on_trial" | "past_due" | "paused" | "unpaid")
+    matches!(status, "active" | "trialing" | "past_due" | "unpaid")
 }
 
 /// Cancela la suscripción viva (si la hay) y borra el registro de aceptación a través del Worker (`/account/close`).
@@ -1221,7 +1222,7 @@ pub(crate) async fn delete_account(st: &SyncState) -> Result<(), String> {
     let (uid, tok) = valid_token(st).await?;
     // Las colecciones de equipo creadas por esta cuenta se eliminan con ella.
     crate::team::delete_owned(st, &uid, &tok).await?;
-    // Si hay suscripción viva, se cancela en Lemon Squeezy antes de borrar nada (si no, seguirían cobrando).
+    // Si hay suscripción viva, se cancela en Polar antes de borrar nada (si no, seguirían cobrando).
     close_remote(st, &c, &uid, &tok).await?;
     for doc in ["sync/main", "sync/meta", "billing/status"] {
         let url = format!(
@@ -1402,7 +1403,7 @@ pub fn on_focus(app: &AppHandle) {
     });
 }
 
-/// Tras un pago (`caesar://upgrade-success`): descarta la caché y confirma el plan contra Firestore. El webhook de Lemon Squeezy puede
+/// Tras un pago (`caesar://upgrade-success`): descarta la caché y confirma el plan contra Firestore. El webhook de Polar puede
 /// tardar unos segundos en escribir `active`, así que se reintenta cada 3 s (hasta ~40 s). Emite `upgrade-result` (true = ya es Pro).
 pub fn confirm_upgrade(app: &AppHandle) {
     let app = app.clone();

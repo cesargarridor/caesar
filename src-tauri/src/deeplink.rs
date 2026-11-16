@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
 const PREFIX: &str = "caesar://share?payload=";
-/// Pago completado en Lemon Squeezy: la página de «gracias» redirige aquí y Caesar confirma el plan.
+/// Pago completado en Polar: la página de «gracias» redirige aquí y Caesar confirma el plan.
 const UPGRADE: &str = "caesar://upgrade-success";
 const MAX_LEN: usize = 256 * 1024;
 
