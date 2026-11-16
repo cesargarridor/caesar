@@ -32,10 +32,11 @@ Página de descargas con requisitos, instalación y verificación: https://cesar
 1. Entra en la página de versiones: **https://github.com/cesargarridor/caesar/releases/latest**
 2. Baja el archivo de tu sistema (están en la sección **Assets**, al final de la página):
 
-| Sistema | Archivo | Notas |
+| Sistema | Archivo / Tienda | Notas |
 | --- | --- | --- |
-| **Windows** | `Caesar_x.y.z_x64-setup.exe` | El instalador normal. También hay un `.msi`. |
+| **Windows** | `Caesar_x.y.z_x64-setup.exe` | El instalador normal (64 bits). También hay un `.msi`. **Próximamente en la Microsoft Store.** |
 | **macOS** (Intel y Apple Silicon) | `Caesar_x.y.z_universal.dmg` | Abre el `.dmg` y arrastra Caesar a Aplicaciones. |
+| **Ubuntu (Snap Store)** | `sudo snap install caesar` | O búscalo en la [tienda de aplicaciones de Ubuntu (Snap Store)](https://snapcraft.io/caesar). Se actualiza solo. |
 | **Linux (Debian/Ubuntu)** | `Caesar_x.y.z_amd64.deb` | `sudo apt install ./Caesar_x.y.z_amd64.deb` |
 | **Linux (cualquier distro)** | `Caesar_x.y.z_amd64.AppImage` | `chmod +x Caesar_*.AppImage && ./Caesar_*.AppImage` |
 
@@ -71,7 +72,7 @@ Caesar se actualiza solo, así que solo tienes que instalarlo a mano la primera 
   Tus pestañas y borradores se conservan.
 - Se controla en **Ajustes → Actualizaciones**: puedes **desactivarlas** o pulsar **Buscar actualizaciones** cuando quieras.
 - Cada paquete va firmado y la app comprueba la firma antes de instalarlo.
-- En Linux, la actualización automática solo funciona con el **AppImage**; el `.deb` hay que reinstalarlo a mano.
+- En Linux, si instalas Caesar desde la **Snap Store** (`sudo snap install caesar` o la tienda de Ubuntu), Snap lo actualiza solo; con el **AppImage** se actualiza desde la propia app, y el `.deb` hay que reinstalarlo a mano.
 
 ## Licencia
 

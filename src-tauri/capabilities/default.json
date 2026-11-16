@@ -36,6 +36,7 @@
     "allow-pairing-cancel",
     "allow-sync-status",
     "allow-local-save",
+    "allow-local-wipe",
     "allow-sync-sign-in",
     "allow-sync-google",
     "allow-sync-link-confirm",

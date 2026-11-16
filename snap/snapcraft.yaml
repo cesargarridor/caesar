@@ -31,9 +31,7 @@ description: |
 
   Caesar Sync (optional subscription) syncs your requests and collections
   across your computers with end-to-end encryption (AES-256-GCM). The key
-  never leaves your device's keychain, so nobody else can read your tokens.
-  To use the keychain, connect it once with:
-  sudo snap connect caesar:password-manager-service
+  never leaves your device, so nobody else can read your tokens.
 
   Caesar works fully offline and needs no account to send requests.
 grade: stable

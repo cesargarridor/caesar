@@ -58,6 +58,7 @@ export function useTeamSync(
   const setConflict = (code: string, on: boolean) =>
     setConflicts((c) => (on ? (c.includes(code) ? c : [...c, code]) : c.filter((x) => x !== code)));
   const lastFocus = useRef(0);
+  const refreshHits = useRef(new Map<string, number[]>());
 
   /** Aplica la versión de la nube a la colección local. */
   const apply = (code: string, json: string, updatedAt: number, owner: boolean) => {
@@ -235,6 +236,10 @@ export function useTeamSync(
     flush: async () => {
       await run(false);
     },
+    /** Sincroniza (sube o baja) todas las colecciones compartidas del espacio actual sin mostrar avisos de «ya actualizado». */
+    syncAll: async () => {
+      await run(true, undefined, true);
+    },
     /** Olvida todo el estado de sincronización (al cerrar sesión). */
     reset: () => {
       synced.current.clear();
@@ -244,6 +249,10 @@ export function useTeamSync(
     refreshing,
     /** Botón «Actualizar»: mira la fecha y baja la colección solo si hay algo más nuevo. */
     refresh: async (code: string) => {
+      const now = Date.now();
+      const hits = (refreshHits.current.get(code) ?? []).filter((x) => now - x < 60_000);
+      if (hits.length >= 3) return;
+      refreshHits.current.set(code, [...hits, now]);
       setRefreshing((r) => (r.includes(code) ? r : [...r, code]));
       try {
         const r = await run(true, code);

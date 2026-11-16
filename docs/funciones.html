@@ -92,10 +92,11 @@
 </section>
 
 <section id="instalar"><h2>Instalar Caesar</h2>
-<p>Descarga el instalador de tu sistema desde la <a href="download.html">página de descargas</a>:</p>
-<table><thead><tr><th>Sistema</th><th>Archivo</th></tr></thead><tbody>
-<tr><td>Windows</td><td>Instalador <code>.exe</code> de 64 bits (también <code>.msi</code>)</td></tr>
+<p>Descarga el instalador de tu sistema desde la <a href="download.html">página de descargas</a> o desde tu tienda:</p>
+<table><thead><tr><th>Sistema</th><th>Archivo / Tienda</th></tr></thead><tbody>
+<tr><td>Windows</td><td>Instalador <code>.exe</code> de 64 bits (también <code>.msi</code>) · <strong>Próximamente en la Microsoft Store</strong></td></tr>
 <tr><td>macOS (Intel y Apple Silicon)</td><td><code>.dmg</code> universal, firmado y notarizado con Apple</td></tr>
+<tr><td>Ubuntu (Snap Store)</td><td><code>sudo snap install caesar</code> o desde la <a href="https://snapcraft.io/caesar">tienda de aplicaciones de Ubuntu (Snap Store)</a></td></tr>
 <tr><td>Linux</td><td><code>.deb</code> (Debian/Ubuntu) o <code>AppImage</code> (cualquier distro)</td></tr>
 </tbody></table>
 <p>La primera vez puede salir un aviso del sistema, sobre todo en Windows (SmartScreen). Es normal en un proyecto nuevo y la <a href="index.html#avisos">guía de avisos</a> te explica qué pulsar. Después, Caesar <a href="#actualizaciones">se actualiza solo</a>.</p>
@@ -347,7 +348,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <p>Caesar se actualiza solo: al abrir busca una versión nueva y, si la hay, la descarga, la instala y se reinicia. <strong>Tus pestañas y borradores se conservan.</strong> Cada paquete va firmado y la aplicación comprueba la firma antes de instalarlo.</p>
 <ul>
 <li>En <em>Ajustes → Actualizaciones</em> puedes desactivarlas o pulsar <strong>Buscar actualizaciones</strong>.</li>
-<li>En Linux la actualización automática funciona con el AppImage; el <code>.deb</code> se reinstala a mano.</li>
+<li>En Linux, si lo instalas desde la <strong>Snap Store</strong> (<code>sudo snap install caesar</code> o la tienda de Ubuntu), Snap lo actualiza solo; con el AppImage se actualiza dentro de la app, y el <code>.deb</code> se reinstala a mano.</li>
 </ul>
 </section>
 
@@ -394,7 +395,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <h3>¿Necesito una cuenta?</h3>
 <p>No. La cuenta solo hace falta para sincronizar y trabajar en equipo.</p>
 <h3>¿En qué sistemas funciona?</h3>
-<p>Windows, macOS (Intel y Apple Silicon) y Linux (.deb y AppImage).</p>
+<p>Windows (<code>.exe</code> y <code>.msi</code>; próximamente en la Microsoft Store), macOS (Intel y Apple Silicon) y Linux (tienda de Ubuntu / Snap Store con <code>sudo snap install caesar</code>, <code>.deb</code> y <code>AppImage</code>).</p>
 </section>
 
 <div class="why"><h3 style="margin-top:0">Pruébalo ahora</h3><p>Descargarlo es gratis y no necesitas cuenta. Si te falta algo o encuentras un fallo, cuéntalo en <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">Descargar Caesar</a></p></div>

@@ -218,7 +218,7 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
 pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64) -> Result<Option<TeamDoc>, String> {
     check_code(&code)?;
     crate::sync::require_pro(&st)?;
-    if !crate::limit::allow(&format!("team_pull:{code}"), 6, 60_000) {
+    if !crate::limit::allow(&format!("team_pull:{code}"), 3, 60_000) {
         return Ok(None);
     }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
