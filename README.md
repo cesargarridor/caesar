@@ -106,7 +106,7 @@ origen y su licencia en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Caesar
 
 - **Invitado:** gratis, uso local sin cuenta. Los datos se guardan solo en tu dispositivo.
 - **Cuenta:** 7 días de prueba local; si no activas Pro, la cuenta se elimina.
-- **Pro:** suscripción gestionada por Lemon Squeezy (Merchant of Record) con **renovación automática**. El precio y la periodicidad (mensual o anual) se muestran en el checkout antes de pagar, con impuestos incluidos y sin cargos ocultos.
+- **Pro:** suscripción gestionada por Polar (Merchant of Record) con **renovación automática**. El precio y la periodicidad (mensual o anual) se muestran en el checkout antes de pagar, con impuestos incluidos y sin cargos ocultos.
 - **Cancelar:** cuando quieras, en Ajustes → Cuenta y suscripción → Gestionar suscripción (Pro hasta el fin del periodo pagado). Borrar la cuenta también cancela la suscripción.
 - **Reembolso:** 14 días desde cualquier cobro.
 - Legal: [Términos](https://cesargarridor.github.io/caesar-legal/terms.html) · [Privacidad](https://cesargarridor.github.io/caesar-legal/privacy.html) · [Reembolsos](https://cesargarridor.github.io/caesar-legal/refunds.html) · [Aviso legal](https://cesargarridor.github.io/caesar-legal/legal.html) · [Borrar datos](https://cesargarridor.github.io/caesar-legal/delete.html) · [Seguridad](https://cesargarridor.github.io/caesar-legal/security.html).
@@ -155,7 +155,7 @@ reclamación derivados del uso o de la imposibilidad de usar Caesar, entre otros
   daños en los sistemas a los que apuntes. Tú decides qué ejecutas y contra qué servidor.
 - Fallos de seguridad, vulnerabilidades o errores del software o de sus dependencias, aunque se hayan hecho auditorías o correcciones:
   ninguna medida de seguridad garantiza una protección total.
-- Fallos, cambios o cortes de servicios de terceros (GitHub, Google, Firebase, Lemon Squeezy, proveedores de IA, etc.) o del servicio de sincronización.
+- Fallos, cambios o cortes de servicios de terceros (GitHub, Google, Firebase, Polar, proveedores de IA, etc.) o del servicio de sincronización.
 - Daños indirectos, lucro cesante, pérdida de negocio o de beneficios, y cualquier daño derivado de actualizaciones automáticas.
 
 **Haz copias de seguridad** de lo importante (exporta tus colecciones y guarda la clave de recuperación).
