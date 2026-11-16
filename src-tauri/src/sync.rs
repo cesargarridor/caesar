@@ -1268,6 +1268,7 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
         let _ = tokio::time::timeout(Duration::from_secs(8), push(&app, &st)).await;
     }
     clear_refresh();
+    crate::account::forget_cached();
     if let Ok(mut g) = st.session.lock() {
         *g = None;
     }
@@ -1285,7 +1286,7 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
     Ok(())
 }
 
-/// Tierra quemada: borra de este equipo `datos.json` (y sus copias `datos*`). Se usa al cerrar sesión o borrar la cuenta
+/// Tierra quemada: borra de este equipo `datos.json` (y sus copias `datos*` e `history.json`). Se usa al cerrar sesión o borrar la cuenta
 /// cuando el usuario marca «eliminar también mis colecciones locales». No hay copia de seguridad: no se puede deshacer.
 #[tauri::command]
 pub fn local_wipe(app: AppHandle, st: tauri::State<SyncState>) -> Result<(), String> {
@@ -1293,7 +1294,7 @@ pub fn local_wipe(app: AppHandle, st: tauri::State<SyncState>) -> Result<(), Str
     if let Ok(rd) = std::fs::read_dir(&dir) {
         for e in rd.flatten() {
             let name = e.file_name().to_string_lossy().into_owned();
-            if name.starts_with("datos") && e.path().is_file() {
+            if (name.starts_with("datos") || name == "history.json" || name == "account.json") && e.path().is_file() {
                 std::fs::remove_file(e.path()).map_err(|er| format!("No se pudo borrar {name}: {er}"))?;
             }
         }

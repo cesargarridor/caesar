@@ -20,6 +20,13 @@ export const DEFAULT_WS = "default";
 const LIST_KEY = "caesar.workspaces";
 const ACTIVE_KEY = "caesar.workspace";
 
+/** Mientras se está vaciando todo el almacenamiento local (tierra quemada), ningún efecto debe volver a escribir en localStorage ni en disco. */
+let wiping = false;
+export const markWiping = () => {
+  wiping = true;
+};
+export const isWiping = () => wiping;
+
 export const wsKey = (base: "collections" | "vars" | "tabs" | "envs", id: string) =>
   id === DEFAULT_WS ? `caesar.${base}` : `caesar.${base}.${id}`;
 
@@ -32,6 +39,7 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 function write(key: string, value: unknown) {
+  if (wiping) return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
@@ -56,6 +64,7 @@ export function loadWsActive(list: WsMeta[]): string {
   return list.some((w) => w.id === id) ? id : list[0].id;
 }
 export function saveWsActive(id: string) {
+  if (wiping) return;
   try {
     localStorage.setItem(ACTIVE_KEY, id);
   } catch {
