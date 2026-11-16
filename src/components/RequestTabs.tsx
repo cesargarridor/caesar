@@ -6,7 +6,7 @@ import JsonEditor from "./JsonEditor";
 import type { AuthData, KV, RequestState } from "../types";
 import { t } from "../lib/i18n";
 
-type Tab = "params" | "auth" | "body" | "tests" | "headers" | "settings";
+type Tab = "params" | "auth" | "body" | "tests" | "headers";
 
 interface Props {
   req: RequestState;
@@ -24,10 +24,8 @@ const COMMON_HEADERS = [
   "Cookie", "Origin", "Referer", "User-Agent", "X-Requested-With", "X-API-Key", "If-None-Match",
 ];
 
-const box = "w-24 rounded-md border border-fg/10 bg-kelp px-2 py-1.5 text-sm focus:outline-none focus:border-aqua";
-
 const TAB_KEY = "caesar.reqTab";
-const VALID: Tab[] = ["params", "auth", "body", "tests", "headers", "settings"];
+const VALID: Tab[] = ["params", "auth", "body", "tests", "headers"];
 
 const TESTS_EXAMPLE = `var jsonData = JSON.parse(responseBody);
 pm.globals.set("token_id", jsonData.access_token);`;
@@ -60,7 +58,6 @@ export default function RequestTabs({ req, patch, inherited, vars, onAi }: Props
     { id: "auth", label: "Authorization", badge: req.auth.type !== "none" ? "•" : undefined },
     { id: "body", label: "Body", badge: req.body.mode !== "none" ? "•" : undefined },
     { id: "tests", label: "Scripts", badge: req.tests?.trim() ? "•" : undefined },
-    { id: "settings", label: "Settings" },
     { id: "headers", label: "Headers", badge: count(req.headers) ? String(count(req.headers)) : undefined },
   ];
 
@@ -116,53 +113,6 @@ export default function RequestTabs({ req, patch, inherited, vars, onAi }: Props
         )}
         {tab === "headers" && (
           <KVEditor rows={req.headers} onChange={(headers) => patch({ headers })} suggestions={COMMON_HEADERS} />
-        )}
-        {tab === "settings" && (
-          <div className="space-y-3 text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="accent-[var(--t-accent)]"
-                checked={req.settings.followRedirects}
-                onChange={(e) => patch({ settings: { ...req.settings, followRedirects: e.target.checked } })}
-              />
-              {t("Seguir redirecciones (máx. 10)")}
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="accent-[var(--t-accent)]"
-                checked={req.settings.verifySsl}
-                onChange={(e) => patch({ settings: { ...req.settings, verifySsl: e.target.checked } })}
-              />
-              {t("Verificar certificado SSL")}
-              {!req.settings.verifySsl && <span className="text-xs text-lav">{t("⚠ desactivado: solo para pruebas")}</span>}
-            </label>
-            <label className="flex items-center gap-2">
-              {t("Versión de HTTP")}
-              <select
-                className={box.replace("w-24", "w-36")}
-                value={req.settings.httpVersion ?? "auto"}
-                onChange={(e) => patch({ settings: { ...req.settings, httpVersion: e.target.value as "auto" | "1.1" | "2" } })}
-              >
-                <option value="auto">{t("Automática")}</option>
-                <option value="1.1">HTTP/1.x</option>
-                <option value="2">HTTP/2</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2">
-              {t("Timeout (segundos, 0 = 1 hora, máx. 3600)")}
-              <input
-                type="number"
-                min={0}
-                className={box}
-                value={req.settings.timeoutSecs}
-                onChange={(e) =>
-                  patch({ settings: { ...req.settings, timeoutSecs: Math.min(3600, Math.max(0, Math.floor(Number(e.target.value)) || 0)) } })
-                }
-              />
-            </label>
-          </div>
         )}
       </div>
     </div>

@@ -42,13 +42,8 @@ sha2 = "0.10"
 base64 = "0.22"
 zeroize = "1"
 
-# Llavero del sistema operativo (cada plataforma usa el suyo)
-[target.'cfg(windows)'.dependencies]
-keyring = { version = "3", features = ["windows-native"] }
-[target.'cfg(target_os = "macos")'.dependencies]
-keyring = { version = "3", features = ["apple-native"] }
-[target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
+# Identificador de hardware (clave local sin llavero del sistema; ver src/secret.rs)
+machine-uid = "0.5"
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

@@ -52,7 +52,7 @@ pub fn ai_set_key(provider: String, key: String) -> Result<(), String> {
 #[tauri::command]
 pub fn ai_clear_key(provider: String) -> Result<(), String> {
     match entry(&provider)?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Ok(()) | Err(crate::secret::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("No se pudo borrar la clave: {e}")),
     }
 }
