@@ -45,8 +45,7 @@ archivo en la Release; compáralo con `sha256sum` / `shasum -a 256` / `Get-FileH
 
 ### Primer arranque: avisos del sistema
 
-- **Windows (SmartScreen):** el instalador no lleva firma de código todavía. Pulsa **Más información** y luego
-  **Ejecutar de todos modos**.
+- **Windows (SmartScreen):** con el instalador directo (`.exe` / `.msi`) aún sigue apareciendo la pantalla de SmartScreen porque no lleva firma de código todavía (pulsa **Más información** y luego **Ejecutar de todos modos**). **Próximamente estará en la Microsoft Store:** cuando esté subida podrás descargarla desde ahí y ya no aparecerá el aviso de SmartScreen.
 - **macOS (Gatekeeper):** la app se firma y notariza con Apple, así que normalmente no avisa. Si aparece un aviso,
   clic derecho sobre Caesar → **Abrir** → **Abrir**; si no, en *Ajustes del Sistema → Privacidad y seguridad* pulsa
   **Abrir de todos modos**.
