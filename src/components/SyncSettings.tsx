@@ -314,15 +314,19 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                   </div>
                 )}
                 {!reg && (
-                  <button type="button" className="text-xs text-slate underline hover:text-mist" onClick={() => { setForgot(true); setResetSent(false); setMsg(null); }}>
-                    {t("¿Olvidaste tu contraseña?")}
-                  </button>
+                  <div>
+                    <button type="button" className="text-xs text-slate underline hover:text-mist" onClick={() => { setForgot(true); setResetSent(false); setMsg(null); }}>
+                      {t("¿Olvidaste tu contraseña?")}
+                    </button>
+                  </div>
                 )}
-                <button className={btnCls} disabled={busy || !email.trim() || !password} type="submit">
-                  {busy ? t("Un momento…") : reg ? t("Crear cuenta") : t("Iniciar sesión")}
-                </button>
+                <div>
+                  <button className={btnCls} disabled={busy || !email.trim() || !password} type="submit">
+                    {busy ? t("Un momento…") : reg ? t("Crear cuenta") : t("Iniciar sesión")}
+                  </button>
+                </div>
               </form>
-              {(st.google || st.github) && <p className="text-center text-xs text-slate">{t("o")}</p>}
+              {(st.google || st.github) && <div className="flex items-center gap-3 text-xs text-slate"><span className="h-px flex-1 bg-fg/15" /><span>{t("o")}</span><span className="h-px flex-1 bg-fg/15" /></div>}
               <SocialButtons st={st} busy={busy} run={run} reg={reg} onSuccess={done} />
               </>)}
             </div>
