@@ -31,6 +31,7 @@ fn main() {
         "pairing_cancel",
         "sync_status",
         "local_save",
+        "local_wipe",
         "sync_sign_in",
         "sync_google",
         "sync_link_confirm",

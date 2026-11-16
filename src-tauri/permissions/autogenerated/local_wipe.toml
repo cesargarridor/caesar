@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-wipe"
+description = "Enables the local_wipe command without any pre-configured scope."
+commands.allow = ["local_wipe"]
+
+[[permission]]
+identifier = "deny-local-wipe"
+description = "Denies the local_wipe command without any pre-configured scope."
+commands.deny = ["local_wipe"]

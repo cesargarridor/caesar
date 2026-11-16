@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, History, Maximize2, MoreHorizontal, Plus, Settings, SlidersHorizontal, Variable } from "lucide-react";
+import { Download, FileUp, History, Maximize2, MoreHorizontal, Plus, RefreshCw, Settings, SlidersHorizontal, Variable } from "lucide-react";
 import SidebarTree, { type DragState, type TreeActions } from "./SidebarTree";
 import VarTable from "./VarTable";
 import ProfilesPanel from "./ProfilesPanel";
@@ -46,13 +46,16 @@ interface Props extends TreeActions {
   onOpenHistory: (e: HistoryEntry) => void;
   onNewCollection: () => void;
   onSettings: () => void;
+  /** Sincronización rápida (cuenta entre ordenadores + espacio y colecciones compartidas si las hay). */
+  onSync?: () => void;
+  syncing?: boolean;
   /** Ancho actual en px y callback al arrastrar el borde derecho. */
   width: number;
   onWidth: (w: number) => void;
 }
 
 export default function Sidebar({
-  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, width, onWidth, ...actions
+  collections, selectedPath, importing, error, vars, onVars, profiles, onProfiles, manageProfilesTick, onOpenVars, workspaces, activeWs, onSwitchWs, onAddWs, onRenameWs, onDeleteWs, onShareWs, onInfoWs, onJoinWs, onRefreshWs, refreshingWs, onImport, onImportOpenApi, onOpenHistory, onNewCollection, onSettings, onSync, syncing, width, onWidth, ...actions
 }: Props) {
   const [dock, setDock] = useState<"history" | "vars" | "profiles" | null>(null);
   useEffect(() => {
@@ -289,6 +292,17 @@ export default function Sidebar({
           </div>
         )}
         <div className="flex items-center justify-around px-2 py-1.5">
+          {onSync && (
+            <button
+              onClick={onSync}
+              disabled={syncing}
+              title={t("Sincronizar ahora")}
+              aria-label={t("Sincronizar ahora")}
+              className="rounded-lg p-2 text-silver hover:bg-fg/10 hover:text-mist"
+            >
+              <RefreshCw size={16} className={syncing ? "animate-spin text-aqua" : ""} />
+            </button>
+          )}
           {([
             ["history", History, t("Historial")],
             ["vars", Variable, t("Variables globales")],
