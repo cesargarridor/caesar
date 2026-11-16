@@ -1543,6 +1543,7 @@ fn main() {
             sync::local_save,
             sync::local_wipe,
             sync::sync_sign_in,
+            sync::sync_reset_password,
             sync::sync_google,
             sync::sync_link_confirm,
             sync::sync_link_cancel,

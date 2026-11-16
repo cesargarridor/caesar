@@ -61,6 +61,8 @@ export const localSave = (json: string) => invoke<void>("local_save", { json });
 /** Devuelve el modo resultante: "pro" o "limbo" (cuenta sin pagar, prueba de 7 días). */
 export const syncSignIn = (email: string, password: string, create: boolean) =>
   invoke<string>("sync_sign_in", { email, password, create });
+/** Envía el correo para restablecer la contraseña (no revela si la cuenta existe). */
+export const syncResetPassword = (email: string) => invoke<void>("sync_reset_password", { email });
 export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
 export const syncGoogle = () => invoke<void>("sync_google");
 export const syncLinkConfirm = (password: string) => invoke<void>("sync_link_confirm", { password });

@@ -827,6 +827,26 @@ pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email
     finish_session(&app, &st, s).await
 }
 
+/// Envía por correo el enlace de Firebase para restablecer la contraseña. No revela si el correo tiene cuenta.
+#[tauri::command]
+pub async fn sync_reset_password(st: tauri::State<'_, SyncState>, email: String) -> Result<(), String> {
+    let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
+    let email = email.trim();
+    if email.is_empty() {
+        return Err("Escribe tu correo.".into());
+    }
+    if !crate::limit::allow("sync_reset_password", 3, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
+    let url = format!("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={}", c.api_key);
+    match post_json(&st, &url, json!({ "requestType": "PASSWORD_RESET", "email": email })).await {
+        Ok(_) => Ok(()),
+        // Mismo resultado exista o no la cuenta: no se puede usar para averiguar qué correos están registrados.
+        Err(e) if e == auth_error("EMAIL_NOT_FOUND") => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
 #[derive(Serialize, Clone)]
 pub struct DeviceCode {
     user_code: String,

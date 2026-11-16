@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, KeyRound, LogOut, RefreshCw, X } from "lucide-react";
-import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, localWipe, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, localWipe, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncSignIn, syncResetPassword, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { passwordStrength, STRENGTH_COLORS, STRENGTH_LABELS, type Strength } from "../lib/passwordStrength";
 import SocialButtons from "./SocialButtons";
 import PlanNotice from "./PlanNotice";
 import { acceptedTerms, clearTermsSent } from "../lib/legal";
@@ -66,6 +67,11 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   /** Pestaña de acceso abierta. Con sesión iniciada solo se ve si el usuario pulsa una (para entrar con otra cuenta). */
   const [mode, setMode] = useState<"login" | "register" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  /** Fuerza mostrada: se recalcula 1 s después de que el usuario deje de escribir. */
+  const [strength, setStrength] = useState<Strength | null>(null);
+  /** Pantalla «restaurar contraseña» (solo con la pestaña de inicio de sesión). */
+  const [forgot, setForgot] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [codeMsg, setCodeMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -92,6 +98,12 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     const id = setInterval(() => { setNow(Date.now()); void syncStatus().then(setSt).catch(() => {}); }, 1000);
     return () => clearInterval(id);
   }, [watching]);
+
+  useEffect(() => {
+    if (!password) { setStrength(null); return; }
+    const id = setTimeout(() => setStrength(passwordStrength(password)), 1000);
+    return () => clearTimeout(id);
+  }, [password]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -236,7 +248,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
             return (
               <button
                 key={m}
-                onClick={() => { setMode(m); setMsg(null); }}
+                onClick={() => { setMode(m); setMsg(null); setForgot(false); setResetSent(false); }}
                 className={`-mb-px border-b-2 px-4 py-2 text-sm ${open ? "border-aqua text-mist" : "border-transparent text-slate hover:text-silver"}`}
               >
                 {m === "login" ? t("Iniciar sesión") : t("Registrarse")}
@@ -252,6 +264,24 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
               <p className="text-xs text-slate">
                 {reg ? t("Crea una cuenta para sincronizar tus colecciones y compartirlas con tu equipo.") : t("Inicia sesión para sincronizar y volver a ver tus colecciones compartidas. Sin sesión, Caesar sigue funcionando en local.")}
               </p>
+              {forgot && !reg ? (
+                <form
+                  className="space-y-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!email.trim()) return setMsg(t("Escribe tu correo."));
+                    run(async () => { await syncResetPassword(email); setResetSent(true); });
+                  }}
+                >
+                  <p className="text-xs text-slate">{t("Escribe el correo de tu cuenta y te enviaremos un enlace para elegir una contraseña nueva.")}</p>
+                  <input className={inputCls} type="email" autoComplete="username" placeholder={t("Correo")} value={email} onChange={(e) => { setEmail(e.target.value); setResetSent(false); }} />
+                  {resetSent && <p className="text-xs text-green-400">{t("Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Revisa también el spam.")}</p>}
+                  <div className="flex gap-2">
+                    <button className={btnCls} disabled={busy || !email.trim()} type="submit">{busy ? t("Un momento…") : resetSent ? t("Enviar de nuevo") : t("Enviar enlace")}</button>
+                    <button type="button" className={ghostCls} disabled={busy} onClick={() => { setForgot(false); setResetSent(false); setMsg(null); }}>{t("Volver")}</button>
+                  </div>
+                </form>
+              ) : (<>
               <form
                 className="space-y-3"
                 onSubmit={(e) => {
@@ -273,12 +303,28 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {reg && strength !== null && (
+                  <div className="space-y-1" aria-live="polite">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= Math.max(1, strength) ? STRENGTH_COLORS[strength] : "bg-fg/15"}`} />
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate">{t("Seguridad de la contraseña")}: <span className="text-mist">{t(STRENGTH_LABELS[strength])}</span></p>
+                  </div>
+                )}
+                {!reg && (
+                  <button type="button" className="text-xs text-slate underline hover:text-mist" onClick={() => { setForgot(true); setResetSent(false); setMsg(null); }}>
+                    {t("¿Olvidaste tu contraseña?")}
+                  </button>
+                )}
                 <button className={btnCls} disabled={busy || !email.trim() || !password} type="submit">
                   {busy ? t("Un momento…") : reg ? t("Crear cuenta") : t("Iniciar sesión")}
                 </button>
               </form>
               {(st.google || st.github) && <p className="text-center text-xs text-slate">{t("o")}</p>}
               <SocialButtons st={st} busy={busy} run={run} reg={reg} onSuccess={done} />
+              </>)}
             </div>
           );
         })()}
