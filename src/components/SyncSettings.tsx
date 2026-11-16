@@ -102,7 +102,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
     const data = {
       app: "Caesar",
       exportedAt: new Date().toISOString(),
-      account: { email: account.email, plan: account.mode, pro: account.is_pro, proForever: account.forever, whitelisted: account.whitelisted },
+      account: { email: account.email, plan: account.mode, pro: account.is_pro, proForever: account.forever, proEmpresa: account.empresa, whitelisted: account.whitelisted },
       subscription: bill ? { active: bill.active, status: bill.status, endsAt: bill.ends_at || null } : null,
       termsAcceptance: acceptedTerms(),
       local,
@@ -277,14 +277,23 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
 
       {st.signed_in && account.forever && (
         <div className="max-w-md space-y-1 rounded-xl bg-deep p-4 ring-1 ring-aqua/40">
-          <p className="text-sm font-medium text-mist">{t("Plan Compas · Pro para siempre")}</p>
-          <p className="text-xs text-slate">{t("Tu cuenta es Pro de por vida: no hay suscripción ni caducidad. A Nemo le haces feliz.")}</p>
+          {account.empresa ? (
+            <>
+              <p className="text-sm font-medium text-mist">{t("Plan Pro EMPRESA")}</p>
+              <p className="text-xs text-slate">{t("Tu cuenta usa una licencia de empresa: Pro con sincronización, equipos y espacios ilimitados.")}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-mist">{t("Plan Compas · Pro para siempre")}</p>
+              <p className="text-xs text-slate">{t("Tu cuenta es Pro de por vida: no hay suscripción ni caducidad. A Nemo le haces feliz.")}</p>
+            </>
+          )}
         </div>
       )}
       {st.signed_in && !account.is_pro && (
         <section className="space-y-2">
           <h3 className="text-sm text-mist">{t("Canjear código")}</h3>
-          <p className="max-w-md text-xs text-slate">{t("¿Te han pasado un código? Pégalo aquí para desbloquear Pro para siempre.")}</p>
+          <p className="max-w-md text-xs text-slate">{t("¿Te han pasado un código o una licencia de empresa? Pégalo aquí para desbloquear Pro.")}</p>
           <form
             className="flex max-w-md gap-2"
             onSubmit={(e) => {
@@ -296,7 +305,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                 .then((a) => {
                   setAccount(a);
                   setCode("");
-                  setCodeMsg({ ok: true, text: t("¡Listo! Ya eres Pro para siempre.") });
+                  setCodeMsg({ ok: true, text: a.empresa ? t("¡Listo! Tu cuenta ya es Pro EMPRESA.") : t("¡Listo! Ya eres Pro para siempre.") });
                 })
                 .catch((err) => setCodeMsg({ ok: false, text: errText(err) }))
                 .finally(() => {
@@ -305,7 +314,7 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                 });
             }}
           >
-            <input className={`${inputCls} font-mono`} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="CAESAR-XXXX-XXXX-XXXX" spellCheck={false} autoComplete="off" />
+            <input className={`${inputCls} font-mono`} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="CAESAR-XXXX-XXXX-XXXX…" spellCheck={false} autoComplete="off" />
             <button type="submit" className={btnCls} disabled={busy || !code.trim()}>{t("Canjear")}</button>
           </form>
           {codeMsg && <p className={`text-xs ${codeMsg.ok ? "text-emerald-400" : "text-rose"}`}>{codeMsg.text}</p>}

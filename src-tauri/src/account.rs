@@ -28,16 +28,22 @@ fn parse_forever(doc: &Value) -> bool {
     doc["fields"]["proForever"]["booleanValue"].as_bool().unwrap_or(false)
 }
 
-/// Lee `users/{uid}` con el token del usuario → (lista blanca, Pro para siempre). 404/403 o respuesta no válida = (false, false). Solo la red da `Err`.
-async fn fetch_user_flags(st: &SyncState, uid: &str, tok: &str) -> Result<(bool, bool), String> {
+/// Interpreta `users/{uid}`: plan Empresas (clave de licencia de Polar canjeada). Solo cuenta junto a `proForever`, que es lo que
+/// escribe el Worker y lo que protegen las reglas: un `proEmpresa` suelto no cambia nada.
+fn parse_empresa(doc: &Value) -> bool {
+    parse_forever(doc) && doc["fields"]["proEmpresa"]["booleanValue"].as_bool().unwrap_or(false)
+}
+
+/// Lee `users/{uid}` con el token del usuario → (lista blanca, Pro para siempre, Empresa). 404/403 o respuesta no válida = todo false. Solo la red da `Err`.
+async fn fetch_user_flags(st: &SyncState, uid: &str, tok: &str) -> Result<(bool, bool, bool), String> {
     let c = sync::cfg().ok_or("Sincronización no configurada.")?;
     let url = format!("https://firestore.googleapis.com/v1/projects/{}/databases/(default)/documents/users/{uid}", c.project_id);
     let res = st.client.get(url).bearer_auth(tok).send().await.map_err(|_| "Sin conexión con Firebase.".to_string())?;
     if !res.status().is_success() {
-        return Ok((false, false));
+        return Ok((false, false, false));
     }
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).unwrap_or(Value::Null);
-    Ok((parse_whitelist(&v), parse_forever(&v)))
+    Ok((parse_whitelist(&v), parse_forever(&v), parse_empresa(&v)))
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
@@ -49,6 +55,8 @@ pub struct AccountState {
     pub whitelisted: bool,
     /// Pro para siempre (plan «Compas»): se desbloqueó con un código canjeado.
     pub forever: bool,
+    /// Plan Empresas: se desbloqueó con una clave de licencia de Polar (también cuenta como `forever` mientras la clave siga activa).
+    pub empresa: bool,
     /// Días que quedan de prueba (0 si ya pasó el plazo). Solo tiene sentido en `limbo`.
     pub days_left: i64,
     /// La cuenta se ha borrado en esta comprobación.
@@ -57,7 +65,7 @@ pub struct AccountState {
 }
 
 fn guest(deleted: bool) -> AccountState {
-    AccountState { mode: "guest".into(), is_pro: false, whitelisted: false, forever: false, days_left: 0, deleted, email: String::new() }
+    AccountState { mode: "guest".into(), is_pro: false, whitelisted: false, forever: false, empresa: false, days_left: 0, deleted, email: String::new() }
 }
 
 /// Dónde se guarda el último estado conocido de la cuenta (se fija al arrancar).
@@ -174,20 +182,20 @@ async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -
         st.set_email(&info.email);
     }
     let email = if info.email.is_empty() { st.session_email() } else { info.email.clone() };
-    let pro = |wl: bool, forever: bool| AccountState { mode: "pro".into(), is_pro: true, whitelisted: wl, forever, days_left: 0, deleted: false, email: email.clone() };
+    let pro = |wl: bool, forever: bool, empresa: bool| AccountState { mode: "pro".into(), is_pro: true, whitelisted: wl, forever, empresa, days_left: 0, deleted: false, email: email.clone() };
 
-    let (wl, forever) = fetch_user_flags(st, &uid, &tok).await?;
+    let (wl, forever, empresa) = fetch_user_flags(st, &uid, &tok).await?;
     if forever || wl {
-        let a = pro(wl && !forever, forever);
+        let a = pro(wl && !forever, forever, empresa);
         store(st, &a);
         return Ok(a);
     }
     if sync::billing_status(st).await?.active {
-        let a = pro(false, false);
+        let a = pro(false, false, false);
         store(st, &a);
         return Ok(a);
     }
-    let limbo = AccountState { mode: "limbo".into(), is_pro: false, whitelisted: false, forever: false, days_left: days_left(info.created_at_ms, now_ms()), deleted: false, email };
+    let limbo = AccountState { mode: "limbo".into(), is_pro: false, whitelisted: false, forever: false, empresa: false, days_left: days_left(info.created_at_ms, now_ms()), deleted: false, email };
     store(st, &limbo);
     Ok(limbo)
 }
@@ -264,7 +272,7 @@ pub fn account_state(st: tauri::State<SyncState>) -> AccountState {
     if st.has_session() {
         let mode = st.mode.lock().map(|g| g.clone()).unwrap_or_else(|_| "limbo".into());
         let pro = st.is_pro.load(std::sync::atomic::Ordering::SeqCst);
-        return AccountState { mode, is_pro: pro, whitelisted: false, forever: false, days_left: 0, deleted: false, email: st.session_email() };
+        return AccountState { mode, is_pro: pro, whitelisted: false, forever: false, empresa: false, days_left: 0, deleted: false, email: st.session_email() };
     }
     guest(false)
 }
@@ -284,6 +292,17 @@ mod tests {
         assert!(!parse_whitelist(&other));
         assert!(!parse_whitelist(&wrong_type));
         assert!(!parse_whitelist(&Value::Null));
+    }
+
+    #[test]
+    fn empresa_parse() {
+        let yes: Value = serde_json::from_str(r#"{"fields":{"proForever":{"booleanValue":true},"proEmpresa":{"booleanValue":true}}}"#).unwrap();
+        let solo_empresa: Value = serde_json::from_str(r#"{"fields":{"proEmpresa":{"booleanValue":true}}}"#).unwrap();
+        let solo_forever: Value = serde_json::from_str(r#"{"fields":{"proForever":{"booleanValue":true}}}"#).unwrap();
+        assert!(parse_empresa(&yes));
+        assert!(!parse_empresa(&solo_empresa));
+        assert!(!parse_empresa(&solo_forever));
+        assert!(!parse_empresa(&Value::Null));
     }
 
     #[test]
