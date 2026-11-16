@@ -1308,6 +1308,7 @@ const SYNC_NOW_TIMEOUT: Duration = Duration::from_secs(90);
 async fn sync_now_inner(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     let _guard = st.sync_lock.lock().await;
     st.blocked.store(false, Ordering::SeqCst);
+    pull(app, st).await?;
     if st.dirty.load(Ordering::SeqCst) {
         st.dirty.store(false, Ordering::SeqCst);
         if let Err(e) = push(app, st).await {
@@ -1315,14 +1316,14 @@ async fn sync_now_inner(app: &AppHandle, st: &SyncState) -> Result<(), String> {
             return Err(e);
         }
     }
-    pull(app, st).await
+    Ok(())
 }
 
 /// «Sincronizar ahora»: sube si hay cambios y baja los de otros equipos. Se puede cancelar con `sync_cancel` y se corta a los 90 s.
 #[tauri::command]
 pub async fn sync_now(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
     require_pro(&st)?;
-    if !crate::limit::allow("sync_now", 2, 60_000) {
+    if !crate::limit::allow("sync_now", 3, 60_000) {
         return Ok(());
     }
     if st.abort.lock().map(|g| g.is_some()).unwrap_or(false) {

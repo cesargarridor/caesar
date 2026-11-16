@@ -37,7 +37,7 @@ import {
   DEFAULT_WS, FREE_WORKSPACES, addTombstones, canCreateWorkspace, collectNodeIds, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
-  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncNow, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
   onAccountChanged,
   onUpgradeResult,
   deeplinkTake,
@@ -606,6 +606,27 @@ export default function App() {
   const team = useTeamSync(collections, setCollections, (kind, text) => setNotice({ kind, text }));
   const wsTeam = useWorkspaceTeam({ wsList, wsId, collections, vars, setCollections, setVars, setWsList, notify: (kind, text) => setNotice({ kind, text }) });
   const activeWsTeam = wsList.find((w) => w.id === wsId)?.team;
+
+  // Botón de sincronización rápida (abajo a la izquierda): sincroniza la cuenta entre ordenadores y, si hace falta, el espacio y las colecciones compartidas.
+  // Nunca más de 3 llamadas por minuto; si se supera el límite se ignora en silencio, sin avisar al usuario.
+  const [syncingAll, setSyncingAll] = useState(false);
+  const quickSyncHits = useRef<number[]>([]);
+  const handleQuickSync = async () => {
+    if (syncingAll) return;
+    const now = Date.now();
+    quickSyncHits.current = quickSyncHits.current.filter((x) => now - x < 60_000);
+    if (quickSyncHits.current.length >= 3) return;
+    quickSyncHits.current.push(now);
+    setSyncingAll(true);
+    try {
+      await localSave(JSON.stringify(snapshotAll(wsList, wsId, collections, vars, profiles))).catch(() => {});
+      await syncNow().catch(() => {});
+      if (activeWsTeam) await wsTeam.sync();
+      if (hasTeamCollections(collections)) await team.syncAll();
+    } finally {
+      setSyncingAll(false);
+    }
+  };
 
   const handleJoin = async (code: string) => {
     const norm = normCode(code);
@@ -1212,6 +1233,8 @@ export default function App() {
         onJoinWs={handleJoin}
         onRefreshWs={() => void wsTeam.refresh()}
         refreshingWs={wsTeam.refreshing}
+        onSync={account.is_pro ? () => void handleQuickSync() : undefined}
+        syncing={syncingAll}
         onSettings={() => setShowSettings(true)}
         onGoPro={() => { setSettingsSection("sync"); setShowSettings(true); }}
         width={sidebarW}
