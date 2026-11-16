@@ -4,7 +4,7 @@ import { useToast } from "../components/Toast";
 import { t } from "./i18n";
 import { TERMS_VERSION, markTermsSent, termsAccepted, termsSentFor, termsSentKey } from "./legal";
 
-const GUEST: AccountState = { mode: "guest", is_pro: false, whitelisted: false, forever: false, days_left: 0, deleted: false, email: "" };
+const GUEST: AccountState = { mode: "guest", is_pro: false, whitelisted: false, forever: false, empresa: false, days_left: 0, deleted: false, email: "" };
 
 interface AccountApi {
   account: AccountState;
