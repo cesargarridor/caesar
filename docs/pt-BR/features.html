@@ -1,8 +1,8 @@
 <!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>407|Da quel momento, qualsiasi richiesta può usare &lt;code&gt;{{token}}&lt;/code&gt; nel suo header o nell'autenticazione Bearer. Esegui il login una volta e il resto è autenticato, senza copia e incolla.</title>
-<meta name="description" content="408|Le collezioni sono il quaderno dove tieni le tue richieste. Creane una dalla barra laterale, aggiungi cartelle dentro le cartelle e <strong>trascina</strong> per riordinare.">
+<title>Guia do Caesar: todos os recursos, com GIFs | Caesar</title>
+<meta name="description" content="Guia completo do Caesar, o cliente de API desktop local-first e ultrarrápido: requisições, cURL, autenticação, variáveis e perfis, testes, GraphQL, WebSockets, gerador de código, importação e exportação, atalhos, temas e equipes. Com um GIF para cada recurso.">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#272822">
 <link rel="canonical" href="https://cesargarridor.github.io/caesar/pt-BR/features.html">
@@ -29,10 +29,20 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
-<meta property="og:title" content="409|Crea, annida e riordina con il mouse.">
-<meta property="og:description" content="410|Ogni collezione o cartella può avere le proprie <strong>variabili</strong> e la propria <strong>autorizzazione</strong>, ereditate da tutto ciò che contiene.">
+<meta property="og:title" content="Guia do Caesar: todos os recursos, com GIFs">
+<meta property="og:description" content="Requisições, cURL, autenticação, variáveis e perfis, testes, GraphQL, WebSockets, gerador de código, importação e exportação, atalhos e equipes, explicados recurso por recurso.">
 <meta property="og:url" content="https://cesargarridor.github.io/caesar/pt-BR/features.html"><meta property="og:locale" content="pt_BR">
 <meta property="og:image" content="https://cesargarridor.github.io/caesar/og.png">
 
@@ -42,164 +52,164 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<a class="skip" href="#contenido">149|Caesar è Fair Source con licenza FSL-1.1-MIT: il codice è pubblico, ma non è open source e venderlo è vietato. Sito statico, senza cookie né tracciamento.</a>
+<a class="skip" href="#contenido">Ir para o conteúdo</a>
 <header class="top"><div class="wrap">
-<a class="brand" href="./"><img src="../logo.png" alt="" width="32" height="32"><span>309|Impostazioni di rete</span></a>
-<nav class="main" aria-label="142|No. La modalità Guest funziona senza account, tiene i dati solo sul tuo dispositivo e permette 2 workspace locali. L'account (prova locale di 7 giorni, poi Pro) e Caesar Sync sono opzionali."><a href="index.html#features">150|<strong>Esclusione di responsabilità (as is):</strong> Caesar è fornito “così com'è” e “come disponibile”, senza garanzie di alcun tipo. Nella misura massima consentita dalla legge, l'autore non risponde di perdita di dati o chiavi, interruzioni del servizio, danni, mancati guadagni né delle richieste che invii con l'app. Fai dei backup. Questo non limita i tuoi diritti di consumatore previsti dalla legge né il rimborso di 14 giorni di Pro. <a class="underline transition hover:text-white" href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">Licenza</a></a><a href="features.html" aria-current="page">310|Sync e team</a><a href="download.html">155|Rimborsi</a><a href="index.html#faq">152|Privacy</a><a href="index.html#pricing">151|Termini</a><a href="index.html#license">311|Guest, account e Pro</a></nav>
+<a class="brand" href="./"><img src="../logo.png" alt="" width="32" height="32"><span><b>C</b>aesar</span></a>
+<nav class="main" aria-label="Seções"><a href="index.html#features">Recursos</a><a href="features.html" aria-current="page">Guia</a><a href="download.html">Baixar</a><a href="index.html#faq">FAQ</a><a href="index.html#pricing">Preços</a><a href="index.html#license">Licença</a></nav>
 <details class="lang-dd"><summary aria-label="Idioma / Language"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"></path></svg>PT</summary><div><a href="../funciones.html" hreflang="es" lang="es">Español</a><a href="../en/features.html" hreflang="en" lang="en">English</a><a href="../de/features.html" hreflang="de" lang="de">Deutsch</a><a href="../fr/features.html" hreflang="fr" lang="fr">Français</a><a href="../it/features.html" hreflang="it" lang="it">Italiano</a><span aria-current="true">Português (Brasil)</span><a href="../zh-CN/features.html" hreflang="zh-CN" lang="zh-CN">简体中文</a><a href="../ja/features.html" hreflang="ja" lang="ja">日本語</a><a href="../ru/features.html" hreflang="ru" lang="ru">Русский</a></div></details>
 </div></header>
 <main id="contenido"><div class="wrap guide">
 
-<p class="crumbs">429|Prima di condividere una collezione, Caesar può fare un backup così non perdi nulla.</p>
-<h1>430|Con il pulsante <strong>&lt;/&gt;</strong> trasformi la richiesta attiva in codice pronto da incollare nel tuo progetto. Ci sono <strong>20 linguaggi e librerie</strong>, tra cui cURL, Python (Requests), JavaScript (Fetch, XHR), Node.js (Axios), Go, Rust, Java, Kotlin, C#, PHP, Ruby, PowerShell, Swift e Dart.</h1>
-<p class="lead">431|La stessa richiesta convertita in linguaggi diversi.</p>
-<p class="meta">432|Puoi regolare opzioni come indentazione, timeout o il seguire i redirect, e copiare il risultato con un clic.</p>
+<p class="crumbs"><a href="./">Início</a> › Guia de recursos</p>
+<h1>Guia do Caesar: todos os recursos, um por um</h1>
+<p class="lead">O Caesar é um cliente de API para desktop feito para ser rápido: abre instantaneamente, mantém tudo na sua máquina e não exige conta para começar. Este guia percorre cada recurso com um GIF do resultado real, da sua primeira requisição até testes, GraphQL, WebSockets e trabalho em equipe.</p>
+<p class="meta">Tempo de leitura: cerca de 15 minutos · Atualizado a cada release · <a href="download.html">Baixar o Caesar</a></p>
 
-<nav class="toc" aria-label="411|Si salva da solo: Caesar salva in automatico e mantiene le tue schede e le tue bozze quando lo chiudi."><b>433|Scegli il body <strong>GraphQL</strong> e Caesar ti dà un editor per la <em>Query</em> e un altro per le <em>Variables</em>, proprio come in Postman:</b>
+<nav class="toc" aria-label="Conteúdo do guia"><b>Neste guia</b>
 <ol>
-<li><a href="#what-is">434|<strong>Carica lo schema</strong> tramite introspection.</a></li>
-<li><a href="#why-fast">435|<strong>Autocompletamento</strong> di campi e tipi mentre scrivi.</a></li>
-<li><a href="#install">436|<strong>Esplora schema</strong> per navigare tra tipi e campi.</a></li>
-<li><a href="#first-request">437|<strong>Beautify</strong> per formattare la query.</a></li>
-<li><a href="#params-headers">438|<strong>Genera le variabili</strong> dalla query e un <strong>selettore di operazione</strong> quando ce n'è più di una.</a></li>
-<li><a href="#body">439|Query con autocompletamento e lo schema caricato.</a></li>
-<li><a href="#response">440|Le richieste GraphQL si importano e si esportano con Postman.</a></li>
-<li><a href="#curl">441|Crea una richiesta WebSocket, connettiti e guarda la conversazione in una <strong>timeline</strong>: cosa invii e cosa ricevi, con orario e dimensione.</a></li>
-<li><a href="#auth">442|Connettiti, invia e vedi i messaggi nella timeline.</a></li>
-<li><a href="#variables">195|Linux (qualsiasi distro)</a></li>
-<li><a href="#tests">189|Ubuntu (Snap Store)</a></li>
-<li><a href="#chaining">443|Scrivi l'URL con <code>ws://</code> o <code>wss://</code> (se usi <code>http(s)</code>, viene convertito).</a></li>
-<li><a href="#collections">444|Puoi impostare dei <strong>sottoprotocolli</strong> separati da virgole.</a></li>
-<li><a href="#import-export">201|<strong>macOS:</strong> Intel o Apple Silicon (il <code>.dmg</code> è universale).</a></li>
-<li><a href="#code-generator">199|Requisiti</a></li>
-<li><a href="#graphql">191|Oppure cerca “Caesar” nell'<a href="https://snapcraft.io/caesar" target="_blank" rel="noopener">Ubuntu App Center (Snap Store)</a>. Si aggiorna automaticamente.</a></li>
-<li><a href="#websocket">193|=</a></li>
-<li><a href="#tabs">445|Invia messaggi <strong>di testo</strong> o <strong>binari</strong> (in esadecimale o base64) e ispeziona i binari in un hex dump.</a></li>
-<li><a href="#workspaces">446|Supporta <code>{{variables}}</code> nell'URL.</a></li>
-<li><a href="#shortcuts">447|Lavora con tutte le schede che ti servono. Caesar ricorda quelle che avevi aperte e le ripristina esattamente com'erano quando lo riavvii.</a></li>
-<li><a href="#themes">448|Passa da una scheda all'altra e cerca dentro la risposta.</a></li>
-<li><a href="#network-settings">449|<kbd>Ctrl</kbd>+<kbd>T</kbd> nuova, <kbd>Ctrl</kbd>+<kbd>W</kbd> chiudi, <kbd>Ctrl</kbd>+<kbd>1…9</kbd> vai alla scheda N.</a></li>
-<li><a href="#teams">450|<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> torna alla scheda visitata prima o dopo.</a></li>
-<li><a href="#plans">451|<kbd>Ctrl</kbd>+<kbd>F</kbd> cerca nella risposta o nell'editor.</a></li>
-<li><a href="#privacy">452|Clic destro o <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> le chiude tutte e ti porta alla schermata iniziale con il gatto.</a></li>
-<li><a href="#updates">398|Puoi contrassegnare le variabili come <strong>segrete</strong> così non sono visibili a colpo d'occhio.</a></li>
-<li><a href="#best-practices">453|Su macOS, <kbd>Ctrl</kbd> viene sostituito da <kbd>Cmd</kbd>.</a></li>
-<li><a href="#troubleshooting">454|Un <strong>workspace</strong> è un insieme separato di collezioni, variabili e schede: uno per il lavoro, uno per i progetti personali, uno per ogni cliente. Cambi dal selettore nella barra laterale.</a></li>
-<li><a href="#faq">455|Ogni workspace ha le sue collezioni e le sue variabili.</a></li>
+<li><a href="#what-is">O que é o Caesar?</a></li>
+<li><a href="#why-fast">Por que ele é tão rápido</a></li>
+<li><a href="#install">Instalar o Caesar</a></li>
+<li><a href="#first-request">Sua primeira requisição</a></li>
+<li><a href="#params-headers">Parâmetros e cabeçalhos</a></li>
+<li><a href="#body">Corpo da requisição</a></li>
+<li><a href="#response">Lendo a resposta</a></li>
+<li><a href="#curl">Colar e copiar cURL</a></li>
+<li><a href="#auth">Autenticação</a></li>
+<li><a href="#variables">Variáveis e perfis</a></li>
+<li><a href="#tests">Testes e scripts</a></li>
+<li><a href="#chaining">Encadeando requisições</a></li>
+<li><a href="#collections">Coleções e pastas</a></li>
+<li><a href="#import-export">Importar e exportar</a></li>
+<li><a href="#code-generator">Gerador de código</a></li>
+<li><a href="#graphql">GraphQL</a></li>
+<li><a href="#websocket">WebSockets</a></li>
+<li><a href="#tabs">Abas e busca</a></li>
+<li><a href="#workspaces">Workspaces</a></li>
+<li><a href="#shortcuts">Atalhos de teclado</a></li>
+<li><a href="#themes">Temas, fontes e idiomas</a></li>
+<li><a href="#network-settings">Configurações de rede</a></li>
+<li><a href="#teams">Sync e equipes</a></li>
+<li><a href="#plans">Convidado, conta e Pro</a></li>
+<li><a href="#privacy">Privacidade e segurança</a></li>
+<li><a href="#updates">Atualizações</a></li>
+<li><a href="#best-practices">Boas práticas</a></li>
+<li><a href="#troubleshooting">Solução de problemas</a></li>
+<li><a href="#faq">Perguntas frequentes</a></li>
 </ol></nav>
 
-<section id="what-is"><h2>434|<strong>Carica lo schema</strong> tramite introspection.</h2>
-<p>456|La modalità Guest e gli account senza Pro includono <strong>un workspace</strong>; con Pro puoi averne quanti ne vuoi.</p>
+<section id="what-is"><h2>O que é o Caesar?</h2>
+<p>O Caesar é um cliente de API para desktop, para Windows, macOS e Linux. Com ele você <strong>cria, envia e testa requisições HTTP</strong>, GraphQL e WebSocket, organiza tudo em coleções e compartilha com sua equipe, tudo em uma interface limpa onde a cor e o teclado economizam cliques.</p>
 <ul>
-<li>457|Ogni comando di Caesar ha una scorciatoia e <strong>puoi cambiarle tutte</strong>. Apri l'editor con <kbd>Ctrl</kbd>+<kbd>/</kbd>.</li>
-<li>458|Cambia o aggiungi combinazioni; ogni comando ne accetta diverse.</li>
-<li>459|Azione</li>
-<li>460|Scorciatoia predefinita</li>
+<li><strong>Local-first:</strong> no modo Convidado suas coleções ficam no seu dispositivo. Funciona offline e sem conta.</li>
+<li><strong>Rápido de verdade:</strong> é construído com Rust e Tauri, sem um navegador embutido.</li>
+<li><strong>Familiar:</strong> se você vem do Postman ou do Insomnia, pode importar suas coleções e seus scripts <code>pm.*</code> continuam funcionando.</li>
+<li><strong>Fair Source (FSL):</strong> o código é público e de uso gratuito. Não é código aberto: é proibido vendê-lo.</li>
 </ul>
-<div class="box"><p>461|Invia la richiesta</p></div>
+<div class="box"><p><strong>Para quem é?</strong> Para quem testa APIs todos os dias (backend, frontend, QA, mobile) e quer uma ferramenta leve, privada e sem atrito. Também para quem precisa compartilhar coleções com a equipe sem montar infraestrutura.</p></div>
 </section>
 
-<section id="why-fast"><h2>435|<strong>Autocompletamento</strong> di campi e tipi mentre scrivi.</h2>
-<p>462|<kbd>Ctrl</kbd>+<kbd>Enter</kbd></p>
+<section id="why-fast"><h2>Por que ele é tão rápido</h2>
+<p>A velocidade do Caesar não é um truque: vem da forma como ele é construído.</p>
 <div class="cards">
-<div class="card"><b>463|Salva nella collezione</b><span>464|<kbd>Ctrl</kbd>+<kbd>S</kbd></span></div>
-<div class="card"><b>465|Nuova scheda / Chiudi scheda</b><span>466|<kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></span></div>
-<div class="card"><b>467|Vai alla barra dell'URL</b><span>468|<kbd>Ctrl</kbd>+<kbd>L</kbd></span></div>
-<div class="card"><b>469|Cerca</b><span>470|<kbd>Ctrl</kbd>+<kbd>F</kbd></span></div>
+<div class="card"><b>Rust em vez de um navegador embutido</b><span>As requisições são executadas por um núcleo em Rust e a janela usa o motor web que já vem com o seu sistema. O resultado: inicialização instantânea e baixo uso de memória.</span></div>
+<div class="card"><b>Seus dados ficam bem ao seu lado</b><span>Coleções, variáveis e abas são lidas do seu disco, sem esperar por nenhum servidor. Abrir o Caesar não depende da sua conexão.</span></div>
+<div class="card"><b>Nada para carregar na inicialização</b><span>Sem tela de login obrigatória, sem telemetria e sem análises rodando em segundo plano.</span></div>
+<div class="card"><b>Menos cliques, mais teclado</b><span>Cada comando tem um atalho e você pode alterá-lo. Cole um cURL e a requisição já está montada.</span></div>
 </div>
 </section>
 
-<section id="install"><h2>436|<strong>Esplora schema</strong> per navigare tra tipi e campi.</h2>
-<p>471|Scegli una variabile</p>
-<table><thead><tr><th>322|La velocità di Caesar non è un trucco: nasce da come è costruito.</th><th>323|Rust invece di un browser incorporato</th></tr></thead><tbody>
-<tr><td>263|<strong>Privacy:</strong> consulta l'<a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">informativa sulla privacy</a>.</td><td>472|<kbd>Ctrl</kbd>+<kbd>Space</kbd></td></tr>
-<tr><td>473|Apri le impostazioni</td><td>474|<kbd>Ctrl</kbd>+<kbd>,</kbd></td></tr>
-<tr><td>329|Meno clic, più tastiera</td><td>475|Vedi e modifica le scorciatoie</td></tr>
-<tr><td>396|<kbd>Ctrl</kbd>+clic su una variabile ne apre il valore per vederlo e modificarlo senza uscire dalla richiesta.</td><td>476|<kbd>Ctrl</kbd>+<kbd>/</kbd></td></tr>
+<section id="install"><h2>Instalar o Caesar</h2>
+<p>Baixe o instalador do seu sistema na <a href="download.html">página de download</a> ou na loja de aplicativos:</p>
+<table><thead><tr><th>Sistema</th><th>Arquivo / Loja</th></tr></thead><tbody>
+<tr><td>Windows</td><td>Instalador <code>.exe</code> de 64 bits (também <code>.msi</code>) · <strong>Em breve na Microsoft Store</strong></td></tr>
+<tr><td>macOS (Intel e Apple Silicon)</td><td><code>.dmg</code> universal, assinado e notarizado pela Apple</td></tr>
+<tr><td>Ubuntu (Snap Store)</td><td><code>sudo snap install caesar</code> ou pela <a href="https://snapcraft.io/caesar">Ubuntu App Center (Snap Store)</a></td></tr>
+<tr><td>Linux</td><td><code>.deb</code> (Debian/Ubuntu) ou <code>AppImage</code> (qualquer distro)</td></tr>
 </tbody></table>
-<p>477|Puoi anche creare <strong>azioni personalizzate</strong> che concatenano più comandi e mettere <strong>i pulsanti che preferisci</strong> accanto all'URL.</p>
-<div class="box"><p>478|Caesar include sei temi: <strong>Monokai</strong> (predefinito), <strong>Dracula</strong>, <strong>Tokyo Night</strong>, <strong>Nord</strong>, <strong>One Dark</strong> e <strong>GitHub Light</strong> per chi preferisce lo sfondo chiaro.</p></div>
+<p>Na primeira vez, pode aparecer um aviso do sistema, principalmente no Windows (SmartScreen). Isso é normal em um projeto novo, e o <a href="index.html#warnings">guia de avisos</a> explica em que clicar. Depois disso, o Caesar <a href="#updates">se atualiza sozinho</a>.</p>
+<div class="box"><p><strong>Sem linha de comando.</strong> O Caesar é um aplicativo desktop: você não precisa de Node, Docker nem de nenhuma instalação extra para usá-lo.</p></div>
 </section>
 
-<section id="first-request"><h2>437|<strong>Beautify</strong> per formattare la query.</h2>
-<p>479|Cambia tema all'istante dalle Impostazioni.</p>
+<section id="first-request"><h2>Sua primeira requisição</h2>
+<p>Abra o Caesar e clique em <strong>Nova aba</strong> (<kbd>Ctrl</kbd>+<kbd>T</kbd>). Escolha o método (GET, POST, PUT, PATCH, DELETE, HEAD ou OPTIONS), digite a URL e clique em <strong>Enviar</strong> ou pressione <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</p>
 <ol>
-<li>480|Puoi anche scegliere il font e la dimensione del testo, disattivare le animazioni e regolare la larghezza della barra laterale. L'interfaccia è disponibile in <strong>spagnolo, inglese, tedesco, francese e italiano</strong>.</li>
-<li>481|Nelle <strong>Impostazioni</strong> controlli come vengono inviate le richieste:</li>
-<li>482|Impostazione</li>
-<li>483|Cosa fa</li>
+<li>Digite a URL na barra superior.</li>
+<li>Clique em <strong>Enviar</strong>. Você verá uma animação das etapas da requisição (resolvendo o nome, conectando, enviando, recebendo).</li>
+<li>Leia a resposta abaixo: status, tempo, tamanho e corpo.</li>
+<li>Pressione <kbd>Ctrl</kbd>+<kbd>S</kbd> para salvá-la em uma coleção.</li>
 </ol>
-<figure class="gif"><img src="../media/gifs/enviar-peticion.gif" alt="412|Puoi condividere una collezione con il tuo team (vedi <a href=&quot;#teams&quot;>Sync e team</a>)." loading="lazy"><figcaption>484|Segui i redirect</figcaption></figure>
-<p>485|Segue fino a 10 redirect, oppure nessuno.</p>
+<figure class="gif"><img src="../media/gifs/enviar-peticion.gif" alt="Digitar uma URL, clicar em Enviar e ver a resposta com status, tempo e corpo formatado" loading="lazy"><figcaption>Uma requisição do começo ao fim: URL, Enviar e resposta formatada.</figcaption></figure>
+<p>Além dos sete métodos habituais, em <a href="#network-settings">Configurações</a> você pode adicionar <strong>métodos extras</strong> (por exemplo, os do WebDAV). Apenas <code>CONNECT</code> e <code>TRACE</code> são rejeitados.</p>
 </section>
 
-<section id="params-headers"><h2>438|<strong>Genera le variabili</strong> dalla query e un <strong>selettore di operazione</strong> quando ce n'è più di una.</h2>
-<p>486|Timeout</p>
-<figure class="gif"><img src="../media/gifs/params-headers.gif" alt="413|Non parti da zero. Caesar importa quello che hai già ed esporta quando vuoi:" loading="lazy"><figcaption>487|30 secondi per impostazione predefinita. Con <code>0</code> o più di 1 ora si usa il massimo di 3600 s, utile per fare debug senza che scatti l'errore.</figcaption></figure>
+<section id="params-headers"><h2>Parâmetros e cabeçalhos</h2>
+<p>As abas <strong>Params</strong> e <strong>Headers</strong> usam um editor de chave/valor: você adiciona linhas, ativa ou desativa cada uma com a caixa de seleção sem apagá-la, e a URL se atualiza sozinha.</p>
+<figure class="gif"><img src="../media/gifs/params-headers.gif" alt="Adicionar parâmetros de consulta e cabeçalhos no editor chave-valor e ver a URL se atualizar" loading="lazy"><figcaption>Os parâmetros se refletem na URL instantaneamente, e os cabeçalhos são ativados ou desativados com uma caixa de seleção.</figcaption></figure>
 <ul>
-<li>488|Verifica SSL</li>
-<li>489|Disattivala solo per testare server con certificati autofirmati.</li>
-<li>490|Versione HTTP</li>
+<li>Desmarque uma linha para testar sem ela e sem perdê-la.</li>
+<li>Você pode usar <code>{{variables}}</code> em chaves e valores (veja <a href="#variables">Variáveis e perfis</a>).</li>
+<li>Se você colar uma URL com <code>?a=1&amp;b=2</code>, os parâmetros aparecem na tabela.</li>
 </ul>
 </section>
 
-<section id="body"><h2>439|Query con autocompletamento e lo schema caricato.</h2>
-<p>491|Automatica, HTTP/1.1 o HTTP/2.</p>
-<table><thead><tr><th>492|Metodi extra</th><th>493|Aggiunge metodi personalizzati oltre a quelli abituali.</th></tr></thead><tbody>
-<tr><td>494|Con un account Pro puoi usare le stesse collezioni su <strong>più computer</strong> e condividerle con altre persone.</td><td>495|<strong>Sync personale:</strong> le tue collezioni, variabili e profili compaiono su tutti i tuoi dispositivi. Le modifiche vengono unite per elemento, così due dispositivi non si sovrascrivono il lavoro a vicenda.</td></tr>
-<tr><td>496|<strong>Cifrato sul tuo dispositivo:</strong> quello che viene caricato è cifrato già dal tuo computer; il servizio memorizza solo dati illeggibili.</td><td>497|<strong>Chiave di recupero:</strong> la conservi tu, e ti permette di recuperare i tuoi dati se perdi un dispositivo.</td></tr>
-<tr><td>498|<strong>Collegare un nuovo dispositivo:</strong> si approva da un altro dei tuoi dispositivi con un codice a sei cifre che confronti su entrambi gli schermi.</td><td>499|<strong>Team:</strong> condividi una collezione o un workspace con un <strong>codice</strong>; chi lo inserisce entra e vede le modifiche.</td></tr>
-<tr><td>500|Condividi una collezione con un codice e unisciti da un altro dispositivo.</td><td>501|<strong>Importante:</strong> in una collezione condivisa, chiunque abbia il codice può leggerne e modificarne il contenuto; non ci sono ruoli. Condividi il codice solo con le persone che devono poter modificare.</td></tr>
-<tr><td>191|Oppure cerca “Caesar” nell'<a href="https://snapcraft.io/caesar" target="_blank" rel="noopener">Ubuntu App Center (Snap Store)</a>. Si aggiorna automaticamente.</td><td>502|Modalità</td></tr>
+<section id="body"><h2>Corpo da requisição</h2>
+<p>Na aba <strong>Body</strong> você escolhe o formato que a sua API precisa:</p>
+<table><thead><tr><th>Tipo</th><th>Quando usar</th></tr></thead><tbody>
+<tr><td>JSON</td><td>APIs REST modernas. Editor com verificação de sintaxe e cores.</td></tr>
+<tr><td>Texto</td><td>XML, texto simples ou outro conteúdo bruto.</td></tr>
+<tr><td>Form-data</td><td>Formulários com anexos de arquivos (até 100 MB por arquivo).</td></tr>
+<tr><td>x-www-form-urlencoded</td><td>Formulários clássicos.</td></tr>
+<tr><td>GraphQL</td><td>Editor dedicado de Query e Variables (veja <a href="#graphql">GraphQL</a>).</td></tr>
 </tbody></table>
-<figure class="gif"><img src="../media/gifs/cuerpo.gif" alt="414|Formato" loading="lazy"><figcaption>503|Include</figcaption></figure>
-<p>504|<strong>Guest</strong> (gratis)</p>
+<figure class="gif"><img src="../media/gifs/cuerpo.gif" alt="Escolher o corpo JSON, escrevê-lo e enviar; depois explorar os outros tipos de corpo" loading="lazy"><figcaption>Corpo JSON e os outros formatos disponíveis.</figcaption></figure>
+<p>Por segurança, o Caesar só anexa arquivos que <strong>você escolheu</strong> no seletor de arquivos do sistema.</p>
 </section>
 
-<section id="response"><h2>440|Le richieste GraphQL si importano e si esportano con Postman.</h2>
-<p>505|Tutte le funzionalità delle richieste, test, GraphQL, WebSocket, import/export e generatore di codice. Dati solo sul tuo dispositivo, 1 workspace.</p>
+<section id="response"><h2>Lendo a resposta</h2>
+<p>A resposta é exibida com o <strong>status</strong> (com cores), o <strong>tempo</strong> e o <strong>tamanho</strong>, e três visualizações:</p>
 <ul>
-<li>506|<strong>Account</strong> (prova di 7 giorni)</li>
-<li>507|Come Guest, in locale, mentre decidi se attivare Pro. Dopo 7 giorni senza Pro, l'account viene eliminato.</li>
-<li>508|<strong>Pro</strong> (abbonamento)</li>
+<li><strong>Pretty:</strong> JSON formatado e colorido. Você pode ocultar valores vazios para ler melhor.</li>
+<li><strong>Raw:</strong> o texto exatamente como chegou.</li>
+<li><strong>Timeline:</strong> as etapas da requisição com sua duração.</li>
 </ul>
-<p>509|Sync cifrata, team e collezioni condivise, e workspace illimitati.</p>
-<div class="box"><p>510|Prezzo, periodo di fatturazione e tasse vengono mostrati nella pagina di pagamento prima di pagare. Puoi disdire quando vuoi da <em>Impostazioni → Account e abbonamento → Gestisci abbonamento</em> e ottieni il rimborso entro 14 giorni. Maggiori dettagli in <a href="index.html#pricing">Prezzi e abbonamento</a>.</p></div>
+<p>Com o <strong>filtro JSONPath</strong> você mantém apenas a parte que interessa, por exemplo <code>$.data[0].id</code>. E com <kbd>Ctrl</kbd>+<kbd>F</kbd> você busca dentro da resposta (veja <a href="#tabs">Abas e busca</a>).</p>
+<div class="box"><p>As respostas são lidas até 10 MB; se uma for maior, o Caesar a trunca e avisa você para que a janela não trave.</p></div>
 </section>
 
-<section id="curl"><h2>441|Crea una richiesta WebSocket, connettiti e guarda la conversazione in una <strong>timeline</strong>: cosa invii e cosa ricevi, con orario e dimensione.</h2>
-<p>511|<strong>Nessuna telemetria né analytics.</strong> Caesar non invia dati di utilizzo.</p>
-<figure class="gif"><img src="../media/gifs/pegar-curl.gif" alt="415|Importa" loading="lazy"><figcaption>512|<strong>L'interfaccia non fa richieste di rete</strong>: le esegue il core in Rust, che convalida gli URL, consente solo http e https e limita la dimensione di risposte e file.</figcaption></figure>
-<p>513|<strong>Le tue chiavi non lasciano mai il sistema:</strong> la chiave di cifratura è salvata nel portachiavi del tuo sistema operativo.</p>
+<section id="curl"><h2>Colar e copiar cURL</h2>
+<p>Se alguém lhe passar um comando <code>curl</code> (da documentação de uma API, das ferramentas de desenvolvedor do navegador ou de um colega), <strong>cole-o direto na barra de URL</strong>. O Caesar cria a requisição com seu método, cabeçalhos e corpo.</p>
+<figure class="gif"><img src="../media/gifs/pegar-curl.gif" alt="Colar um comando curl na barra de URL e ver a requisição criada com método, cabeçalhos e corpo" loading="lazy"><figcaption>Cole o cURL e a requisição é montada.</figcaption></figure>
+<p>E o inverso também vale: <strong>copie qualquer requisição como cURL</strong> para compartilhá-la em um ticket ou executá-la em um terminal. Há um comando para isso (sem atalho padrão, você pode atribuir um).</p>
 </section>
 
-<section id="auth"><h2>442|Connettiti, invia e vedi i messaggi nella timeline.</h2>
-<p>514|<strong>Permessi minimi e una policy di sicurezza rigorosa</strong> nell'applicazione.</p>
-<div class="chips"><span>515|In modalità Guest i tuoi dati <strong>non lasciano mai il tuo dispositivo</strong>.</span><span>516|Altro in <a href="index.html#privacy">Sicurezza e privacy</a> e nell'<a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">informativa sulla privacy</a>.</span><span>517|Caesar si aggiorna da solo: all'avvio cerca una nuova versione e, se c'è, la scarica, la installa e si riavvia. <strong>Le tue schede e le tue bozze vengono mantenute.</strong> Ogni pacchetto è firmato e l'applicazione verifica la firma prima di installarlo.</span><span>518|In <em>Impostazioni → Aggiornamenti</em> puoi disattivarli o cliccare su <strong>Verifica aggiornamenti</strong>.</span><span>519|Su Linux, se installi Caesar dallo <strong>Snap Store</strong> (<code>sudo snap install caesar</code> o l'Ubuntu App Center), Snap lo aggiorna automaticamente; con l'AppImage si aggiorna dentro l'app, e il <code>.deb</code> si reinstalla a mano.</span><span>520|<strong>Usa le variabili per tutto ciò che cambia</strong> (server, versione, token) e i profili per ogni ambiente.</span><span>521|<strong>Definisci l'autenticazione sulla collezione</strong> e lascia le richieste su "Eredita".</span><span>522|<strong>Aggiungi almeno un test a ogni richiesta importante</strong>: stato e un controllo del body.</span><span>523|<strong>Dai alle richieste un nome con un verbo e una risorsa</strong> ("Elenca utenti", "Crea ordine") e raggruppale in cartelle.</span><span>524|<strong>Esporta una copia</strong> delle tue collezioni importanti ogni tanto.</span><span>525|<strong>Non lasciare segreti nell'URL</strong>: usa variabili segrete o l'autenticazione.</span><span>526|<strong>Usa un workspace per progetto o cliente</strong> così le variabili non si mescolano.</span></div>
-<figure class="gif"><img src="../media/gifs/autenticacion.gif" alt="416|Esporta" loading="lazy"><figcaption>527|La richiesta non si connette</figcaption></figure>
-<p>528|Controlla che l'URL inizi con <code>http://</code> o <code>https://</code>, che non ci siano variabili non risolte (si vedono con un colore diverso) e che tu abbia una connessione. Guarda la timeline della risposta: ti dice quale passaggio fallisce.</p>
-<div class="box good"><p>529|Errore del certificato SSL</p></div>
+<section id="auth"><h2>Autenticação</h2>
+<p>Na aba <strong>Authorization</strong> você escolhe como se identificar. O Caesar suporta estes tipos:</p>
+<div class="chips"><span>Sem autenticação</span><span>Herdar</span><span>Bearer</span><span>Basic</span><span>API Key</span><span>Digest</span><span>NTLM</span><span>OAuth 1.0</span><span>OAuth 2.0</span><span>WSSE</span><span>AWS Signature v4</span><span>Akamai EdgeGrid</span></div>
+<figure class="gif"><img src="../media/gifs/autenticacion.gif" alt="Abrir a aba de autorização, escolher Bearer e preencher o token" loading="lazy"><figcaption>Escolha um tipo de autenticação e preencha seus campos.</figcaption></figure>
+<p>A opção <strong>Inherit</strong> é a mais prática: você define a autenticação uma vez na coleção ou pasta e todas as requisições dentro dela a usam. Se o token mudar, você troca em um só lugar.</p>
+<div class="box good"><p><strong>Dica:</strong> guarde o token em uma variável (<code>{{token}}</code>) e use essa variável na autenticação; assim você não o cola em cada requisição.</p></div>
 </section>
 
-<section id="variables"><h2>195|Linux (qualsiasi distro)</h2>
-<p>530|Se stai testando un server locale con un certificato autofirmato, disattiva <strong>Verifica SSL</strong> nelle Impostazioni. Riattivala per le API reali.</p>
+<section id="variables"><h2>Variáveis e perfis</h2>
+<p>As variáveis permitem escrever <code>{{baseUrl}}</code> em vez de uma URL fixa. Há três níveis:</p>
 <ul>
-<li>531|Ricevo 401 o 403</li>
-<li>532|Controlla la scheda Authorization: se è su "Eredita", controlla quella della collezione. Verifica che il token non sia scaduto e che la variabile esista nel <strong>profilo attivo</strong>.</li>
-<li>533|La richiesta va in timeout</li>
+<li><strong>Variáveis globais:</strong> valem em todas as suas coleções.</li>
+<li><strong>Variáveis de coleção:</strong> apenas para aquela coleção ou pasta.</li>
+<li><strong>Perfis de variáveis:</strong> conjuntos nomeados (Desenvolvimento, Staging, Produção...) que você ativa com o seletor ao lado de <strong>Enviar</strong>. É o equivalente aos <em>Environments</em> do Postman.</li>
 </ul>
-<figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="417|Postman (collezioni ed environment v2.1)" loading="lazy"><figcaption>534|Aumenta il timeout nelle Impostazioni. Con <code>0</code> si usa il massimo (1 ora), pensato per il debug.</figcaption></figure>
+<figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="Usar baseUrl na URL e trocar de perfil com o seletor para que a URL resolvida mude" loading="lazy"><figcaption>Você troca de perfil e a mesma requisição aponta para outro servidor.</figcaption></figure>
 <ul>
-<li>535|I miei test non fanno niente</li>
-<li>536|I test vengono eseguiti <strong>dopo</strong> aver ricevuto la risposta, quindi devi inviare la richiesta. Se c'è un errore nello script, viene mostrato accanto ai risultati.</li>
-<li>537|Non riesco a sincronizzare o condividere</li>
-<li>538|Queste funzionalità richiedono Pro. In modalità Guest o con l'account in prova, Caesar funziona in locale. Se hai già pagato, clicca su <strong>Ho già pagato, verifica</strong> in <em>Account e abbonamento</em>.</li>
-<li>539|Caesar va bene per testare le API?</li>
+<li>As variáveis <code>{{x}}</code> aparecem em <strong>outra cor</strong> na URL, nos cabeçalhos, nos parâmetros e na autenticação, para que nenhuma passe despercebida.</li>
+<li><kbd>Ctrl</kbd>+clique em uma variável abre seu valor para ver e editar sem sair da requisição.</li>
+<li><kbd>Ctrl</kbd>+<kbd>Space</kbd> abre o seletor de variáveis.</li>
+<li>Você pode marcar variáveis como <strong>secretas</strong> para que não fiquem visíveis à primeira vista.</li>
+<li>Ao importar do Postman, seus environments viram <strong>perfis</strong> e suas globais viram variáveis globais.</li>
 </ul>
 </section>
 
-<section id="tests"><h2>189|Ubuntu (Snap Store)</h2>
-<p>540|Sì: copre REST, GraphQL e WebSocket con test, variabili, profili, importazione da Postman e generazione di codice, in un'app leggera che funziona offline.</p>
+<section id="tests"><h2>Testes e scripts</h2>
+<p>A aba <strong>Scripts</strong> executa um script quando a resposta chega (os resultados aparecem em uma aba do painel de resposta). Ela usa uma sintaxe no estilo Postman (<code>pm.*</code>), então o que você já sabe continua valendo:</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -208,181 +218,198 @@ const data = pm.response.json();
 pm.test("returns users", () =&gt; {
   pm.expect(data.length).to.be.above(0);
 });</code></pre>
-<figure class="gif"><img src="../media/gifs/tests.gif" alt="418|Sì" loading="lazy"><figcaption>541|È gratis e open source?</figcaption></figure>
+<figure class="gif"><img src="../media/gifs/tests.gif" alt="Escrever um script de teste, enviar a requisição e ver os resultados em verde e vermelho" loading="lazy"><figcaption>Os testes são executados com a resposta e aparecem em verde ou vermelho.</figcaption></figure>
 <ul>
-<li>542|È gratis in modalità Guest e il suo codice è pubblico, ma <strong>non è open source</strong>: usa la licenza FSL e venderlo è vietato. Ogni versione diventa MIT dopo due anni.</li>
-<li>543|Dove vengono salvate le mie collezioni?</li>
-<li>544|Sul tuo dispositivo. Lo lasciano solo se attivi la sync o condividi con un team, e in quel caso sono cifrate.</li>
+<li><code>pm.test</code> e <code>pm.expect</code> para verificar status, cabeçalhos e corpo.</li>
+<li><code>pm.response.json()</code> para ler o corpo já interpretado.</li>
+<li><code>pm.environment.set</code>, <code>pm.collectionVariables.set</code> e <code>pm.globals.set</code> para guardar valores.</li>
 </ul>
-<div class="box warn"><p>545|Posso portare le mie collezioni di Postman?</p></div>
+<div class="box warn"><p><strong>Seguro por design.</strong> Os scripts rodam em um interpretador dedicado para um subconjunto de JavaScript: sem rede, sem acesso ao sistema de arquivos e sem <code>eval</code>. Por isso um script importado não pode fazer nada fora do seu próprio escopo.</p></div>
 </section>
 
-<section id="chaining"><h2>443|Scrivi l'URL con <code>ws://</code> o <code>wss://</code> (se usi <code>http(s)</code>, viene convertito).</h2>
-<p>546|Sì. Importa il file della collezione (e gli environment, che diventano profili) dalla barra laterale.</p>
+<section id="chaining"><h2>Encadeando requisições</h2>
+<p>Um caso típico: fazer login e usar o token nas outras requisições. Com um teste na requisição de login:</p>
 <pre><code>const r = pm.response.json();
 pm.environment.set("token", r.access_token);</code></pre>
-<p>547|I miei script di Postman funzionano?</p>
+<p>A partir daí, qualquer requisição pode usar <code>{{token}}</code> no cabeçalho ou na autenticação Bearer. Você executa o login uma vez e o resto fica autenticado, sem copiar e colar.</p>
 </section>
 
-<section id="collections"><h2>444|Puoi impostare dei <strong>sottoprotocolli</strong> separati da virgole.</h2>
-<p>548|I test con <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> e le funzioni per salvare variabili sì. Caesar usa un interprete sicuro per un sottoinsieme di JavaScript, quindi uno script che dipende da librerie esterne o dalla rete non verrà eseguito.</p>
-<figure class="gif"><img src="../media/gifs/colecciones.gif" alt="419|Sì (JSON)" loading="lazy"><figcaption>549|Esiste una riga di comando o un'integrazione con la CI?</figcaption></figure>
+<section id="collections"><h2>Coleções e pastas</h2>
+<p>As coleções são o caderno onde você guarda suas requisições. Crie uma na barra lateral, adicione pastas dentro de pastas e <strong>arraste e solte</strong> para reordenar.</p>
+<figure class="gif"><img src="../media/gifs/colecciones.gif" alt="Criar uma coleção com pastas e requisições e reordená-las arrastando" loading="lazy"><figcaption>Crie, aninhe e reordene com o mouse.</figcaption></figure>
 <ul>
-<li>550|Per ora Caesar è un'applicazione desktop. Puoi esportare le richieste come cURL o codice da usare nei tuoi script.</li>
-<li>551|Mi serve un account?</li>
-<li>552|No. L'account serve solo per sincronizzare e lavorare in team.</li>
+<li>Cada coleção ou pasta pode ter suas próprias <strong>variáveis</strong> e <strong>autorização</strong>, herdadas por tudo o que ela contém.</li>
+<li>Salva sozinho: o Caesar salva automaticamente e mantém suas abas e rascunhos quando você o fecha.</li>
+<li>Você pode compartilhar uma coleção com sua equipe (veja <a href="#teams">Sync e equipes</a>).</li>
 </ul>
 </section>
 
-<section id="import-export"><h2>201|<strong>macOS:</strong> Intel o Apple Silicon (il <code>.dmg</code> è universale).</h2>
-<p>553|Su quali sistemi funziona?</p>
-<table><thead><tr><th>554|Windows (<code>.exe</code> e <code>.msi</code>; in arrivo su Microsoft Store), macOS (Intel e Apple Silicon) e Linux (Ubuntu App Center / Snap Store con <code>sudo snap install caesar</code>, <code>.deb</code> e <code>AppImage</code>).</th><th>555|È gratis da scaricare e non ti serve un account. Se manca qualcosa o trovi un bug, scrivici su <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</th><th>Com o botão <strong>&lt;/&gt;</strong> você transforma a requisição ativa em código pronto para colar no seu projeto. São <strong>20 linguagens e bibliotecas</strong>, incluindo cURL, Python (Requests), JavaScript (Fetch, XHR), Node.js (Axios), Go, Rust, Java, Kotlin, C#, PHP, Ruby, PowerShell, Swift e Dart.</th></tr></thead><tbody>
-<tr><td>A mesma requisição convertida para diferentes linguagens.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td><td>Escolha o corpo <strong>GraphQL</strong> e o Caesar oferece um editor de <em>Query</em> e outro de <em>Variables</em>, igual ao Postman:</td></tr>
-<tr><td><strong>Carregue o schema</strong> por introspecção.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td><td><strong>Autocompletar</strong> campos e tipos enquanto você digita.</td></tr>
-<tr><td><strong>Explorador de schema</strong> para navegar por tipos e campos.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td></tr>
-<tr><td><strong>Beautify</strong> para formatar a query.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td></tr>
-<tr><td><strong>Gerar variáveis</strong> a partir da query e um <strong>seletor de operação</strong> quando houver várias.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td><td>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</td></tr>
-<tr><td>Query com autocompletar e o schema carregado.</td><td>As requisições GraphQL são importadas e exportadas com o Postman.</td><td>Crie uma requisição WebSocket, conecte e acompanhe a conversa em uma <strong>linha do tempo</strong>: o que você envia e o que recebe, com hora e tamanho.</td></tr>
+<section id="import-export"><h2>Importar e exportar</h2>
+<p>Você não começa do zero. O Caesar importa o que você já tem e exporta quando quiser:</p>
+<table><thead><tr><th>Formato</th><th>Importar</th><th>Exportar</th></tr></thead><tbody>
+<tr><td>Postman (coleções e environments v2.1)</td><td>Sim</td><td>Sim (JSON)</td></tr>
+<tr><td>Insomnia</td><td>Sim</td><td>–</td></tr>
+<tr><td>JSON do Caesar</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>YAML</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>HAR (do navegador)</td><td>Sim</td><td>Sim</td></tr>
+<tr><td>cURL</td><td>Colando na barra de URL</td><td>Copiar como cURL</td></tr>
 </tbody></table>
-<figure class="gif"><img src="../media/gifs/importar-exportar.gif" alt="420|Insomnia" loading="lazy"><figcaption>Conecte, envie e veja as mensagens na linha do tempo.</figcaption></figure>
-<p>Escreva a URL com <code>ws://</code> ou <code>wss://</code> (se você usar <code>http(s)</code>, ela é convertida).</p>
+<figure class="gif"><img src="../media/gifs/importar-exportar.gif" alt="Importar uma coleção de um arquivo e exportá-la como JSON, YAML ou HAR" loading="lazy"><figcaption>Importe com o seletor de arquivos e exporte no formato que você escolher.</figcaption></figure>
+<p>Antes de compartilhar uma coleção, o Caesar pode fazer um backup para que você não perca nada.</p>
 </section>
 
-<section id="code-generator"><h2>199|Requisiti</h2>
-<p>Você pode definir <strong>subprotocolos</strong> separados por vírgulas.</p>
-<figure class="gif"><img src="../media/gifs/codigo.gif" alt="421|=" loading="lazy"><figcaption>Envie mensagens de <strong>texto</strong> ou <strong>binárias</strong> (em hexadecimal ou base64) e inspecione binários em um hex dump.</figcaption></figure>
-<p>Suporta <code>{{variables}}</code> na URL.</p>
+<section id="code-generator"><h2>Gerador de código</h2>
+<p>Com o botão <strong>&lt;/&gt;</strong> você transforma a requisição ativa em código pronto para colar no seu projeto. São <strong>20 linguagens e bibliotecas</strong>, incluindo cURL, Python (Requests), JavaScript (Fetch, XHR), Node.js (Axios), Go, Rust, Java, Kotlin, C#, PHP, Ruby, PowerShell, Swift e Dart.</p>
+<figure class="gif"><img src="../media/gifs/codigo.gif" alt="Abrir o gerador de código e alternar entre cURL, Python, JavaScript e Go" loading="lazy"><figcaption>A mesma requisição convertida para diferentes linguagens.</figcaption></figure>
+<p>Você pode ajustar opções como indentação, timeout ou seguir redirecionamentos, e copiar o resultado com um clique.</p>
 </section>
 
-<section id="graphql"><h2>191|Oppure cerca “Caesar” nell'<a href="https://snapcraft.io/caesar" target="_blank" rel="noopener">Ubuntu App Center (Snap Store)</a>. Si aggiorna automaticamente.</h2>
-<p>Trabalhe com quantas abas precisar. O Caesar lembra das que você tinha abertas e as restaura exatamente como estavam quando você o inicia de novo.</p>
+<section id="graphql"><h2>GraphQL</h2>
+<p>Escolha o corpo <strong>GraphQL</strong> e o Caesar oferece um editor de <em>Query</em> e outro de <em>Variables</em>, igual ao Postman:</p>
 <ul>
-<li>Alterne entre abas e busque dentro da resposta.</li>
+<li><strong>Carregue o schema</strong> por introspecção.</li>
+<li><strong>Autocompletar</strong> campos e tipos enquanto você digita.</li>
+<li><strong>Explorador de schema</strong> para navegar por tipos e campos.</li>
+<li><strong>Beautify</strong> para formatar a query.</li>
+<li><strong>Gerar variáveis</strong> a partir da query e um <strong>seletor de operação</strong> quando houver várias.</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/graphql.gif" alt="Escrever uma query GraphQL com autocompletar, carregar o schema e enviá-la" loading="lazy"><figcaption>Query com autocompletar e o schema carregado.</figcaption></figure>
+<p>As requisições GraphQL são importadas e exportadas com o Postman.</p>
+</section>
+
+<section id="websocket"><h2>WebSockets</h2>
+<p>Crie uma requisição WebSocket, conecte e acompanhe a conversa em uma <strong>linha do tempo</strong>: o que você envia e o que recebe, com hora e tamanho.</p>
+<figure class="gif"><img src="../media/gifs/websocket.gif" alt="Conectar a um WebSocket, enviar uma mensagem e ver a linha do tempo de mensagens" loading="lazy"><figcaption>Conecte, envie e veja as mensagens na linha do tempo.</figcaption></figure>
+<ul>
+<li>Escreva a URL com <code>ws://</code> ou <code>wss://</code> (se você usar <code>http(s)</code>, ela é convertida).</li>
+<li>Você pode definir <strong>subprotocolos</strong> separados por vírgulas.</li>
+<li>Envie mensagens de <strong>texto</strong> ou <strong>binárias</strong> (em hexadecimal ou base64) e inspecione binários em um hex dump.</li>
+<li>Suporta <code>{{variables}}</code> na URL.</li>
+</ul>
+</section>
+
+<section id="tabs"><h2>Abas e busca</h2>
+<p>Trabalhe com quantas abas precisar. O Caesar lembra das que você tinha abertas e as restaura exatamente como estavam quando você o inicia de novo.</p>
+<figure class="gif"><img src="../media/gifs/pestanas-buscar.gif" alt="Várias abas abertas e a barra de busca dentro de uma resposta" loading="lazy"><figcaption>Alterne entre abas e busque dentro da resposta.</figcaption></figure>
+<ul>
 <li><kbd>Ctrl</kbd>+<kbd>T</kbd> nova, <kbd>Ctrl</kbd>+<kbd>W</kbd> fechar, <kbd>Ctrl</kbd>+<kbd>1…9</kbd> ir para a aba N.</li>
 <li><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> volta para a aba que você visitou antes ou depois.</li>
 <li><kbd>Ctrl</kbd>+<kbd>F</kbd> busca na resposta ou no editor.</li>
 <li>Clique com o botão direito ou use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> para fechar todas e ir para a tela inicial com o gato.</li>
 </ul>
-<figure class="gif"><img src="../media/gifs/graphql.gif" alt="422|Caesar JSON" loading="lazy"><figcaption>No macOS, <kbd>Ctrl</kbd> é substituído por <kbd>Cmd</kbd>.</figcaption></figure>
+<p>No macOS, <kbd>Ctrl</kbd> é substituído por <kbd>Cmd</kbd>.</p>
+</section>
+
+<section id="workspaces"><h2>Workspaces</h2>
 <p>Um <strong>workspace</strong> é um conjunto separado de coleções, variáveis e abas: um para o trabalho, outro para projetos pessoais, outro para cada cliente. Você alterna pelo seletor da barra lateral.</p>
+<figure class="gif"><img src="../media/gifs/espacios.gif" alt="Criar um workspace e alternar entre workspaces" loading="lazy"><figcaption>Cada workspace tem suas próprias coleções e variáveis.</figcaption></figure>
+<p>O modo Convidado e as contas sem Pro incluem <strong>um workspace</strong>; com o Pro você pode ter quantos quiser.</p>
 </section>
 
-<section id="websocket"><h2>193|=</h2>
-<p>Cada workspace tem suas próprias coleções e variáveis.</p>
-<figure class="gif"><img src="../media/gifs/websocket.gif" alt="423|YAML" loading="lazy"><figcaption>O modo Convidado e as contas sem Pro incluem <strong>um workspace</strong>; com o Pro você pode ter quantos quiser.</figcaption></figure>
-<ul>
-<li>Todo comando do Caesar tem um atalho, e <strong>você pode alterar todos eles</strong>. Abra o editor com <kbd>Ctrl</kbd>+<kbd>/</kbd>.</li>
-<li>Altere ou adicione combinações; cada comando aceita várias.</li>
-<li>Ação</li>
-<li>Atalho padrão</li>
-</ul>
-</section>
-
-<section id="tabs"><h2>445|Invia messaggi <strong>di testo</strong> o <strong>binari</strong> (in esadecimale o base64) e ispeziona i binari in un hex dump.</h2>
-<p>Enviar a requisição</p>
-<figure class="gif"><img src="../media/gifs/pestanas-buscar.gif" alt="424|HAR (dal browser)" loading="lazy"><figcaption><kbd>Ctrl</kbd>+<kbd>Enter</kbd></figcaption></figure>
-<ul>
-<li>Salvar na coleção</li>
-<li><kbd>Ctrl</kbd>+<kbd>S</kbd></li>
-<li>Nova aba / Fechar aba</li>
-<li><kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></li>
-</ul>
-<p>Ir para a barra de URL</p>
-</section>
-
-<section id="workspaces"><h2>446|Supporta <code>{{variables}}</code> nell'URL.</h2>
-<p><kbd>Ctrl</kbd>+<kbd>L</kbd></p>
-<figure class="gif"><img src="../media/gifs/espacios.gif" alt="425|cURL" loading="lazy"><figcaption>Buscar</figcaption></figure>
-<p><kbd>Ctrl</kbd>+<kbd>F</kbd></p>
-</section>
-
-<section id="shortcuts"><h2>447|Lavora con tutte le schede che ti servono. Caesar ricorda quelle che avevi aperte e le ripristina esattamente com'erano quando lo riavvii.</h2>
-<p>Escolher uma variável</p>
-<figure class="gif"><img src="../media/gifs/atajos.gif" alt="426|Incollandolo nella barra dell'URL" loading="lazy"><figcaption><kbd>Ctrl</kbd>+<kbd>Space</kbd></figcaption></figure>
-<table><thead><tr><th>Abrir configurações</th><th><kbd>Ctrl</kbd>+<kbd>,</kbd></th></tr></thead><tbody>
+<section id="shortcuts"><h2>Atalhos de teclado</h2>
+<p>Todo comando do Caesar tem um atalho, e <strong>você pode alterar todos eles</strong>. Abra o editor com <kbd>Ctrl</kbd>+<kbd>/</kbd>.</p>
+<figure class="gif"><img src="../media/gifs/atajos.gif" alt="Abrir o editor de atalhos e alterar a combinação de teclas de um comando" loading="lazy"><figcaption>Altere ou adicione combinações; cada comando aceita várias.</figcaption></figure>
+<table><thead><tr><th>Ação</th><th>Atalho padrão</th></tr></thead><tbody>
+<tr><td>Enviar a requisição</td><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td></tr>
+<tr><td>Salvar na coleção</td><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+<tr><td>Nova aba / Fechar aba</td><td><kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd></td></tr>
+<tr><td>Ir para a barra de URL</td><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td></tr>
+<tr><td>Buscar</td><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td></tr>
+<tr><td>Escolher uma variável</td><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td></tr>
+<tr><td>Abrir configurações</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td></tr>
 <tr><td>Ver e editar atalhos</td><td><kbd>Ctrl</kbd>+<kbd>/</kbd></td></tr>
-<tr><td>Você também pode criar <strong>ações personalizadas</strong> que encadeiam vários comandos e colocar <strong>botões à sua escolha</strong> ao lado da URL.</td><td>O Caesar vem com seis temas: <strong>Monokai</strong> (padrão), <strong>Dracula</strong>, <strong>Tokyo Night</strong>, <strong>Nord</strong>, <strong>One Dark</strong> e <strong>GitHub Light</strong> para quem prefere um fundo claro.</td></tr>
-<tr><td>Troque de tema instantaneamente nas Configurações.</td><td>Você também pode escolher a fonte e o tamanho do texto, desativar animações e ajustar a largura da barra lateral. A interface está disponível em <strong>espanhol, inglês, alemão, francês e italiano</strong>.</td></tr>
-<tr><td>Em <strong>Configurações</strong> você controla como as requisições são enviadas:</td><td>Configuração</td></tr>
-<tr><td>O que faz</td><td>Seguir redirecionamentos</td></tr>
-<tr><td>Segue até 10 redirecionamentos, ou nenhum.</td><td>Timeout</td></tr>
-<tr><td>30 segundos por padrão. Com <code>0</code> ou mais de 1 hora, usa-se o máximo de 3600 s, útil para depurar sem que o erro dispare.</td><td>Verificar SSL</td></tr>
-<tr><td>Desative apenas para testar servidores com certificados autoassinados.</td><td>Versão HTTP</td></tr>
 </tbody></table>
-<p>Automática, HTTP/1.1 ou HTTP/2.</p>
+<p>Você também pode criar <strong>ações personalizadas</strong> que encadeiam vários comandos e colocar <strong>botões à sua escolha</strong> ao lado da URL.</p>
 </section>
 
-<section id="themes"><h2>448|Passa da una scheda all'altra e cerca dentro la risposta.</h2>
-<p>Métodos extras</p>
-<figure class="gif"><img src="../media/gifs/temas.gif" alt="427|Copia come cURL" loading="lazy"><figcaption>Adiciona métodos personalizados além dos habituais.</figcaption></figure>
+<section id="themes"><h2>Temas, fontes e idiomas</h2>
+<p>O Caesar vem com seis temas: <strong>Monokai</strong> (padrão), <strong>Dracula</strong>, <strong>Tokyo Night</strong>, <strong>Nord</strong>, <strong>One Dark</strong> e <strong>GitHub Light</strong> para quem prefere um fundo claro.</p>
+<figure class="gif"><img src="../media/gifs/temas.gif" alt="Alternar entre os temas Monokai, Dracula, Tokyo Night, Nord, One Dark e GitHub Light" loading="lazy"><figcaption>Troque de tema instantaneamente nas Configurações.</figcaption></figure>
+<p>Você também pode escolher a fonte e o tamanho do texto, desativar animações e ajustar a largura da barra lateral. A interface está disponível em <strong>espanhol, inglês, alemão, francês e italiano</strong>.</p>
+</section>
+
+<section id="network-settings"><h2>Configurações de rede</h2>
+<p>Em <strong>Configurações</strong> você controla como as requisições são enviadas:</p>
+<table><thead><tr><th>Configuração</th><th>O que faz</th></tr></thead><tbody>
+<tr><td>Seguir redirecionamentos</td><td>Segue até 10 redirecionamentos, ou nenhum.</td></tr>
+<tr><td>Timeout</td><td>30 segundos por padrão. Com <code>0</code> ou mais de 1 hora, usa-se o máximo de 3600 s, útil para depurar sem que o erro dispare.</td></tr>
+<tr><td>Verificar SSL</td><td>Desative apenas para testar servidores com certificados autoassinados.</td></tr>
+<tr><td>Versão HTTP</td><td>Automática, HTTP/1.1 ou HTTP/2.</td></tr>
+<tr><td>Métodos extras</td><td>Adiciona métodos personalizados além dos habituais.</td></tr>
+</tbody></table>
+</section>
+
+<section id="teams"><h2>Sync e equipes</h2>
 <p>Com uma conta Pro você pode usar as mesmas coleções em <strong>vários computadores</strong> e compartilhá-las com outras pessoas.</p>
+<ul>
+<li><strong>Sync pessoal:</strong> suas coleções, variáveis e perfis aparecem em todos os seus dispositivos. As alterações são mescladas por item, então dois dispositivos não sobrescrevem o trabalho um do outro.</li>
+<li><strong>Criptografado no seu dispositivo:</strong> o que é enviado já sai criptografado do seu computador; o serviço armazena apenas dados ilegíveis.</li>
+<li><strong>Chave de recuperação:</strong> fica com você e permite recuperar seus dados se você perder um dispositivo.</li>
+<li><strong>Vincular um novo dispositivo:</strong> é aprovado a partir de outro dispositivo seu com um código de seis dígitos que você compara nas duas telas.</li>
+<li><strong>Equipes:</strong> compartilhe uma coleção ou um workspace com um <strong>código</strong>; quem o inserir entra e vê as alterações.</li>
+</ul>
+<figure class="gif"><img src="../media/gifs/compartir-equipo.gif" alt="Compartilhar uma coleção com um código de equipe e entrar com esse código" loading="lazy"><figcaption>Compartilhe uma coleção com um código e entre a partir de outro dispositivo.</figcaption></figure>
+<div class="box warn"><p><strong>Importante:</strong> em uma coleção compartilhada, qualquer pessoa com o código pode ler e modificar o conteúdo; não há papéis. Compartilhe o código somente com quem deve poder editar.</p></div>
 </section>
 
-<section id="network-settings"><h2>449|<kbd>Ctrl</kbd>+<kbd>T</kbd> nuova, <kbd>Ctrl</kbd>+<kbd>W</kbd> chiudi, <kbd>Ctrl</kbd>+<kbd>1…9</kbd> vai alla scheda N.</h2>
-<p><strong>Sync pessoal:</strong> suas coleções, variáveis e perfis aparecem em todos os seus dispositivos. As alterações são mescladas por item, então dois dispositivos não sobrescrevem o trabalho um do outro.</p>
-<table><thead><tr><th><strong>Criptografado no seu dispositivo:</strong> o que é enviado já sai criptografado do seu computador; o serviço armazena apenas dados ilegíveis.</th><th><strong>Chave de recuperação:</strong> fica com você e permite recuperar seus dados se você perder um dispositivo.</th></tr></thead><tbody>
-<tr><td><strong>Vincular um novo dispositivo:</strong> é aprovado a partir de outro dispositivo seu com um código de seis dígitos que você compara nas duas telas.</td><td><strong>Equipes:</strong> compartilhe uma coleção ou um workspace com um <strong>código</strong>; quem o inserir entra e vê as alterações.</td></tr>
-<tr><td>Compartilhe uma coleção com um código e entre a partir de outro dispositivo.</td><td><strong>Importante:</strong> em uma coleção compartilhada, qualquer pessoa com o código pode ler e modificar o conteúdo; não há papéis. Compartilhe o código somente com quem deve poder editar.</td></tr>
-<tr><td>Modo</td><td>Inclui</td></tr>
+<section id="plans"><h2>Convidado, conta e Pro</h2>
+<table><thead><tr><th>Modo</th><th>Inclui</th></tr></thead><tbody>
 <tr><td><strong>Convidado</strong> (grátis)</td><td>Todos os recursos de requisição, testes, GraphQL, WebSockets, importação/exportação e gerador de código. Dados apenas no seu dispositivo, 1 workspace.</td></tr>
 <tr><td><strong>Conta</strong> (teste de 7 dias)</td><td>Igual ao Convidado, localmente, enquanto você decide se ativa o Pro. Após 7 dias sem o Pro, a conta é excluída.</td></tr>
+<tr><td><strong>Pro</strong> (assinatura)</td><td>Sync criptografado, equipes e coleções compartilhadas, e workspaces ilimitados.</td></tr>
 </tbody></table>
+<p>O preço, o período de cobrança e os impostos aparecem na página de checkout antes de você pagar. Você pode cancelar quando quiser em <em>Configurações → Conta e assinatura → Gerenciar assinatura</em> e recebe o reembolso em até 14 dias. Mais detalhes em <a href="index.html#pricing">Preços e assinatura</a>.</p>
 </section>
 
-<section id="teams"><h2>450|<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> torna alla scheda visitata prima o dopo.</h2>
-<p><strong>Pro</strong> (assinatura)</p>
+<section id="privacy"><h2>Privacidade e segurança</h2>
 <ul>
-<li>Sync criptografado, equipes e coleções compartilhadas, e workspaces ilimitados.</li>
-<li>O preço, o período de cobrança e os impostos aparecem na página de checkout antes de você pagar. Você pode cancelar quando quiser em <em>Configurações → Conta e assinatura → Gerenciar assinatura</em> e recebe o reembolso em até 14 dias. Mais detalhes em <a href="index.html#pricing">Preços e assinatura</a>.</li>
 <li><strong>Sem telemetria nem análises.</strong> O Caesar não envia dados de uso.</li>
 <li><strong>A interface não faz requisições de rede</strong>: elas são executadas pelo núcleo em Rust, que valida as URLs, só permite http e https e limita o tamanho das respostas e dos arquivos.</li>
 <li><strong>Suas chaves nunca saem do sistema:</strong> a chave de criptografia é armazenada no chaveiro do seu sistema operacional.</li>
+<li><strong>Permissões mínimas e uma política de segurança rigorosa</strong> no aplicativo.</li>
+<li>No modo Convidado seus dados <strong>nunca saem do seu dispositivo</strong>.</li>
 </ul>
-<figure class="gif"><img src="../media/gifs/compartir-equipo.gif" alt="428|Importa con il selettore di file ed esporta nel formato che scegli." loading="lazy"><figcaption><strong>Permissões mínimas e uma política de segurança rigorosa</strong> no aplicativo.</figcaption></figure>
-<div class="box warn"><p>No modo Convidado seus dados <strong>nunca saem do seu dispositivo</strong>.</p></div>
+<p>Mais em <a href="index.html#privacy">Segurança e privacidade</a> e na <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">política de privacidade</a>.</p>
 </section>
 
-<section id="plans"><h2>451|<kbd>Ctrl</kbd>+<kbd>F</kbd> cerca nella risposta o nell'editor.</h2>
-<table><thead><tr><th>Mais em <a href="index.html#privacy">Segurança e privacidade</a> e na <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">política de privacidade</a>.</th><th>O Caesar se atualiza sozinho: ao iniciar, procura uma nova versão e, se houver, baixa, instala e reinicia. <strong>Suas abas e rascunhos são mantidos.</strong> Cada pacote é assinado e o aplicativo verifica a assinatura antes de instalá-lo.</th></tr></thead><tbody>
-<tr><td>Em <em>Configurações → Atualizações</em> você pode desativá-las ou clicar em <strong>Verificar atualizações</strong>.</td><td>No Linux, se você instalar o Caesar pela <strong>Snap Store</strong> (<code>sudo snap install caesar</code> ou pela Ubuntu App Center), o Snap o atualiza automaticamente; com o AppImage ele se atualiza dentro do app, e o <code>.deb</code> é reinstalado manualmente.</td></tr>
-<tr><td><strong>Use variáveis para o que muda</strong> (servidor, versão, tokens) e perfis para cada ambiente.</td><td><strong>Defina a autenticação na coleção</strong> e deixe as requisições em "Inherit".</td></tr>
-<tr><td><strong>Adicione pelo menos um teste a cada requisição importante</strong>: status e uma verificação do corpo.</td><td><strong>Nomeie as requisições com um verbo e um recurso</strong> ("Listar usuários", "Criar pedido") e agrupe-as em pastas.</td></tr>
-</tbody></table>
-<p><strong>Exporte uma cópia</strong> das suas coleções importantes de vez em quando.</p>
-</section>
-
-<section id="privacy"><h2>452|Clic destro o <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd> le chiude tutte e ti porta alla schermata iniziale con il gatto.</h2>
+<section id="updates"><h2>Atualizações</h2>
+<p>O Caesar se atualiza sozinho: ao iniciar, procura uma nova versão e, se houver, baixa, instala e reinicia. <strong>Suas abas e rascunhos são mantidos.</strong> Cada pacote é assinado e o aplicativo verifica a assinatura antes de instalá-lo.</p>
 <ul>
+<li>Em <em>Configurações → Atualizações</em> você pode desativá-las ou clicar em <strong>Verificar atualizações</strong>.</li>
+<li>No Linux, se você instalar o Caesar pela <strong>Snap Store</strong> (<code>sudo snap install caesar</code> ou pela Ubuntu App Center), o Snap o atualiza automaticamente; com o AppImage ele se atualiza dentro do app, e o <code>.deb</code> é reinstalado manualmente.</li>
+</ul>
+</section>
+
+<section id="best-practices"><h2>Boas práticas</h2>
+<ol>
+<li><strong>Use variáveis para o que muda</strong> (servidor, versão, tokens) e perfis para cada ambiente.</li>
+<li><strong>Defina a autenticação na coleção</strong> e deixe as requisições em "Inherit".</li>
+<li><strong>Adicione pelo menos um teste a cada requisição importante</strong>: status e uma verificação do corpo.</li>
+<li><strong>Nomeie as requisições com um verbo e um recurso</strong> ("Listar usuários", "Criar pedido") e agrupe-as em pastas.</li>
+<li><strong>Exporte uma cópia</strong> das suas coleções importantes de vez em quando.</li>
 <li><strong>Não deixe segredos na URL</strong>: use variáveis secretas ou autenticação.</li>
 <li><strong>Use um workspace por projeto ou cliente</strong> para que as variáveis não se misturem.</li>
-<li>A requisição não conecta</li>
-<li>Verifique se a URL começa com <code>http://</code> ou <code>https://</code>, se não há nenhuma variável sem resolver (ela aparece em outra cor) e se você tem conexão. Veja a linha do tempo da resposta: ela mostra em que etapa falha.</li>
-<li>Erro de certificado SSL</li>
-</ul>
-<p>Se você está testando um servidor local com certificado autoassinado, desative <strong>Verificar SSL</strong> nas Configurações. Ative-o novamente para APIs reais.</p>
-</section>
-
-<section id="updates"><h2>398|Puoi contrassegnare le variabili come <strong>segrete</strong> così non sono visibili a colpo d'occhio.</h2>
-<p>Recebo 401 ou 403</p>
-<ul>
-<li>Verifique a aba Authorization: se estiver em "Inherit", confira a da coleção. Confirme que o token não expirou e que a variável existe no <strong>perfil ativo</strong>.</li>
-<li>A requisição expira por timeout</li>
-</ul>
-</section>
-
-<section id="best-practices"><h2>453|Su macOS, <kbd>Ctrl</kbd> viene sostituito da <kbd>Cmd</kbd>.</h2>
-<ol>
-<li>Aumente o timeout nas Configurações. Com <code>0</code> usa-se o máximo (1 hora), pensado para depuração.</li>
-<li>Meus testes não fazem nada</li>
-<li>Os testes são executados <strong>depois</strong> que a resposta é recebida, então é preciso enviar a requisição. Se houver um erro no script, ele aparece ao lado dos resultados.</li>
-<li>Não consigo sincronizar nem compartilhar</li>
-<li>Esses recursos exigem o Pro. No modo Convidado ou com a conta em teste, o Caesar funciona localmente. Se você já pagou, clique em <strong>Já paguei, verificar</strong> em <em>Conta e assinatura</em>.</li>
-<li>O Caesar é bom para testar APIs?</li>
-<li>Sim: cobre REST, GraphQL e WebSocket com testes, variáveis, perfis, importação do Postman e geração de código, em um app leve que funciona offline.</li>
 </ol>
 </section>
 
-<section id="troubleshooting"><h2>454|Un <strong>workspace</strong> è un insieme separato di collezioni, variabili e schede: uno per il lavoro, uno per i progetti personali, uno per ogni cliente. Cambi dal selettore nella barra laterale.</h2>
+<section id="troubleshooting"><h2>Solução de problemas</h2>
+<h3>A requisição não conecta</h3>
+<p>Verifique se a URL começa com <code>http://</code> ou <code>https://</code>, se não há nenhuma variável sem resolver (ela aparece em outra cor) e se você tem conexão. Veja a linha do tempo da resposta: ela mostra em que etapa falha.</p>
+<h3>Erro de certificado SSL</h3>
+<p>Se você está testando um servidor local com certificado autoassinado, desative <strong>Verificar SSL</strong> nas Configurações. Ative-o novamente para APIs reais.</p>
+<h3>Recebo 401 ou 403</h3>
+<p>Verifique a aba Authorization: se estiver em "Inherit", confira a da coleção. Confirme que o token não expirou e que a variável existe no <strong>perfil ativo</strong>.</p>
+<h3>A requisição expira por timeout</h3>
+<p>Aumente o timeout nas Configurações. Com <code>0</code> usa-se o máximo (1 hora), pensado para depuração.</p>
+<h3>Meus testes não fazem nada</h3>
+<p>Os testes são executados <strong>depois</strong> que a resposta é recebida, então é preciso enviar a requisição. Se houver um erro no script, ele aparece ao lado dos resultados.</p>
+<h3>Não consigo sincronizar nem compartilhar</h3>
+<p>Esses recursos exigem o Pro. No modo Convidado ou com a conta em teste, o Caesar funciona localmente. Se você já pagou, clique em <strong>Já paguei, verificar</strong> em <em>Conta e assinatura</em>.</p>
+</section>
+
+<section id="faq"><h2>Perguntas frequentes</h2>
+<h3>O Caesar é bom para testar APIs?</h3>
+<p>Sim: cobre REST, GraphQL e WebSocket com testes, variáveis, perfis, importação do Postman e geração de código, em um app leve que funciona offline.</p>
 <h3>É grátis e de código aberto?</h3>
 <p>É grátis no modo Convidado e seu código é público, mas <strong>não é código aberto</strong>: usa a licença FSL e é proibido vendê-lo. Cada versão passa a ser MIT após dois anos.</p>
 <h3>Onde ficam armazenadas as minhas coleções?</h3>
@@ -395,34 +422,17 @@ pm.environment.set("token", r.access_token);</code></pre>
 <p>Por enquanto o Caesar é um aplicativo desktop. Você pode exportar requisições como cURL ou código para usar nos seus scripts.</p>
 <h3>Preciso de uma conta?</h3>
 <p>Não. A conta só é necessária para sincronizar e trabalhar em equipe.</p>
-</section>
-
-<section id="faq"><h2>455|Ogni workspace ha le sue collezioni e le sue variabili.</h2>
 <h3>Em quais sistemas ele roda?</h3>
 <p>Windows (<code>.exe</code> e <code>.msi</code>; em breve na Microsoft Store), macOS (Intel e Apple Silicon) e Linux (Ubuntu App Center / Snap Store com <code>sudo snap install caesar</code>, <code>.deb</code> e <code>AppImage</code>).</p>
-<h3>É grátis para baixar e você não precisa de conta. Se faltar alguma coisa ou você encontrar um bug, conte para nós no <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</h3>
-<p>É gratuito no modo Convidado e o código é público, mas <strong>não é open source</strong>: usa a licença FSL e a venda é proibida. Cada versão passa a ser MIT após dois anos.</p>
-<h3>Onde ficam armazenadas as minhas coleções?</h3>
-<p>No seu dispositivo. Elas só saem dele se você ativar a sincronização ou compartilhar com uma equipe e, nesse caso, são criptografadas.</p>
-<h3>Posso trazer minhas coleções do Postman?</h3>
-<p>Sim. Importe o arquivo da coleção (e dos ambientes, que viram perfis) pela barra lateral.</p>
-<h3>Meus scripts do Postman funcionam?</h3>
-<p>Testes com <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> e as funções para guardar variáveis funcionam. O Caesar usa um interpretador seguro para um subconjunto de JavaScript, então um script que dependa de bibliotecas externas ou da rede não será executado.</p>
-<h3>Existe linha de comando ou integração com CI?</h3>
-<p>Por enquanto o Caesar é um aplicativo de desktop. Você pode exportar requisições como cURL ou código para usar em seus scripts.</p>
-<h3>Preciso de uma conta?</h3>
-<p>Não. Só é necessária uma conta para sincronizar e trabalhar em equipe.</p>
-<h3>Em quais sistemas funciona?</h3>
-<p>Windows (<code>.exe</code> e <code>.msi</code>; em breve na Microsoft Store), macOS (Intel e Apple Silicon) e Linux (Ubuntu App Center / Snap Store com <code>sudo snap install caesar</code>, <code>.deb</code> e <code>AppImage</code>).</p>
 </section>
 
-<div class="why"><h3 style="margin-top:0">184|Note</h3><p>É gratuito para baixar e você não precisa de conta. Se algo estiver faltando ou você encontrar um bug, avise-nos no <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">257|I pacchetti non sono firmati digitalmente.</a></p></div>
+<div class="why"><h3 style="margin-top:0">Experimente agora</h3><p>É grátis para baixar e você não precisa de conta. Se faltar alguma coisa ou você encontrar um bug, conte para nós no <a href="https://github.com/cesargarridor/caesar/issues">GitHub</a>.</p><p><a class="btn" href="download.html">Baixar o Caesar</a></p></div>
 
 </div></main>
 <footer><div class="wrap">
-<p>404|<code>pm.environment.set</code>, <code>pm.collectionVariables.set</code> e <code>pm.globals.set</code> per salvare valori.</p><p class="mt-3 text-xs leading-relaxed text-zinc-500">290|Guida a Caesar: tutte le funzionalità, una per una</p>
-<p>405|<strong>Sicuro per progettazione.</strong> Gli script girano in un interprete dedicato per un sottoinsieme di JavaScript: niente rete, nessun accesso al file system e niente <code>eval</code>. Per questo uno script importato non può fare nulla al di fuori del proprio ambito.</p>
-<p>406|Un caso tipico: accedi e usa il token nelle altre richieste. Con un test sulla richiesta di login:</p>
+<p>O Caesar é Fair Source sob a licença <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a>: não é código aberto, e é proibido vendê-lo. Site estático, sem cookies, sem rastreamento.</p><p class="mt-3 text-xs leading-relaxed text-zinc-500"><strong>Aviso legal (no estado em que se encontra):</strong> o Caesar é fornecido “no estado em que se encontra” e “conforme disponível”, sem garantias de qualquer tipo. O autor não se responsabiliza por perda de dados ou chaves, indisponibilidade, danos, lucros cessantes, nem pelas requisições que você envia com o app, na máxima extensão permitida por lei. Faça backups. Isso não limita os seus direitos legais de consumidor nem o reembolso de 14 dias do Pro. <a class="underline transition hover:text-white" href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">Licença</a></p>
+<p><a href="https://github.com/cesargarridor/caesar">GitHub</a> · <a href="https://github.com/cesargarridor/caesar/issues">Issues</a> · <a href="https://github.com/cesargarridor/caesar/blob/master/LICENSE">FSL-1.1-MIT</a></p>
+<p><a href="https://cesargarridor.github.io/caesar-legal/en/terms.html">Termos</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/privacy.html">Privacidade</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/cookies.html">Cookies</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/legal.html">Aviso legal</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/refunds.html">Reembolsos</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/security.html">Segurança</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/delete.html">Excluir meus dados</a> · <a href="https://cesargarridor.github.io/caesar-legal/en/support.html">Suporte</a></p>
 </div></footer>
 
 
