@@ -1285,6 +1285,23 @@ pub async fn sync_sign_out(app: AppHandle, st: tauri::State<'_, SyncState>) -> R
     Ok(())
 }
 
+/// Tierra quemada: borra de este equipo `datos.json` (y sus copias `datos*`). Se usa al cerrar sesión o borrar la cuenta
+/// cuando el usuario marca «eliminar también mis colecciones locales». No hay copia de seguridad: no se puede deshacer.
+#[tauri::command]
+pub fn local_wipe(app: AppHandle, st: tauri::State<SyncState>) -> Result<(), String> {
+    let dir = app.path().app_data_dir().map_err(|e| format!("Sin carpeta de datos: {e}"))?;
+    if let Ok(rd) = std::fs::read_dir(&dir) {
+        for e in rd.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.starts_with("datos") && e.path().is_file() {
+                std::fs::remove_file(e.path()).map_err(|er| format!("No se pudo borrar {name}: {er}"))?;
+            }
+        }
+    }
+    st.dirty.store(false, Ordering::SeqCst);
+    Ok(())
+}
+
 /// Tiempo máximo de una sincronización manual: pasado este plazo se corta y se avisa (antes se quedaba «pensando»).
 const SYNC_NOW_TIMEOUT: Duration = Duration::from_secs(90);
 

@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, KeyRound, LogOut, RefreshCw, X } from "lucide-react";
-import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
+import { checkTrialAndWhitelist, redeemCode, openUrl, saveTextFile, syncDeleteAccount, localWipe, syncBilling, syncCheckoutUrl, syncNow, syncCancel, syncSignIn, syncSignOut, syncStatus, syncRole, syncActivate, syncEnterKey, syncMakeMaster, syncShowKey, syncRegenerateKey, type Billing, type SyncRole, type SyncStatus } from "../api";
 import SocialButtons from "./SocialButtons";
 import PlanNotice from "./PlanNotice";
 import { acceptedTerms, clearTermsSent } from "../lib/legal";
 import { t } from "../lib/i18n";
 import { onAccountChanged } from "../api";
 import { openCheckout, planError, useAccount } from "../lib/account";
+
+/** Tierra quemada local: borra datos.json en Rust, vacía lo que Caesar guarda en el navegador y recarga en blanco. */
+const wipeLocalAndReload = async () => {
+  await localWipe();
+  try {
+    const ks: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("caesar.")) ks.push(k); }
+    ks.forEach((k) => localStorage.removeItem(k));
+  } catch { /* sin almacenamiento */ }
+  window.location.reload();
+};
+const DEL_PHRASE = "borrar mi cuenta";
 
 const errText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
 /** Mensajes claros para los errores de plan y de clave que devuelve Rust. */
@@ -16,6 +28,8 @@ const keyError = (e: unknown) => {
   return planError(e) ?? errText(e);
 };
 const inputCls = "w-full rounded-xl bg-deep px-3 py-2 text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua";
+/** Compra del plan Empresas (asientos a elegir, mínimo 10): una clave que luego se canjea en «Canjear código». */
+const EMPRESAS_URL = "https://buy.polar.sh/polar_cl_Q2tRO132aFIjoUwZZdF0Xld4Q97YjVESuXq8Z2aGnEM";
 const btnCls = "rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm hover:brightness-110 disabled:opacity-50 bg-[var(--t-iris)]";
 const ghostCls = "rounded-xl px-4 py-2 text-sm font-medium text-mist ring-1 ring-fg/30 hover:ring-fg/60 disabled:opacity-50";
 
@@ -43,6 +57,9 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
   const [copied, setCopied] = useState(false);
   const [bill, setBill] = useState<Billing | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [wipeOut, setWipeOut] = useState(false);
+  const [wipeDel, setWipeDel] = useState(false);
+  const [delPhrase, setDelPhrase] = useState("");
   const [busy, setBusy] = useState(false);
   /** Pestaña de acceso abierta. Con sesión iniciada solo se ve si el usuario pulsa una (para entrar con otra cuenta). */
   const [mode, setMode] = useState<"login" | "register" | null>(null);
@@ -163,7 +180,8 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
             </div>
             {confirmOut && (
               <div className="space-y-3 rounded-xl bg-kelp p-3 ring-1 ring-fg/15" role="alertdialog" aria-label={t("Cerrar sesión")}>
-                <p className="text-xs text-silver">{t("Se cerrará la sesión en este equipo. Antes se sube lo que tengas pendiente.")}</p>
+                <p className="text-sm font-medium text-mist">{t("¿Cerrar sesión en Caesar?")}</p>
+                <p className="text-xs text-silver">{t("Tus colecciones sincronizadas se eliminarán de este dispositivo (seguirán a salvo en la nube).")}</p>
                 <ul className="space-y-1 text-xs text-slate">
                   <li>
                     <b className="text-mist">{t("Se quitan de este equipo")}:</b>{" "}
@@ -173,14 +191,22 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                     <b className="text-mist">{t("Se quedan")}:</b> {t("tus colecciones locales, variables y ajustes.")}
                   </li>
                 </ul>
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-silver">
+                  <input type="checkbox" className="mt-0.5" checked={wipeOut} disabled={busy} onChange={(e) => setWipeOut(e.target.checked)} />
+                  <span>
+                    {t("Eliminar también mis colecciones locales")}{" "}
+                    <span className="text-red-400">{t("(Atención: no tienen copia de seguridad y se perderán para siempre). Márcalo si compartes este ordenador.")}</span>
+                  </span>
+                </label>
                 <div className="flex gap-2">
                   <button
-                    className={btnCls}
+                    className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:brightness-110 disabled:opacity-50"
                     disabled={busy}
                     onClick={() =>
                       run(async () => {
                         try { await onBeforeSignOut(); } catch { /* sin red: no bloquea el cierre */ }
                         await syncSignOut();
+                        if (wipeOut) { await wipeLocalAndReload(); return; }
                         setConfirmOut(false);
                         setMode(null);
                         setConfirmDel(false);
@@ -191,9 +217,9 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
                       })
                     }
                   >
-                    {busy ? t("Cerrando sesión…") : t("Sí, cerrar sesión")}
+                    {busy ? t("Cerrando sesión…") : t("Cerrar sesión")}
                   </button>
-                  <button className={ghostCls} disabled={busy} onClick={() => setConfirmOut(false)}>{t("Cancelar")}</button>
+                  <button className={ghostCls} disabled={busy} onClick={() => { setConfirmOut(false); setWipeOut(false); }}>{t("Cancelar")}</button>
                 </div>
               </div>
             )}
@@ -271,7 +297,10 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
             {t("Funciona solo en local. Te quedan {0} día(s); después la cuenta se elimina y vuelves al modo Invitado.", String(account.days_left))}
           </p>
           <PlanNotice />
-          <button className={btnCls} disabled={busy} onClick={() => run(openCheckout)}>{t("Activar Pro")}</button>
+          <div className="flex flex-wrap gap-2">
+            <button className={btnCls} disabled={busy} onClick={() => run(openCheckout)}>{t("Activar Pro")}</button>
+            <button className={btnCls} onClick={() => { openUrl(EMPRESAS_URL).catch(() => {}); }}>{t("Activar Pro Empresa")}</button>
+          </div>
         </div>
       )}
 
@@ -510,18 +539,32 @@ export default function SyncSettings({ sharedCount, onBeforeSignOut, onSignedOut
         <section className="space-y-2 border-t border-fg/10 pt-4">
           {confirmDel ? (
             <div className="max-w-md space-y-3">
+              <p className="text-sm font-medium text-mist">{t("Eliminar cuenta permanentemente")}</p>
               <p className="text-xs text-slate">
-                {t("Se borrarán tu cuenta y los datos cifrados de la nube. Las colecciones compartidas saldrán de este equipo; tus colecciones locales no se tocan. Si tienes una suscripción activa, se cancelará al borrar la cuenta (no se te cobrará más) y conservas Pro solo hasta el final del periodo ya pagado.")}
+                {t("Esta acción destruirá todos tus datos en la nube y cancelará tu suscripción activa. No se puede deshacer.")}
               </p>
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-silver">
+                <input type="checkbox" className="mt-0.5" checked={wipeDel} disabled={busy} onChange={(e) => setWipeDel(e.target.checked)} />
+                <span>{t("Destruir también mi base de datos local en este equipo.")}</span>
+              </label>
+              <label className="block space-y-1 text-xs text-slate">
+                <span>{t("Para confirmar, escribe")} «{DEL_PHRASE}»:</span>
+                <input className={inputCls} value={delPhrase} disabled={busy} onChange={(e) => setDelPhrase(e.target.value)} autoComplete="off" spellCheck={false} />
+              </label>
               <div className="flex gap-2">
                 <button
                   className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                  disabled={busy}
-                  onClick={() => run(async () => { await syncDeleteAccount(); clearTermsSent(); setConfirmDel(false); setBill(null); setShownKey(null); setRole(null); })}
+                  disabled={busy || delPhrase.trim().toLowerCase() !== DEL_PHRASE}
+                  onClick={() => run(async () => {
+                    await syncDeleteAccount();
+                    clearTermsSent();
+                    if (wipeDel) { await wipeLocalAndReload(); return; }
+                    setConfirmDel(false); setDelPhrase(""); setBill(null); setShownKey(null); setRole(null);
+                  })}
                 >
-                  {t("Sí, borrar mi cuenta")}
+                  {t("Eliminar cuenta")}
                 </button>
-                <button className={ghostCls} onClick={() => setConfirmDel(false)}>{t("Cancelar")}</button>
+                <button className={ghostCls} disabled={busy} onClick={() => { setConfirmDel(false); setDelPhrase(""); setWipeDel(false); }}>{t("Cancelar")}</button>
               </div>
             </div>
           ) : (
