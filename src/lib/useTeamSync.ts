@@ -27,7 +27,7 @@ const teamOf = (n: TreeNode) => (n.type === "folder" ? n.team : undefined);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Mínimo entre dos comprobaciones automáticas al volver a la ventana (cada una cuesta una lectura por colección). */
-export const FOCUS_GAP_MS = 15_000;
+export const FOCUS_GAP_MS = 30_000;
 
 /**
  * Colecciones de equipo, sin conexión permanente ni sondeo:

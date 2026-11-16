@@ -149,7 +149,7 @@ pub async fn team_publish(st: tauri::State<'_, SyncState>, json: String) -> Resu
 pub async fn team_join(st: tauri::State<'_, SyncState>, code: String) -> Result<TeamDoc, String> {
     check_code(&code)?;
     crate::sync::require_pro(&st)?;
-    if !crate::limit::allow("team_join", 6, 60_000) {
+    if !crate::limit::allow("team_join", 4, 60_000) {
         return Err("Demasiados intentos seguidos. Espera un minuto.".into());
     }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
@@ -173,6 +173,9 @@ pub async fn team_push(st: tauri::State<'_, SyncState>, code: String, json: Stri
     check_code(&code)?;
     check_json(&json)?;
     crate::sync::require_pro(&st)?;
+    if !force && !crate::limit::allow(&format!("team_push:{code}"), 4, 60_000) {
+        return Ok(seen);
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
     let norm = normalize(&code)?;
@@ -253,6 +256,9 @@ pub async fn team_pull(st: tauri::State<'_, SyncState>, code: String, since: i64
 #[tauri::command]
 pub async fn team_unshare(st: tauri::State<'_, SyncState>, code: String) -> Result<(), String> {
     check_code(&code)?;
+    if !crate::limit::allow("team_unshare", 4, 60_000) {
+        return Err("Espera un minuto antes de volver a intentarlo.".into());
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (_uid, tok) = valid_token(&st).await?;
     let (id, _key) = derive(&normalize(&code)?);
