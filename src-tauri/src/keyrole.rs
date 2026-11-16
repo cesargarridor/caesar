@@ -5,6 +5,7 @@
 //! saber si la clave de un equipo es la vigente sin ver la clave. La clave nunca sale del llavero salvo para mostrarla al Master.
 
 use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -16,6 +17,8 @@ use crate::vault::{self, Key};
 const SERVICE: &str = "Caesar";
 const ACCOUNT: &str = "device-id";
 const CHECK_PLAIN: &[u8] = b"caesar";
+/// Tiempo que se reutiliza `sync/meta` en memoria para no releer Firestore en cada subida o consulta seguida.
+const META_TTL_MS: i64 = 60_000;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct SyncRole {
@@ -26,9 +29,18 @@ pub struct SyncRole {
     pub has_key: bool,
 }
 
+#[derive(Clone)]
 struct Meta {
     master: String,
     key_check: String,
+}
+
+static META_CACHE: Mutex<Option<(String, i64, Option<Meta>)>> = Mutex::new(None);
+
+fn clear_meta_cache() {
+    if let Ok(mut g) = META_CACHE.lock() {
+        *g = None;
+    }
 }
 
 fn device_id() -> Result<String, String> {
@@ -58,10 +70,21 @@ fn key_matches(key: &Key, uid: &str, check: &str) -> bool {
 }
 
 async fn get_meta(st: &SyncState, uid: &str, tok: &str) -> Result<Option<Meta>, String> {
+    let now = now_ms();
+    if let Ok(g) = META_CACHE.lock() {
+        if let Some((u, ts, m)) = g.as_ref() {
+            if u == uid && now - *ts < META_TTL_MS {
+                return Ok(m.clone());
+            }
+        }
+    }
     let url = sync::sync_doc_url(uid, "meta").ok_or("Sincronización no configurada.")?;
     let res = st.client.get(url).bearer_auth(tok).send().await.map_err(|_| "Sin conexión con Firebase.".to_string())?;
     let status = res.status();
     if status.as_u16() == 404 {
+        if let Ok(mut g) = META_CACHE.lock() {
+            *g = Some((uid.to_string(), now, None));
+        }
         return Ok(None);
     }
     if !status.is_success() {
@@ -69,10 +92,14 @@ async fn get_meta(st: &SyncState, uid: &str, tok: &str) -> Result<Option<Meta>, 
     }
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).map_err(|e| e.to_string())?;
     let f = &v["fields"];
-    Ok(Some(Meta {
+    let m = Some(Meta {
         master: f["masterDeviceId"]["stringValue"].as_str().unwrap_or("").to_string(),
         key_check: f["keyCheck"]["stringValue"].as_str().unwrap_or("").to_string(),
-    }))
+    });
+    if let Ok(mut g) = META_CACHE.lock() {
+        *g = Some((uid.to_string(), now, m.clone()));
+    }
+    Ok(m)
 }
 
 async fn put_meta(st: &SyncState, uid: &str, tok: &str, master: &str, key_check: &str) -> Result<(), String> {
@@ -93,6 +120,9 @@ async fn put_meta(st: &SyncState, uid: &str, tok: &str, master: &str, key_check:
         .map_err(|_| "Sin conexión con Firebase.".to_string())?;
     if !res.status().is_success() {
         return Err(format!("Firebase rechazó guardar la configuración de claves ({}).", res.status().as_u16()));
+    }
+    if let Ok(mut g) = META_CACHE.lock() {
+        *g = Some((uid.to_string(), now_ms(), Some(Meta { master: master.to_string(), key_check: key_check.to_string() })));
     }
     Ok(())
 }
@@ -135,7 +165,14 @@ async fn current(st: &SyncState) -> Result<(String, String, Option<Meta>, String
 #[tauri::command]
 pub async fn sync_role(st: tauri::State<'_, SyncState>) -> Result<SyncRole, String> {
     let dev = device_id()?;
-    if !st.has_session() || !st.is_pro.load(Ordering::SeqCst) {
+    if !st.has_session() || !st.is_pro.load(Ordering::SeqCst) || !crate::limit::allow("sync_role", 6, 60_000) {
+        if let Ok(g) = META_CACHE.lock() {
+            if let Some((uid, _, meta)) = g.as_ref() {
+                if st.has_session() && st.is_pro.load(Ordering::SeqCst) {
+                    return role_of(uid, &dev, meta);
+                }
+            }
+        }
         return Ok(SyncRole { role: "none".into(), device_id: dev, master_device_id: None, has_key: vault::load_key().map(|k| k.is_some()).unwrap_or(false) });
     }
     let (uid, _tok, meta, dev) = current(&st).await?;
@@ -147,6 +184,9 @@ pub async fn sync_role(st: tauri::State<'_, SyncState>) -> Result<SyncRole, Stri
 #[tauri::command]
 pub async fn sync_activate(st: tauri::State<'_, SyncState>) -> Result<SyncRole, String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_activate", 3, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let (uid, tok, meta, dev) = current(&st).await?;
     if meta.is_none() {
         let key = match vault::load_key()? {
@@ -168,6 +208,9 @@ pub async fn sync_activate(st: tauri::State<'_, SyncState>) -> Result<SyncRole, 
 #[tauri::command]
 pub async fn sync_show_key(st: tauri::State<'_, SyncState>) -> Result<String, String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_show_key", 5, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let (uid, _tok, meta, dev) = current(&st).await?;
     if role_of(&uid, &dev, &meta)?.role != "master" {
         return Err("Solo el equipo Master puede ver la clave.".into());
@@ -180,6 +223,10 @@ pub async fn sync_show_key(st: tauri::State<'_, SyncState>) -> Result<String, St
 #[tauri::command]
 pub async fn sync_regenerate_key(st: tauri::State<'_, SyncState>) -> Result<String, String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_regenerate_key", 2, 60_000) {
+        return Err("Acabas de regenerar la clave. Espera un minuto.".into());
+    }
+    clear_meta_cache();
     let (uid, tok, meta, dev) = current(&st).await?;
     if role_of(&uid, &dev, &meta)?.role != "master" {
         return Err("Solo el equipo Master puede regenerar la clave.".into());
@@ -193,6 +240,10 @@ pub async fn sync_regenerate_key(st: tauri::State<'_, SyncState>) -> Result<Stri
 #[tauri::command]
 pub async fn sync_enter_key(app: AppHandle, st: tauri::State<'_, SyncState>, key: String) -> Result<SyncRole, String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_enter_key", 5, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
+    clear_meta_cache();
     let k = vault::recovery_decode(&key)?;
     let (uid, tok, meta, dev) = current(&st).await?;
     let ok = match &meta {
@@ -275,6 +326,10 @@ async fn rotate(st: &SyncState, uid: &str, tok: &str, dev: &str, old: &Key) -> R
 #[tauri::command]
 pub async fn sync_make_master(st: tauri::State<'_, SyncState>) -> Result<SyncRole, String> {
     require_pro(&st)?;
+    if !crate::limit::allow("sync_make_master", 2, 60_000) {
+        return Err("Espera un minuto antes de volver a cambiar el equipo principal.".into());
+    }
+    clear_meta_cache();
     let (uid, tok, meta, dev) = current(&st).await?;
     let m = meta.ok_or("Primero activa la sincronización.")?;
     let key = vault::load_key()?.ok_or("Introduce primero la clave.")?;

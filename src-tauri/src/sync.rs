@@ -26,7 +26,7 @@ const CONFIG: &str = include_str!("../sync_config.json");
 const SERVICE: &str = "Caesar";
 const ACCOUNT: &str = "sync-refresh-token";
 /// Cada cuánto despierta el trabajador.
-const TICK: Duration = Duration::from_secs(2);
+const TICK: Duration = Duration::from_secs(10);
 /// Firestore admite documentos de hasta 1 MiB; las reglas exigen menos de 900 000 caracteres.
 const MAX_BLOB: usize = 880_000;
 /// Tope del JSON local que acepta `local_save` (20 MiB).
@@ -442,6 +442,10 @@ pub(crate) fn drop_local_session(st: &SyncState) {
 /// Sube el archivo local (cifrado) en una sola petición.
 pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     require_pro(st)?;
+    if !crate::limit::allow("sync_push", 6, 60_000) {
+        st.dirty.store(true, Ordering::SeqCst);
+        return Ok(());
+    }
     st.set_phase(Some("Preparando los datos…"));
     let (uid, tok) = valid_token(st).await?;
     let plain = crate::localcrypt::read_data(&data_file(app)?)?;
@@ -468,6 +472,9 @@ pub(crate) async fn push(app: &AppHandle, st: &SyncState) -> Result<(), String> 
 /// Baja el documento remoto; si es más nuevo y no hay cambios locales pendientes, lo aplica y avisa a la interfaz.
 pub(crate) async fn pull(app: &AppHandle, st: &SyncState) -> Result<(), String> {
     require_pro(st)?;
+    if !crate::limit::allow("sync_pull", 6, 60_000) {
+        return Ok(());
+    }
     st.set_phase(Some("Buscando cambios en la nube…"));
     let (uid, tok) = valid_token(st).await?;
     let url = doc_url(&uid).ok_or("Sincronización no configurada.")?;
@@ -641,7 +648,10 @@ pub fn start_worker(app: AppHandle) {
             }
             // Si hay una sincronización manual en curso, este despertar se salta.
             let Ok(_guard) = st.sync_lock.try_lock() else { continue };
-            let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 300 == 0) {
+            let r = if st.dirty.load(Ordering::SeqCst) && (!st.blocked.load(Ordering::SeqCst) || n % 60 == 0) {
+                if !crate::limit::allow("bg_push", 3, 60_000) {
+                    continue;
+                }
                 // Baja la bandera ANTES de subir: si el usuario edita durante la subida, vuelve a levantarse.
                 st.dirty.store(false, Ordering::SeqCst);
                 let r = push(&app, &st).await;
@@ -803,6 +813,9 @@ pub async fn sync_sign_in(app: AppHandle, st: tauri::State<'_, SyncState>, email
     if email.trim().is_empty() || password.is_empty() {
         return Err("Escribe tu correo y tu contraseña.".into());
     }
+    if !crate::limit::allow("sync_sign_in", 5, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let endpoint = if create { "accounts:signUp" } else { "accounts:signInWithPassword" };
     let url = format!("https://identitytoolkit.googleapis.com/v1/{endpoint}?key={}", c.api_key);
     let v = post_json(&st, &url, json!({ "email": email.trim(), "password": password, "returnSecureToken": true })).await?;
@@ -838,6 +851,9 @@ async fn gh_post(st: &SyncState, url: &str, form: String) -> Result<Value, Strin
 /// GitHub paso 1: pide un código para que el usuario lo escriba en github.com/login/device.
 #[tauri::command]
 pub async fn sync_github_begin(st: tauri::State<'_, SyncState>) -> Result<DeviceCode, String> {
+    if !crate::limit::allow("sync_auth_flow", 4, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     github_begin(&st).await
 }
 
@@ -895,6 +911,9 @@ async fn github_token(st: &SyncState, device_code: &str, interval: u64, expires_
 /// Inicio de sesión con Google: abre el navegador, recibe el código en 127.0.0.1 (OAuth con PKCE) y entra en Firebase.
 #[tauri::command]
 pub async fn sync_google(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    if !crate::limit::allow("sync_auth_flow", 4, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let body = google_post_body(&st).await?;
     idp_sign_in(&app, &st, body, "Google").await
 }
@@ -1062,6 +1081,9 @@ async fn finish_session(app: &AppHandle, st: &SyncState, s: Session) -> Result<S
 /// Confirma la vinculación: la contraseña demuestra que la cuenta existente es tuya y se le añade GitHub/Google.
 #[tauri::command]
 pub async fn sync_link_confirm(app: AppHandle, st: tauri::State<'_, SyncState>, password: String) -> Result<(), String> {
+    if !crate::limit::allow("sync_auth_flow", 4, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (post_body, email) = st.pending_link.lock().map_err(|_| "Estado bloqueado")?.clone().ok_or("No hay ninguna vinculación pendiente.")?;
     let pw = post_json(&st, &format!("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={}", c.api_key), json!({ "email": email, "password": password, "returnSecureToken": true })).await?;
@@ -1080,6 +1102,9 @@ pub async fn sync_link_confirm(app: AppHandle, st: tauri::State<'_, SyncState>, 
 /// Con GitHub, el código a escribir llega en el evento `link-github-code` ({user_code, verification_uri, ...}).
 #[tauri::command]
 pub async fn sync_link_idp(app: AppHandle, st: tauri::State<'_, SyncState>, provider: String) -> Result<String, String> {
+    if !crate::limit::allow("sync_auth_flow", 4, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
+    }
     let c = cfg().ok_or("La sincronización no está configurada en esta versión.")?;
     let (post_body, email) = st.pending_link.lock().map_err(|_| "Estado bloqueado")?.clone().ok_or("No hay ninguna vinculación pendiente.")?;
     let existing_body = match provider.as_str() {
@@ -1125,7 +1150,7 @@ pub fn sync_link_cancel(st: tauri::State<'_, SyncState>) {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Billing {
     pub(crate) active: bool,
     status: String,
@@ -1133,9 +1158,21 @@ pub struct Billing {
     portal: String,
 }
 
+static BILLING_CACHE: Mutex<Option<Billing>> = Mutex::new(None);
+
+/// Una suscripción cancelada con `ends_at` futuro sigue activa solo mientras no llegue esa fecha (aunque falte el segundo webhook).
+pub(crate) fn is_billing_active(raw_active: bool, ends_at: i64, now: i64) -> bool {
+    raw_active && (ends_at <= 0 || ends_at > now)
+}
+
 /// Estado de la suscripción (lo escribe el Worker de Cloudflare cuando Polar avisa de un pago).
 #[tauri::command]
 pub async fn sync_billing(st: tauri::State<'_, SyncState>) -> Result<Billing, String> {
+    if !crate::limit::allow("sync_billing", 6, 60_000) {
+        if let Some(b) = BILLING_CACHE.lock().ok().and_then(|g| g.clone()) {
+            return Ok(b);
+        }
+    }
     billing_status(&st).await
 }
 
@@ -1149,23 +1186,33 @@ pub(crate) async fn billing_status(st: &SyncState) -> Result<Billing, String> {
     let res = st.client.get(url).bearer_auth(tok).send().await.map_err(|_| "Sin conexión con Firebase.".to_string())?;
     let status = res.status();
     if status.as_u16() == 404 {
-        return Ok(Billing { active: false, status: "none".into(), ends_at: 0, portal: String::new() });
+        let b = Billing { active: false, status: "none".into(), ends_at: 0, portal: String::new() };
+        if let Ok(mut g) = BILLING_CACHE.lock() {
+            *g = Some(b.clone());
+        }
+        return Ok(b);
     }
     if !status.is_success() {
         return Err(format!("No se pudo leer la suscripción ({}).", status.as_u16()));
     }
     let v: Value = serde_json::from_slice(&res.bytes().await.map_err(|_| "Respuesta incompleta.".to_string())?).map_err(|e| e.to_string())?;
     let f = &v["fields"];
-    let active = f["active"]["booleanValue"].as_bool().unwrap_or(false);
+    let ends_at: i64 = f["endsAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let raw_active = f["active"]["booleanValue"].as_bool().unwrap_or(false);
+    let active = is_billing_active(raw_active, ends_at, now_ms());
     if active {
         st.blocked.store(false, Ordering::SeqCst);
     }
-    Ok(Billing {
+    let b = Billing {
         active,
         status: f["status"]["stringValue"].as_str().unwrap_or("").to_string(),
-        ends_at: f["endsAt"]["integerValue"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0),
+        ends_at,
         portal: f["portal"]["stringValue"].as_str().unwrap_or("").to_string(),
-    })
+    };
+    if let Ok(mut g) = BILLING_CACHE.lock() {
+        *g = Some(b.clone());
+    }
+    Ok(b)
 }
 
 /// Enlace de pago de Polar con el uid de la cuenta (así el Worker sabe a quién activar). No se envía el correo.
@@ -1212,6 +1259,9 @@ async fn close_remote(st: &SyncState, c: &Cfg, uid: &str, tok: &str) -> Result<(
 /// Borra la cuenta: primero los datos de la nube y después el usuario de Firebase. Los datos locales no se tocan.
 #[tauri::command]
 pub async fn sync_delete_account(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<(), String> {
+    if !crate::limit::allow("sync_delete_account", 2, 60_000) {
+        return Err("Espera un minuto antes de volver a intentarlo.".into());
+    }
     delete_account(&st).await?;
     let _ = app.emit("account-changed", ());
     Ok(())
@@ -1399,8 +1449,8 @@ pub fn on_focus(app: &AppHandle) {
             return;
         }
         let now = now_ms();
-        let gap = if st.is_pro.load(Ordering::SeqCst) { 15 * 1000 } else { 10 * 1000 };
-        if now - LAST_FOCUS.load(Ordering::SeqCst) < gap {
+        let gap = if st.is_pro.load(Ordering::SeqCst) { 30 * 1000 } else { 15 * 1000 };
+        if now - LAST_FOCUS.load(Ordering::SeqCst) < gap || !crate::limit::allow("on_focus", 3, 60_000) {
             return;
         }
         LAST_FOCUS.store(now, Ordering::SeqCst);
@@ -1423,16 +1473,16 @@ pub fn on_focus(app: &AppHandle) {
 }
 
 /// Tras un pago (`caesar://upgrade-success`): descarta la caché y confirma el plan contra Firestore. El webhook de Polar puede
-/// tardar unos segundos en escribir `active`, así que se reintenta cada 3 s (hasta ~40 s). Emite `upgrade-result` (true = ya es Pro).
+/// tardar unos segundos en escribir `active`, así que se reintenta cada 5 s (hasta 6 veces). Emite `upgrade-result` (true = ya es Pro).
 pub fn confirm_upgrade(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let st = app.state::<SyncState>();
         LAST_EVAL.store(0, Ordering::SeqCst);
         let mut pro = false;
-        for i in 0..14 {
+        for i in 0..6 {
             if i > 0 {
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
             if !st.has_session() {
                 break;

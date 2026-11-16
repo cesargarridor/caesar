@@ -161,6 +161,11 @@ async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -
         store(st, &g);
         return Ok(g);
     }
+    if !crate::limit::allow("account_eval", 8, 60_000) {
+        if let Some(a) = st.account.lock().ok().and_then(|g| g.clone()) {
+            return Ok(a);
+        }
+    }
     let c = sync::cfg().ok_or("Sincronización no configurada.")?;
     let gone = || {
         sync::drop_local_session(st);
@@ -203,6 +208,11 @@ async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -
 /// Comprueba el plan de la cuenta (y que siga existiendo). Llamar al arrancar y tras iniciar sesión. Nunca borra la cuenta.
 #[tauri::command]
 pub async fn check_trial_and_whitelist(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<AccountState, String> {
+    if !crate::limit::allow("check_trial", 6, 60_000) {
+        if let Some(a) = st.account.lock().ok().and_then(|g| g.clone()) {
+            return Ok(a);
+        }
+    }
     match evaluate(&app, &st, false).await {
         Ok(a) => Ok(a),
         // Sin conexión: se conserva el último estado conocido y no se cierra la sesión.
@@ -221,6 +231,9 @@ pub async fn redeem_code(app: AppHandle, st: tauri::State<'_, SyncState>, code: 
     let code = code.trim().to_string();
     if code.is_empty() {
         return Err("Escribe el código.".into());
+    }
+    if !crate::limit::allow("redeem_code", 4, 60_000) {
+        return Err("Demasiados intentos seguidos. Espera un minuto.".into());
     }
     let (_uid, tok) = sync::valid_token(&st).await?;
     let url = format!("{}/redeem", c.worker_url.trim_end_matches('/'));
@@ -254,7 +267,7 @@ pub async fn redeem_code(app: AppHandle, st: tauri::State<'_, SyncState>, code: 
 #[tauri::command]
 pub async fn record_terms(st: tauri::State<'_, SyncState>, version: String) -> Result<(), String> {
     let c = sync::cfg().ok_or("Sincronización no configurada.")?;
-    if c.worker_url.is_empty() || !st.has_session() {
+    if c.worker_url.is_empty() || !st.has_session() || !crate::limit::allow("record_terms", 3, 60_000) {
         return Ok(());
     }
     let (_uid, tok) = sync::valid_token(&st).await?;
