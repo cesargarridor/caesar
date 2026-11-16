@@ -75,8 +75,8 @@ pub(crate) fn cfg() -> Option<Cfg> {
 }
 
 pub(crate) struct Session {
-    uid: String,
-    email: String,
+    pub(crate) uid: String,
+    pub(crate) email: String,
     id_token: String,
     refresh_token: String,
     expires: Instant,
@@ -620,7 +620,10 @@ pub fn start_worker(app: AppHandle) {
                     expires: Instant::now(),
                 });
             }
-            if restore_identity(&st).await.is_ok() {
+            // Abrir la app varias veces en menos de 2 minutos no repite las llamadas de arranque: se usa el último estado.
+            if crate::account::try_skip_startup(&st) {
+                // Sin red: el modo ya viene del estado guardado.
+            } else if restore_identity(&st).await.is_ok() {
                 st.set_mode("limbo", false);
                 let _ = crate::account::evaluate(&app, &st, false).await;
                 if st.is_pro.load(Ordering::SeqCst) {

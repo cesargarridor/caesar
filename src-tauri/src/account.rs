@@ -110,7 +110,59 @@ pub fn load_cached(app: &AppHandle, st: &SyncState, has_saved_session: bool) {
 pub(crate) fn forget_cached() {
     if let Some(p) = CACHE_PATH.get() {
         let _ = std::fs::remove_file(p);
+        let _ = std::fs::remove_file(p.with_file_name("account.check"));
     }
+}
+
+/// Mínimo entre dos arranques para que el segundo vuelva a ir a la red: si se abre la app más a menudo, usa el último estado
+/// conocido (el de `account.json`) y no hace ninguna llamada a Firebase al arrancar.
+const STARTUP_GAP_MS: i64 = 2 * 60 * 1000;
+/// Hay un arranque «sin red» pendiente de consumir por la primera comprobación de la interfaz.
+static SKIP_FIRST_CHECK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn check_path() -> Option<PathBuf> {
+    CACHE_PATH.get().map(|p| p.with_file_name("account.check"))
+}
+
+/// Anota cuándo se comprobó la cuenta por última vez contra la red (y de qué usuario), para el siguiente arranque.
+fn mark_checked(st: &SyncState) {
+    let Some(p) = check_path() else { return };
+    let uid = st.session.lock().ok().and_then(|g| g.as_ref().map(|s| s.uid.clone())).unwrap_or_default();
+    if uid.is_empty() {
+        return;
+    }
+    let _ = std::fs::write(p, format!("{}\n{uid}", now_ms()));
+}
+
+/// Interpreta `account.check`: (momento, uid). Solo vale si el momento está dentro de la ventana y no es del futuro.
+fn parse_check(raw: &str, now: i64) -> Option<(i64, String)> {
+    let mut it = raw.lines();
+    let at: i64 = it.next()?.trim().parse().ok()?;
+    let uid = it.next()?.trim().to_string();
+    let age = now - at;
+    if uid.is_empty() || !(0..STARTUP_GAP_MS).contains(&age) {
+        return None;
+    }
+    Some((at, uid))
+}
+
+/// Al arrancar con sesión guardada: si la última comprobación real fue hace menos de 2 minutos y hay un estado guardado, se
+/// salta la red (renovar token, consultar cuenta y plan, bajar datos) y se usa ese estado. El token se renueva solo cuando
+/// haga falta de verdad. Devuelve `true` si se ha saltado.
+pub(crate) fn try_skip_startup(st: &SyncState) -> bool {
+    let Some(p) = check_path() else { return false };
+    let Some((at, uid)) = std::fs::read_to_string(p).ok().and_then(|raw| parse_check(&raw, now_ms())) else { return false };
+    let Some(email) = st.account.lock().ok().and_then(|g| g.as_ref().map(|a| a.email.clone())) else { return false };
+    if let Ok(mut g) = st.session.lock() {
+        if let Some(s) = g.as_mut() {
+            s.uid = uid;
+            s.email = email;
+        }
+    }
+    // Para que el primer «volver a la ventana» no fuerce la comprobación que acabamos de ahorrar.
+    sync::LAST_EVAL.store(at, std::sync::atomic::Ordering::SeqCst);
+    SKIP_FIRST_CHECK.store(true, std::sync::atomic::Ordering::SeqCst);
+    true
 }
 
 fn store(st: &SyncState, a: &AccountState) {
@@ -145,6 +197,7 @@ pub(crate) async fn evaluate(app: &AppHandle, st: &SyncState, allow_delete: bool
     let r = evaluate_inner(app, st, allow_delete).await;
     if r.is_ok() {
         sync::LAST_EVAL.store(sync::now_ms(), std::sync::atomic::Ordering::SeqCst);
+        mark_checked(st);
     }
     if let Ok(a) = &r {
         // Aviso a la interfaz solo si el plan ha cambiado (pago, baja, cuenta borrada…): así no hace falta preguntar nada por intervalos.
@@ -208,6 +261,12 @@ async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -
 /// Comprueba el plan de la cuenta (y que siga existiendo). Llamar al arrancar y tras iniciar sesión. Nunca borra la cuenta.
 #[tauri::command]
 pub async fn check_trial_and_whitelist(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<AccountState, String> {
+    // Arranque dentro de los 2 minutos de la última comprobación: la primera consulta de la interfaz usa el estado guardado.
+    if SKIP_FIRST_CHECK.swap(false, std::sync::atomic::Ordering::SeqCst) {
+        if let Some(a) = st.account.lock().ok().and_then(|g| g.clone()) {
+            return Ok(a);
+        }
+    }
     if !crate::limit::allow("check_trial", 6, 60_000) {
         if let Some(a) = st.account.lock().ok().and_then(|g| g.clone()) {
             return Ok(a);
@@ -305,6 +364,18 @@ mod tests {
         assert!(!parse_whitelist(&other));
         assert!(!parse_whitelist(&wrong_type));
         assert!(!parse_whitelist(&Value::Null));
+    }
+
+    #[test]
+    fn arranque_sin_red_solo_dentro_de_la_ventana() {
+        let now = 10_000_000;
+        assert_eq!(parse_check(&format!("{}\nabc", now - 60_000), now), Some((now - 60_000, "abc".to_string())));
+        assert_eq!(parse_check(&format!("{}\nabc", now - STARTUP_GAP_MS), now), None); // justo 2 min: ya toca red
+        assert_eq!(parse_check(&format!("{}\nabc", now - 3_600_000), now), None);
+        assert_eq!(parse_check(&format!("{}\nabc", now + 5_000), now), None); // reloj en el futuro
+        assert_eq!(parse_check(&format!("{}\n", now - 1_000), now), None); // sin uid
+        assert_eq!(parse_check("basura", now), None);
+        assert_eq!(parse_check("", now), None);
     }
 
     #[test]
