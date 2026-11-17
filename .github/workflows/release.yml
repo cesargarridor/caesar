@@ -96,6 +96,8 @@ jobs:
       # ── Estable (tag): igual que siempre ──
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_type == 'tag'
+        id: stable-build-1
+        continue-on-error: ${{ matrix.os == 'macos-latest' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -117,9 +119,123 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
+      - name: Esperar antes de reintentar macOS
+        if: matrix.os == 'macos-latest' && github.ref_type == 'tag' && steps.stable-build-1.outcome == 'failure'
+        run: sleep 120
+
+      - uses: tauri-apps/tauri-action@v0
+        if: matrix.os == 'macos-latest' && github.ref_type == 'tag' && steps.stable-build-1.outcome == 'failure'
+        id: stable-build-2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CAESAR_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Caesar ${{ github.ref_name }}"
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}
+
+      - name: Esperar antes del último reintento macOS
+        if: matrix.os == 'macos-latest' && github.ref_type == 'tag' && steps.stable-build-1.outcome == 'failure' && steps.stable-build-2.outcome == 'failure'
+        run: sleep 240
+
+      - uses: tauri-apps/tauri-action@v0
+        if: matrix.os == 'macos-latest' && github.ref_type == 'tag' && steps.stable-build-1.outcome == 'failure' && steps.stable-build-2.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CAESAR_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Caesar ${{ github.ref_name }}"
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}
+
       # ── Beta (develop): se sube al repositorio privado caesar-beta ──
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_type == 'branch'
+        id: beta-build-1
+        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.BETA_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CAESAR_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: caesar-beta
+          tagName: beta-${{ github.run_number }}
+          releaseName: "Caesar beta ${{ github.run_number }}"
+          releaseBody: "Versión BETA de prueba (rama develop, ${{ github.sha }}). Puede fallar. No se actualiza sola: instala el paquete de tu sistema."
+          releaseDraft: true
+          prerelease: true
+          includeUpdaterJson: false
+          args: ${{ matrix.args }}
+
+      - name: Esperar antes de reintentar macOS beta
+        if: matrix.os == 'macos-latest' && github.ref_type == 'branch' && steps.beta-build-1.outcome == 'failure'
+        run: sleep 120
+
+      - uses: tauri-apps/tauri-action@v0
+        if: matrix.os == 'macos-latest' && github.ref_type == 'branch' && steps.beta-build-1.outcome == 'failure'
+        id: beta-build-2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.BETA_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          CAESAR_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: caesar-beta
+          tagName: beta-${{ github.run_number }}
+          releaseName: "Caesar beta ${{ github.run_number }}"
+          releaseBody: "Versión BETA de prueba (rama develop, ${{ github.sha }}). Puede fallar. No se actualiza sola: instala el paquete de tu sistema."
+          releaseDraft: true
+          prerelease: true
+          includeUpdaterJson: false
+          args: ${{ matrix.args }}
+
+      - name: Esperar antes del último reintento macOS beta
+        if: matrix.os == 'macos-latest' && github.ref_type == 'branch' && steps.beta-build-1.outcome == 'failure' && steps.beta-build-2.outcome == 'failure'
+        run: sleep 240
+
+      - uses: tauri-apps/tauri-action@v0
+        if: matrix.os == 'macos-latest' && github.ref_type == 'branch' && steps.beta-build-1.outcome == 'failure' && steps.beta-build-2.outcome == 'failure'
         env:
           GITHUB_TOKEN: ${{ secrets.BETA_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
