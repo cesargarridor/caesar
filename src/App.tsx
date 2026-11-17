@@ -924,7 +924,16 @@ export default function App() {
     try {
       const parsed = parseCurl(text);
       curlWarn(parsed);
-      openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name: `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`, dirty: true });
+      const name = `${parsed.method} ${parsed.url.replace(/^https?:\/\//, "").slice(0, 40)}`;
+      const cur = activeOrNull;
+      if (cur && cur.req.kind !== "ws" && !cur.dirty && !cur.req.url) {
+        // La pestaña abierta está vacía (p. ej. una petición recién creada en la barra lateral): el cURL se pega en ella,
+        // conservando su nombre y su sitio en la colección, en vez de abrir otra pestaña aparte.
+        patchTab(cur.id, (tb) => ({ ...tb, req: { ...parsed, tests: parsed.tests ?? "" }, name: tb.path ? tb.name : name, dirty: true }));
+        setResults((r) => ({ ...r, [cur.id]: { response: null, error: null } }));
+      } else {
+        openTab({ id: newId(), req: { ...parsed, tests: parsed.tests ?? "" }, path: null, name, dirty: true });
+      }
       setNotice({ kind: "ok", text: t("Petición creada desde el cURL del portapapeles.") });
     } catch (e) {
       setNotice({ kind: "err", text: errMsg(e) });
