@@ -4,6 +4,6 @@
   "githubClientId": "Ov23liXaI5NJvQ5Z3lkK",
   "googleClientId": "375648238757-jkrbj9dbg1s43v2sv726fa7merv5ifrv.apps.googleusercontent.com",
   "googleClientSecret": "",
-  "workerUrl": "https://caesar-billing.cgarrui0301.workers.dev",
+  "workerUrl": "https://caesar-billing.caesarapp.workers.dev",
   "checkoutUrl": "https://buy.polar.sh/polar_cl_016gwXw1TTTeSs0OgGhrfhGAIAO0PDDNFZBc83hlXTz"
 }

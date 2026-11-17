@@ -11,7 +11,7 @@ export const SHARE_PREFIX = "caesar://share?payload=";
 /** Versión https del mismo enlace: Discord, Slack, WhatsApp… solo convierten en clicable un http(s). La página redirige a caesar://. */
 /** Enlaces antiguos (ya compartidos): se siguen aceptando al pegar. */
 const OLD_WEB_PREFIX = "https://cesargarridor.github.io/caesar/open.html#";
-export const WEB_PREFIX = "https://caesar.cgarrui0301.workers.dev/#";
+export const WEB_PREFIX = "https://caesar.caesarapp.workers.dev/#";
 const MAX_JSON = 256 * 1024;
 const SENSITIVE = /authorization|cookie|token|api[-_]?key|secret|password|signature/i;
 const MODES = ["none", "json", "text", "formdata", "urlencoded", "graphql"] as const;
