@@ -17,6 +17,8 @@ interface Props {
   vars?: KV[];
   /** Abre el asistente de IA (se ofrece dentro de Body). */
   onAi?: () => void;
+  /** Id de la pestaña de petición: cada una recuerda su propia subpestaña (Params, Headers, Body…). */
+  tabId: string;
 }
 
 const COMMON_HEADERS = [
@@ -29,7 +31,7 @@ const VALID: Tab[] = ["params", "auth", "body", "tests", "headers"];
 
 const TESTS_EXAMPLE = `var jsonData = JSON.parse(responseBody);
 pm.globals.set("token_id", jsonData.access_token);`;
-// La subpestaña elegida se mantiene al cambiar de solicitud (el componente se remonta por pestaña).
+// Cada pestaña recuerda su subpestaña; `lastTab` solo es el valor inicial de una pestaña nueva (el componente se remonta por pestaña).
 let lastTab: Tab = (() => {
   try {
     const v = localStorage.getItem(TAB_KEY) as Tab | null;
@@ -39,13 +41,28 @@ let lastTab: Tab = (() => {
   }
 })();
 
-export default function RequestTabs({ req, patch, inherited, vars, onAi }: Props) {
-  const [tab, setTabState] = useState<Tab>(lastTab);
+const PER_KEY = "caesar.reqTabs";
+/** Subpestaña elegida en cada pestaña de petición (por id). Solo interfaz: no toca el estado de las pestañas ni el guardado. */
+const perTab: Record<string, Tab> = (() => {
+  try {
+    const o = JSON.parse(localStorage.getItem(PER_KEY) ?? "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch {
+    return {};
+  }
+})();
+
+export default function RequestTabs({ req, patch, inherited, vars, onAi, tabId }: Props) {
+  const [tab, setTabState] = useState<Tab>(() => (VALID.includes(perTab[tabId]) ? perTab[tabId] : lastTab));
   const setTab = (t: Tab) => {
-    lastTab = t;
+    lastTab = t; // las pestañas nuevas empiezan donde estabas
+    perTab[tabId] = t;
     setTabState(t);
     try {
       localStorage.setItem(TAB_KEY, t);
+      const keys = Object.keys(perTab);
+      if (keys.length > 300) for (const k of keys.slice(0, keys.length - 300)) delete perTab[k];
+      localStorage.setItem(PER_KEY, JSON.stringify(perTab));
     } catch {
       /* sin persistencia */
     }

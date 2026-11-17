@@ -1540,7 +1540,7 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} onAi={() => setShowAi(true)} />}
+        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} tabId={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} onAi={() => setShowAi(true)} />}
         </div>
         {!activeOrNull ? null : req.kind === "ws" ? (
           <WsMessages key={active.id} id={active.id} />
