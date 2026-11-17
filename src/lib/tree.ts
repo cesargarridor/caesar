@@ -49,6 +49,28 @@ export function addChild(nodes: TreeNode[], path: string, child: TreeNode): { no
   };
 }
 
+/** Copia profunda de un nodo con ids nuevos (peticiones y carpetas), para clonar sin que dos nodos compartan identidad en la sincronización. */
+export function cloneNode(n: TreeNode, name?: string): TreeNode {
+  const now = Date.now();
+  if (n.type === "folder") {
+    const { team: _team, ...rest } = n; // una copia nunca hereda el vínculo con el equipo
+    void _team;
+    return { ...structuredClone(rest), name: name ?? n.name, uid: newUid(), updatedAt: now, children: n.children.map((c) => cloneNode(c)) };
+  }
+  return { ...structuredClone(n), name: name ?? n.name, id: crypto.randomUUID(), updatedAt: now };
+}
+
+/** Inserta `node` justo después del nodo de `path`. Devuelve el árbol, la ruta nueva, y el padre ("" = raíz) y posición para reindexar pestañas. */
+export function insertAfter(nodes: TreeNode[], path: string, node: TreeNode): { nodes: TreeNode[]; path: string; parent: string; index: number } {
+  const parts = path.split("/");
+  const at = Number(parts.pop());
+  const parent = parts.join("/");
+  const index = at + 1;
+  const put = (list: TreeNode[]) => [...list.slice(0, index), node, ...list.slice(index)];
+  const out = parent === "" ? put(nodes) : updateAt(nodes, parent, (f) => (f.type === "folder" ? { ...f, children: put(f.children) } : f));
+  return { nodes: out, path: parent === "" ? String(index) : `${parent}/${index}`, parent, index };
+}
+
 export const newRequestNode = (name = "Nueva petición"): RequestNode => ({
   type: "request",
   name,

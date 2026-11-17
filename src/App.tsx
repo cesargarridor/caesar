@@ -62,6 +62,7 @@ import { detectAndParse, exportExt, exportFileName, exportHar, exportYaml, type 
 import {
   addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, newWsNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
+  cloneNode, insertAfter,
 } from "./lib/tree";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { ConflictBanner } from "./components/ConflictBanner";
@@ -768,6 +769,20 @@ export default function App() {
     setRenamingPath(np);
   };
 
+  /** Clonar una petición o carpeta (con todo su contenido): la copia queda justo debajo, con ids nuevos y sin vínculo de equipo. */
+  const handleClone = (path: string) => {
+    const orig = getAt(collections, path);
+    if (!orig) return;
+    const copy = cloneNode(orig, `${orig.name} ${t("(copia)")}`);
+    const r = insertAfter(collections, path, copy);
+    setCollections(r.nodes);
+    setTabs((ts) => ts.map((tb) => (tb.path ? { ...tb, path: pathAfterInsert(tb.path, r.parent, r.index) } : tb)));
+    if (orig.type === "folder") {
+      const parent = r.parent ? getAt(collections, r.parent) : null;
+      openFolder(parent?.type === "folder" ? parent.uid : undefined);
+    }
+  };
+
   const handleAddSocket = (path: string) => {
     const node = newWsNode(t("Nueva WebSocket"));
     const { nodes, path: np } = addChild(collections, path, node);
@@ -1293,6 +1308,7 @@ export default function App() {
         onAddRequest={handleAddRequest}
         onAddSocket={handleAddSocket}
         onAddFolder={handleAddFolder}
+        onClone={handleClone}
         onMove={handleMove}
         onMoveTo={(path) => setMoveFrom(path)}
         isOpen={(uid) => !!uid && openIds.has(uid)}

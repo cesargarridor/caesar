@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import DelayTip from "./DelayTip";
-import { Check, ChevronDown, Download, ChevronRight, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
+import { Check, ChevronDown, Download, ChevronRight, Copy, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
@@ -28,6 +28,8 @@ export interface TreeActions {
   /** Nueva petición WebSocket dentro de la carpeta. */
   onAddSocket: (path: string) => void;
   onAddFolder: (path: string) => void;
+  /** Clonar la petición o carpeta (la copia queda justo debajo). */
+  onClone: (path: string) => void;
   onDelete: (path: string) => void;
   onExport: (path: string, format?: "json" | "yaml" | "har") => void;
   /** Compartir una colección con un equipo / ver su código. */
@@ -238,6 +240,7 @@ export default function SidebarTree(props: Props) {
   const moreItems: MenuItem[] = node.type === "folder"
     ? [
         { label: t("Renombrar"), icon: <Pencil size={14} />, onClick: () => props.onStartRename(path) },
+        { label: t("Clonar"), icon: <Copy size={14} />, onClick: () => props.onClone(path) },
         ...(depth > 0 ? [{ label: t("Mover a…"), icon: <FolderInput size={14} />, onClick: () => props.onMoveTo(path) }] : []),
         ...(depth === 0 ? [{ label: t("Variables y autorización de la colección"), icon: <SlidersHorizontal size={14} />, onClick: () => props.onCollSettings(path) }] : []),
         { label: t("Servidor Mock (gratis)"), icon: <Server size={14} />, onClick: () => props.onMock(path) },
@@ -253,6 +256,7 @@ export default function SidebarTree(props: Props) {
       ]
     : [
         { label: t("Renombrar"), icon: <Pencil size={14} />, onClick: () => props.onStartRename(path) },
+        { label: t("Clonar"), icon: <Copy size={14} />, onClick: () => props.onClone(path) },
         { label: t("Mover a…"), icon: <FolderInput size={14} />, onClick: () => props.onMoveTo(path) },
         delItem,
       ];
