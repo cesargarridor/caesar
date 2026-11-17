@@ -25,6 +25,8 @@ interface Props {
   onCaretMove?: () => void;
   /** Superposición dentro del editor (popup de sugerencias). */
   children?: ReactNode;
+  /** Numera las filas a la izquierda (1, 2, 3…), como en la respuesta. */
+  lineNumbers?: boolean;
 }
 
 const TOKEN = /("(?:\\.|[^"\\\n])*")(\s*:)?|\{\{[^{}\n]*\}\}|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}[\],:]/g;
@@ -86,7 +88,7 @@ function metrics(t: HTMLTextAreaElement) {
 }
 
 export default function JsonEditor({
-  value, onChange, placeholder, className = "", highlight = true, autoFocus, autoClose = '{}[]()""', paintText, taRef, onKeyDownExtra, onCaretMove, children,
+  value, onChange, placeholder, className = "", highlight = true, autoFocus, autoClose = '{}[]()""', paintText, taRef, onKeyDownExtra, onCaretMove, children, lineNumbers,
 }: Props) {
   const pairs = useMemo(() => parsePairs(autoClose), [autoClose]);
   const box = useRef<HTMLDivElement>(null);
@@ -97,6 +99,11 @@ export default function JsonEditor({
   };
   const pre = useRef<HTMLPreElement>(null);
   const markPre = useRef<HTMLPreElement>(null);
+  const gut = useRef<HTMLDivElement>(null);
+  const lines = lineNumbers ? value.split("\n").length : 0;
+  const digits = Math.max(2, String(lines).length);
+  // Hueco de la numeración a la izquierda; las capas de texto lo respetan para seguir alineadas con el textarea.
+  const padL: React.CSSProperties = lineNumbers ? { paddingLeft: `calc(var(--fs-body, 13px) * 0.6 * ${digits} + 24px)` } : {};
   const colored = (highlight || !!paintText) && value.length <= MAX;
 
   // ── validación del JSON con el error exacto ──
@@ -210,13 +217,13 @@ export default function JsonEditor({
       className={`relative overflow-hidden rounded-[10px] bg-kelp ring-1 ring-fg/10 focus-within:ring-aqua glass ${className}`}
     >
       {marks && (
-        <pre ref={markPre} aria-hidden style={{ ...mono, color: "transparent" }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
+        <pre ref={markPre} aria-hidden style={{ ...mono, ...padL, color: "transparent" }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
           {marks}
           {"\n"}
         </pre>
       )}
       {colored && (
-        <pre ref={pre} aria-hidden style={mono} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
+        <pre ref={pre} aria-hidden style={{ ...mono, ...padL }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
           {paintText ? paintText(value) : paint(value)}
           {"\n"}
         </pre>
@@ -235,6 +242,7 @@ export default function JsonEditor({
         onPaste={(e) => highlight && !paintText && handlePasteJson(e)}
         onScroll={(e) => {
           const { scrollTop, scrollLeft } = e.currentTarget;
+          if (gut.current) gut.current.scrollTop = scrollTop;
           for (const p of [pre.current, markPre.current]) {
             if (p) {
               p.scrollTop = scrollTop;
@@ -245,9 +253,20 @@ export default function JsonEditor({
         spellCheck={false}
         wrap="off"
         placeholder={placeholder}
-        style={{ ...mono, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
+        style={{ ...mono, ...padL, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
         className={`absolute inset-0 block h-full w-full resize-none bg-transparent outline-none placeholder:text-slate/60 ${shared} ${colored ? "" : "text-silver"}`}
       />
+      {lineNumbers && (
+        <div
+          ref={gut}
+          aria-hidden
+          style={{ ...mono, width: `calc(var(--fs-body, 13px) * 0.6 * ${digits} + 20px)` }}
+          className="pointer-events-none absolute inset-y-0 left-0 select-none overflow-hidden border-r border-fg/10 bg-kelp py-3 pr-2 text-right text-slate/70"
+        >
+          {Array.from({ length: lines }, (_, i) => <div key={i}>{i + 1}</div>)}
+          <div>&nbsp;</div>
+        </div>
+      )}
       {children}
       {issue && (
         <button

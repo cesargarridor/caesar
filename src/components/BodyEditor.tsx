@@ -109,6 +109,7 @@ export default function BodyEditor({ body, onChange, req, vars, inherited, onMet
           value={body.raw}
           onChange={(raw) => onChange({ ...body, raw })}
           highlight={body.mode === "json"}
+          lineNumbers
           placeholder={body.mode === "json" ? '{ "clave": "valor" }' : t("Texto plano")}
           className="min-h-48 flex-1"
         />

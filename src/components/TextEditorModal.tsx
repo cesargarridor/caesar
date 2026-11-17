@@ -58,7 +58,7 @@ export default function TextEditorModal({ title = "Edit data", initial, onDone, 
           </button>
         </div>
 
-        <JsonEditor autoFocus value={value} onChange={setValue} highlight={lang === "json"} className="h-[50vh] min-h-80 shrink-0" />
+        <JsonEditor autoFocus lineNumbers value={value} onChange={setValue} highlight={lang === "json"} className="h-[50vh] min-h-80 shrink-0" />
 
         <div className="mt-2 flex items-center gap-3 text-xs">
           {lang === "json" && (
