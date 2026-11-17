@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesar-Leitfaden: alle Funktionen, mit GIFs">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>Local-First:</strong> Im Gastmodus liegen deine Collections auf deinem Gerät. Es funktioniert offline und ohne Konto.</li>
 <li><strong>Wirklich schnell:</strong> Es ist mit Rust und Tauri gebaut, nicht mit einem mitgelieferten Browser.</li>
-<li><strong>Vertraut:</strong> Wenn du von Postman oder Insomnia kommst, kannst du deine Collections importieren, und deine <code>pm.*</code>-Skripte funktionieren weiter.</li>
+<li><strong>Vertraut:</strong> Wenn du von einem anderen API-Client kommst, kannst du deine Collections importieren, und deine <code>pm.*</code>-Skripte funktionieren weiter.</li>
 <li><strong>Fair Source (FSL):</strong> Der Code ist öffentlich und frei nutzbar. Er ist nicht Open Source: Der Verkauf ist untersagt.</li>
 </ul>
 <div class="box"><p><strong>Für wen ist es?</strong> Für alle, die täglich APIs testen (Backend, Frontend, QA, Mobile) und ein leichtes, privates, reibungsloses Werkzeug wollen. Auch für alle, die Collections mit ihrem Team teilen müssen, ohne Infrastruktur aufzusetzen.</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>Globale Variablen:</strong> gelten in all deinen Collections.</li>
 <li><strong>Collection-Variablen:</strong> nur für diese Collection oder diesen Ordner.</li>
-<li><strong>Variablenprofile:</strong> benannte Sets (Development, Staging, Production ...), die du mit der Auswahl neben <strong>Senden</strong> aktivierst. Es ist das Pendant zu den <em>Environments</em> von Postman.</li>
+<li><strong>Variablenprofile:</strong> benannte Sets (Development, Staging, Production ...), die du mit der Auswahl neben <strong>Senden</strong> aktivierst.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="baseUrl in der URL verwenden und das Profil über die Auswahl wechseln, sodass sich die aufgelöste URL ändert" loading="lazy"><figcaption>Du wechselst das Profil, und dieselbe Anfrage zeigt auf einen anderen Server.</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>Tests und Skripte</h2>
-<p>Der Tab <strong>Scripts</strong> führt ein Skript aus, wenn die Antwort eintrifft (die Ergebnisse erscheinen in einem Tab des Antwortbereichs). Er verwendet eine Syntax im Postman-Stil (<code>pm.*</code>), sodass dein vorhandenes Wissen weiter gilt:</p>
+<p>Der Tab <strong>Scripts</strong> führt ein Skript aus, wenn die Antwort eintrifft (die Ergebnisse erscheinen in einem Tab des Antwortbereichs). Er verwendet eine vertraute Syntax (<code>pm.*</code>), sodass dein vorhandenes Wissen weiter gilt:</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p>Wähle den <strong>GraphQL</strong>-Body, und Caesar gibt dir einen <em>Query</em>-Editor und einen weiteren für <em>Variables</em>, genau wie in Postman:</p>
+<p>Wähle den <strong>GraphQL</strong>-Body, und Caesar gibt dir einen <em>Query</em>-Editor und einen weiteren für <em>Variables</em>:</p>
 <ul>
 <li><strong>Schema laden</strong> per Introspection.</li>
 <li><strong>Autovervollständigung</strong> für Felder und Typen beim Tippen.</li>

@@ -1,4 +1,4 @@
-//! Caesar CLI: ejecuta una colección exportada de Caesar (o de Postman, JSON v2.1) desde la terminal o un pipeline de CI/CD.
+//! Caesar CLI: ejecuta una colección exportada de Caesar (o en formato JSON v2.1) desde la terminal o un pipeline de CI/CD.
 //! Un único ejecutable en Rust: sin Node.js, sin `npm install`, arranque inmediato.
 //!
 //! Uso:  caesar run <coleccion.json> [-e entorno.json] [--var clave=valor]... [--data datos.csv]

@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Руководство по Caesar: все функции с GIF-анимациями">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>Local-first:</strong> в гостевом режиме ваши коллекции хранятся на вашем устройстве. Работает офлайн и без аккаунта.</li>
 <li><strong>Действительно быстрый:</strong> он написан на Rust и Tauri, без встроенного браузера.</li>
-<li><strong>Знакомый:</strong> если вы пришли из Postman или Insomnia, можно импортировать свои коллекции, а скрипты <code>pm.*</code> продолжат работать.</li>
+<li><strong>Знакомый:</strong> если вы пришли из другого API-клиента, можно импортировать свои коллекции, а скрипты <code>pm.*</code> продолжат работать.</li>
 <li><strong>Fair Source (FSL):</strong> код открыт и бесплатен для использования. Это не open source: продавать его запрещено.</li>
 </ul>
 <div class="box"><p><strong>Для кого он?</strong> Для всех, кто ежедневно тестирует API (бэкенд, фронтенд, QA, мобильная разработка) и хочет лёгкий, приватный инструмент без лишних сложностей. А также для тех, кому нужно делиться коллекциями с командой без развёртывания инфраструктуры.</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>Глобальные переменные:</strong> действуют во всех ваших коллекциях.</li>
 <li><strong>Переменные коллекции:</strong> только для этой коллекции или папки.</li>
-<li><strong>Профили переменных:</strong> именованные наборы (Development, Staging, Production...), которые вы активируете селектором рядом с кнопкой <strong>Отправить</strong>. Это аналог <em>Environments</em> в Postman.</li>
+<li><strong>Профили переменных:</strong> именованные наборы (Development, Staging, Production...), которые вы активируете селектором рядом с кнопкой <strong>Отправить</strong>.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="Использование baseUrl в URL и переключение профиля селектором, при котором меняется итоговый URL" loading="lazy"><figcaption>Вы переключаете профиль, и тот же запрос обращается к другому серверу.</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>Тесты и скрипты</h2>
-<p>Вкладка <strong>Scripts</strong> запускает скрипт при получении ответа (его результаты появляются на вкладке панели ответа). Используется синтаксис в стиле Postman (<code>pm.*</code>), так что всё, что вы уже знаете, работает:</p>
+<p>Вкладка <strong>Scripts</strong> запускает скрипт при получении ответа (его результаты появляются на вкладке панели ответа). Используется привычный синтаксис (<code>pm.*</code>), так что всё, что вы уже знаете, работает:</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p>Выберите тело <strong>GraphQL</strong>, и Caesar предоставит редактор <em>Query</em> и отдельный для <em>Variables</em>, как в Postman:</p>
+<p>Выберите тело <strong>GraphQL</strong>, и Caesar предоставит редактор <em>Query</em> и отдельный для <em>Variables</em>:</p>
 <ul>
 <li><strong>Загрузка схемы</strong> через интроспекцию.</li>
 <li><strong>Автодополнение</strong> полей и типов по мере ввода.</li>

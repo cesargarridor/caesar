@@ -7,9 +7,9 @@ website: https://cesargarridor.github.io/caesar/
 source-code: https://github.com/cesargarridor/caesar
 issues: https://github.com/cesargarridor/caesar/issues
 description: |
-  Caesar is a fast, secure and local-first desktop API client: a lightweight
-  alternative to Postman and Insomnia. Your requests, collections and tokens
-  stay on your computer.
+  Caesar is a fast, secure and local-first desktop API client: native,
+  lightweight and private. Your requests, collections and tokens stay on
+  your computer.
 
   What you can do with Caesar:
   - Send HTTP requests (REST) with params, headers, JSON, form and raw bodies.
@@ -22,7 +22,7 @@ description: |
     in one click.
   - Write tests and scripts for your requests and see the results at once.
   - Collection runner with CSV data, and a local mock server.
-  - Import from Postman and OpenAPI; export your collections any time.
+  - Import collections (v2.1 JSON, OpenAPI, HAR, YAML); export your collections any time.
   - Request history, JSON viewer with copy, and shareable caesar:// links.
   - Optional AI assistant: bring your own key, nothing is sent without it.
   - Command line tool for scripts and CI.

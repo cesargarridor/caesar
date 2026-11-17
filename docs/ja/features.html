@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesarガイド：すべての機能をGIFで解説">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>ローカルファースト：</strong>ゲストモードでは、コレクションはお使いのデバイスに保存されます。オフラインでも、アカウントなしでも動作します。</li>
 <li><strong>本当に高速：</strong>ブラウザを同梱せず、RustとTauriで構築されています。</li>
-<li><strong>使い慣れた操作性：</strong>PostmanやInsomniaからお乗り換えの場合は、コレクションをインポートでき、<code>pm.*</code>スクリプトもそのまま動作します。</li>
+<li><strong>使い慣れた操作性：</strong>他のAPIクライアントからお乗り換えの場合は、コレクションをインポートでき、<code>pm.*</code>スクリプトもそのまま動作します。</li>
 <li><strong>Fair Source（FSL）：</strong>コードは公開されており、無料で使用できます。オープンソースではなく、販売は禁止されています。</li>
 </ul>
 <div class="box"><p><strong>どんな方に向いていますか？</strong>日々APIをテストする方（バックエンド、フロントエンド、QA、モバイル）で、軽量でプライベートな、手間のかからないツールを求める方に最適です。また、インフラを構築せずにチームとコレクションを共有したい方にも向いています。</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>グローバル変数：</strong>すべてのコレクションで有効です。</li>
 <li><strong>コレクション変数：</strong>そのコレクションまたはフォルダのみで有効です。</li>
-<li><strong>変数プロファイル：</strong>名前付きのセット（Development、Staging、Productionなど）。<strong>送信</strong>の横のセレクターで有効化します。Postmanの<em>Environments</em>に相当します。</li>
+<li><strong>変数プロファイル：</strong>名前付きのセット（Development、Staging、Productionなど）。<strong>送信</strong>の横のセレクターで有効化します。</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="URLにbaseUrlを使用し、セレクターでプロファイルを切り替えて、解決後のURLが変わることを確認する" loading="lazy"><figcaption>プロファイルを切り替えると、同じリクエストが別のサーバーを指します。</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>テストとスクリプト</h2>
-<p><strong>Scripts</strong>タブでは、レスポンスが届いたときにスクリプトが実行されます（結果はレスポンスパネルのタブに表示されます）。Postmanスタイルの構文（<code>pm.*</code>）を使用するため、すでにご存じの知識がそのまま使えます。</p>
+<p><strong>Scripts</strong>タブでは、レスポンスが届いたときにスクリプトが実行されます（結果はレスポンスパネルのタブに表示されます）。おなじみの構文（<code>pm.*</code>）を使用するため、すでにご存じの知識がそのまま使えます。</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p><strong>GraphQL</strong>ボディを選択すると、Postmanと同じように、<em>Query</em>エディタと<em>Variables</em>エディタが表示されます。</p>
+<p><strong>GraphQL</strong>ボディを選択すると。<em>Query</em>エディタと<em>Variables</em>エディタが表示されます。</p>
 <ul>
 <li>イントロスペクションで<strong>スキーマを読み込み</strong>ます。</li>
 <li>入力に合わせて、フィールドと型を<strong>オートコンプリート</strong>します。</li>

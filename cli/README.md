@@ -1,6 +1,6 @@
 # Caesar CLI
 
-Ejecuta colecciones de Caesar (exportadas en JSON) o de Postman (v2.1) desde la terminal o CI/CD. Un único ejecutable en Rust: sin Node.js ni `npm install`.
+Ejecuta colecciones de Caesar (exportadas en JSON) o en formato JSON v2.1 desde la terminal o CI/CD. Un único ejecutable en Rust: sin Node.js ni `npm install`.
 
 ```bash
 cargo build --release          # dentro de esta carpeta → target/release/caesar (≈1,7 MB)

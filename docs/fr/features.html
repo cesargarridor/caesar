@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Guide Caesar : toutes les fonctionnalités, avec GIF">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>Local-first :</strong> en mode Invité, tes collections vivent sur ton appareil. Il fonctionne hors ligne et sans compte.</li>
 <li><strong>Vraiment rapide :</strong> il est construit avec Rust et Tauri, pas avec un navigateur embarqué.</li>
-<li><strong>Familier :</strong> si tu viens de Postman ou Insomnia, tu peux importer tes collections et tes scripts <code>pm.*</code> continuent de fonctionner.</li>
+<li><strong>Familier :</strong> si tu viens d’un autre client d’API, tu peux importer tes collections et tes scripts <code>pm.*</code> continuent de fonctionner.</li>
 <li><strong>Fair Source (FSL) :</strong> le code est public et gratuit à utiliser. Ce n’est pas de l’open source : sa vente est interdite.</li>
 </ul>
 <div class="box"><p><strong>Pour qui ?</strong> Pour tous ceux qui testent des API au quotidien (backend, frontend, QA, mobile) et veulent un outil léger, privé et sans friction. Aussi pour ceux qui doivent partager des collections avec leur équipe sans monter d’infrastructure.</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>Variables globales :</strong> valables dans toutes tes collections.</li>
 <li><strong>Variables de collection :</strong> uniquement pour cette collection ou ce dossier.</li>
-<li><strong>Profils de variables :</strong> des ensembles nommés (Development, Staging, Production...) que tu actives avec le sélecteur à côté de <strong>Send</strong>. C’est l’équivalent des <em>Environments</em> de Postman.</li>
+<li><strong>Profils de variables :</strong> des ensembles nommés (Development, Staging, Production...) que tu actives avec le sélecteur à côté de <strong>Send</strong>.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="Utiliser baseUrl dans l’URL et changer de profil avec le sélecteur pour que l’URL résolue change" loading="lazy"><figcaption>Tu changes de profil et la même requête pointe vers un autre serveur.</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>Tests et scripts</h2>
-<p>L’onglet <strong>Scripts</strong> exécute un script à l’arrivée de la réponse (ses résultats apparaissent dans un onglet du panneau de réponse). Il utilise une syntaxe de type Postman (<code>pm.*</code>), donc ce que tu connais déjà fonctionne :</p>
+<p>L’onglet <strong>Scripts</strong> exécute un script à l’arrivée de la réponse (ses résultats apparaissent dans un onglet du panneau de réponse). Il utilise une syntaxe familière (<code>pm.*</code>), donc ce que tu connais déjà fonctionne :</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p>Choisis le body <strong>GraphQL</strong> et Caesar te donne un éditeur de <em>Query</em> et un autre pour les <em>Variables</em>, comme dans Postman :</p>
+<p>Choisis le body <strong>GraphQL</strong> et Caesar te donne un éditeur de <em>Query</em> et un autre pour les <em>Variables</em> :</p>
 <ul>
 <li><strong>Charge le schéma</strong> par introspection.</li>
 <li><strong>Autocomplétion</strong> des champs et des types pendant que tu écris.</li>

@@ -2,7 +2,7 @@
 name = "caesar-cli"
 version = "0.1.0"
 edition = "2021"
-description = "Caesar CLI: ejecuta colecciones de Caesar/Postman (JSON v2.1) en CI/CD. Un único ejecutable, sin Node.js."
+description = "Caesar CLI: ejecuta colecciones de Caesar (JSON v2.1) en CI/CD. Un único ejecutable, sin Node.js."
 license = "MIT"
 
 [[bin]]

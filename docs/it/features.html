@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Guida a Caesar: tutte le funzionalità, con GIF">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>Local-first:</strong> in modalità Guest le tue collezioni vivono sul tuo dispositivo. Funziona offline e senza account.</li>
 <li><strong>Davvero veloce:</strong> è costruito con Rust e Tauri, non con un browser incorporato.</li>
-<li><strong>Familiare:</strong> se vieni da Postman o Insomnia, puoi importare le tue collezioni e i tuoi script <code>pm.*</code> continuano a funzionare.</li>
+<li><strong>Familiare:</strong> se vieni da un altro client API, puoi importare le tue collezioni e i tuoi script <code>pm.*</code> continuano a funzionare.</li>
 <li><strong>Fair Source (FSL):</strong> il codice è pubblico e gratuito da usare. Non è open source: venderlo è vietato.</li>
 </ul>
 <div class="box"><p><strong>Per chi è?</strong> Per chiunque testi API ogni giorno (backend, frontend, QA, mobile) e voglia uno strumento leggero, privato e senza attriti. Anche per chi deve condividere collezioni con il proprio team senza montare infrastrutture.</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>Variabili globali:</strong> valide in tutte le tue collezioni.</li>
 <li><strong>Variabili di collezione:</strong> solo per quella collezione o cartella.</li>
-<li><strong>Profili di variabili:</strong> set con nome (Development, Staging, Production...) che attivi con il selettore accanto a <strong>Invia</strong>. È l'equivalente degli <em>Environments</em> di Postman.</li>
+<li><strong>Profili di variabili:</strong> set con nome (Development, Staging, Production...) che attivi con il selettore accanto a <strong>Invia</strong>.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="Usare baseUrl nell'URL e cambiare profilo con il selettore in modo che l'URL risolto cambi" loading="lazy"><figcaption>Cambi profilo e la stessa richiesta punta a un altro server.</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>Test e script</h2>
-<p>La scheda <strong>Scripts</strong> esegue uno script quando arriva la risposta (i risultati compaiono in una scheda del pannello della risposta). Usa una sintassi in stile Postman (<code>pm.*</code>), quindi quello che già conosci funziona:</p>
+<p>La scheda <strong>Scripts</strong> esegue uno script quando arriva la risposta (i risultati compaiono in una scheda del pannello della risposta). Usa una sintassi già nota (<code>pm.*</code>), quindi quello che conosci funziona:</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p>Scegli il body <strong>GraphQL</strong> e Caesar ti dà un editor per la <em>Query</em> e un altro per le <em>Variables</em>, proprio come in Postman:</p>
+<p>Scegli il body <strong>GraphQL</strong> e Caesar ti dà un editor per la <em>Query</em> e un altro per le <em>Variables</em>:</p>
 <ul>
 <li><strong>Carica lo schema</strong> tramite introspection.</li>
 <li><strong>Autocompletamento</strong> di campi e tipi mentre scrivi.</li>

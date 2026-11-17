@@ -39,6 +39,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesar 指南：每项功能，附 GIF 演示">
@@ -103,7 +113,7 @@
 <ul>
 <li><strong>本地优先：</strong>在访客模式下，你的集合保存在你的设备上。可离线使用，无需账号。</li>
 <li><strong>真正快速：</strong>基于 Rust 和 Tauri 构建，而不是打包一个浏览器。</li>
-<li><strong>轻松上手：</strong>如果你来自 Postman 或 Insomnia，可以导入你的集合，你的 <code>pm.*</code> 脚本照常可用。</li>
+<li><strong>轻松上手：</strong>如果你来自其他 API 客户端，可以导入你的集合，你的 <code>pm.*</code> 脚本照常可用。</li>
 <li><strong>Fair Source（FSL）：</strong>代码公开，可免费使用。它不是开源软件：禁止出售。</li>
 </ul>
 <div class="box"><p><strong>适合谁用？</strong>适合每天测试 API 的人（后端、前端、QA、移动端），想要一款轻量、私密、无摩擦的工具。也适合需要与团队共享集合、又不想搭建基础设施的人。</p></div>
@@ -196,7 +206,7 @@
 <ul>
 <li><strong>全局变量：</strong>对你所有的集合有效。</li>
 <li><strong>集合变量：</strong>仅对该集合或文件夹有效。</li>
-<li><strong>变量配置档案：</strong>命名的变量集（Development、Staging、Production……），通过<strong>发送</strong>旁边的选择器激活。相当于 Postman 的 <em>Environments</em>。</li>
+<li><strong>变量配置档案：</strong>命名的变量集（Development、Staging、Production……），通过<strong>发送</strong>旁边的选择器激活。</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/variables-perfiles.gif" alt="在 URL 中使用 baseUrl，并通过选择器切换配置档案，使解析后的 URL 随之变化" loading="lazy"><figcaption>切换配置档案后，同一个请求就会指向另一台服务器。</figcaption></figure>
 <ul>
@@ -209,7 +219,7 @@
 </section>
 
 <section id="tests"><h2>测试与脚本</h2>
-<p><strong>Scripts</strong> 标签页会在响应到达时运行脚本（结果显示在响应面板的一个标签页中）。它使用 Postman 风格的语法（<code>pm.*</code>），所以你已有的知识可以直接沿用：</p>
+<p><strong>Scripts</strong> 标签页会在响应到达时运行脚本（结果显示在响应面板的一个标签页中）。它使用熟悉的语法（<code>pm.*</code>），所以你已有的知识可以直接沿用：</p>
 <pre><code>pm.test("responds 200", () =&gt; {
   pm.expect(pm.response.code).to.equal(200);
 });
@@ -265,7 +275,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 </section>
 
 <section id="graphql"><h2>GraphQL</h2>
-<p>选择 <strong>GraphQL</strong> 请求体，Caesar 会提供一个 <em>Query</em> 编辑器和一个 <em>Variables</em> 编辑器，与 Postman 一样：</p>
+<p>选择 <strong>GraphQL</strong> 请求体，Caesar 会提供一个 <em>Query</em> 编辑器和一个 <em>Variables</em> 编辑器：</p>
 <ul>
 <li>通过内省<strong>加载 schema</strong>。</li>
 <li>输入时对字段和类型<strong>自动补全</strong>。</li>
