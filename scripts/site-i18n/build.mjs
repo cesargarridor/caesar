@@ -144,7 +144,9 @@ function finish($, lang, page) {
   $("meta[property='og:locale']").remove();
   $("meta[property='og:url']").after(`<meta property="og:locale" content="${meta.og}">`);
   // selector: sustituye el bloque ES/EN existente
-  const sw = $("[data-langsw], [aria-label='Idioma / Language'], [aria-label='Language']").first();
+  let sw = $("[data-langsw], [aria-label='Idioma / Language'], [aria-label='Language']").first();
+  // si lo encontrado es el <summary> de un selector ya existente, se sustituye el <details> entero (si no, se anida uno nuevo en cada ejecución)
+  if (sw.is("summary")) sw = sw.parent("details");
   const items = LANGS.map((l) =>
     l.id === lang
       ? `<span class="block rounded-md bg-white/10 px-3 py-1.5 text-white" aria-current="true">${l.name}</span>`
