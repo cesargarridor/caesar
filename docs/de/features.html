@@ -49,6 +49,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesar-Leitfaden: alle Funktionen, mit GIFs">
@@ -214,7 +224,7 @@
 <li><kbd>Ctrl</kbd>+Klick auf eine Variable öffnet ihren Wert zum Ansehen und Bearbeiten, ohne die Anfrage zu verlassen.</li>
 <li><kbd>Ctrl</kbd>+<kbd>Leertaste</kbd> öffnet die Variablenauswahl.</li>
 <li>Du kannst Variablen als <strong>geheim</strong> markieren, damit sie nicht auf einen Blick sichtbar sind.</li>
-<li>Wenn du aus Postman importierst, werden dessen Environments zu <strong>Profilen</strong> und dessen Globals zu globalen Variablen.</li>
+<li>Wenn du eine Collection mit Environments importierst, werden diese zu <strong>Profilen</strong> und ihre Globals zu globalen Variablen.</li>
 </ul>
 </section>
 
@@ -257,8 +267,8 @@ pm.environment.set("token", r.access_token);</code></pre>
 <section id="import-export"><h2>Import und Export</h2>
 <p>Du fängst nicht bei null an. Caesar importiert, was du schon hast, und exportiert, wann immer du willst:</p>
 <table><thead><tr><th>Format</th><th>Import</th><th>Export</th></tr></thead><tbody>
-<tr><td>Postman (v2.1-Collections und Environments)</td><td>Ja</td><td>Ja (JSON)</td></tr>
-<tr><td>Insomnia</td><td>Ja</td><td>–</td></tr>
+<tr><td>Andere API-Clients (v2.1-Collections und Environments)</td><td>Ja</td><td>Ja (JSON)</td></tr>
+<tr><td>Andere API-Clients (JSON-Exporte)</td><td>Ja</td><td>–</td></tr>
 <tr><td>Caesar JSON</td><td>Ja</td><td>Ja</td></tr>
 <tr><td>YAML</td><td>Ja</td><td>Ja</td></tr>
 <tr><td>HAR (aus dem Browser)</td><td>Ja</td><td>Ja</td></tr>
@@ -284,7 +294,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <li><strong>Variablen generieren</strong> aus der Query und eine <strong>Operationsauswahl</strong>, wenn es mehrere gibt.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/graphql.gif" alt="Eine GraphQL-Query mit Autovervollständigung schreiben, das Schema laden und senden" loading="lazy"><figcaption>Query mit Autovervollständigung und geladenem Schema.</figcaption></figure>
-<p>GraphQL-Anfragen werden mit Postman importiert und exportiert.</p>
+<p>GraphQL-Anfragen werden im Standardformat für Collections importiert und exportiert.</p>
 </section>
 
 <section id="websocket"><h2>WebSockets</h2>
@@ -419,14 +429,14 @@ pm.environment.set("token", r.access_token);</code></pre>
 
 <section id="faq"><h2>Häufig gestellte Fragen</h2>
 <h3>Eignet sich Caesar zum Testen von APIs?</h3>
-<p>Ja: Es deckt REST, GraphQL und WebSocket ab, mit Tests, Variablen, Profilen, Postman-Import und Code-Generierung, in einer leichten App, die offline funktioniert.</p>
+<p>Ja: Es deckt REST, GraphQL und WebSocket ab, mit Tests, Variablen, Profilen, Collection-Import und Code-Generierung, in einer leichten App, die offline funktioniert.</p>
 <h3>Ist es kostenlos und Open Source?</h3>
 <p>Es ist im Gastmodus kostenlos und sein Code ist öffentlich, aber es ist <strong>nicht Open Source</strong>: Es verwendet die FSL-Lizenz, und der Verkauf ist untersagt. Jede Version wird nach zwei Jahren zu MIT.</p>
 <h3>Wo werden meine Collections gespeichert?</h3>
 <p>Auf deinem Gerät. Sie verlassen es nur, wenn du die Synchronisierung einschaltest oder mit einem Team teilst, und dann sind sie verschlüsselt.</p>
-<h3>Kann ich meine Postman-Collections mitbringen?</h3>
+<h3>Kann ich meine Collections aus einem anderen API-Client mitbringen?</h3>
 <p>Ja. Importiere die Collection-Datei (und die Environments, die zu Profilen werden) über die Seitenleiste.</p>
-<h3>Funktionieren meine Postman-Skripte?</h3>
+<h3>Funktionieren meine vorhandenen Skripte?</h3>
 <p>Tests mit <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> und die Funktionen zum Speichern von Variablen funktionieren. Caesar nutzt einen sicheren Interpreter für eine JavaScript-Teilmenge, daher läuft ein Skript, das von externen Bibliotheken oder dem Netzwerk abhängt, nicht.</p>
 <h3>Gibt es eine Kommandozeile oder CI-Integration?</h3>
 <p>Derzeit ist Caesar eine Desktop-Anwendung. Du kannst Anfragen als cURL oder Code exportieren, um sie in deinen Skripten zu verwenden.</p>

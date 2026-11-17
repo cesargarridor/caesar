@@ -49,6 +49,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Guia do Caesar: todos os recursos, com GIFs">
@@ -214,7 +224,7 @@
 <li><kbd>Ctrl</kbd>+clique em uma variável abre seu valor para ver e editar sem sair da requisição.</li>
 <li><kbd>Ctrl</kbd>+<kbd>Space</kbd> abre o seletor de variáveis.</li>
 <li>Você pode marcar variáveis como <strong>secretas</strong> para que não fiquem visíveis à primeira vista.</li>
-<li>Ao importar do Postman, seus environments viram <strong>perfis</strong> e suas globais viram variáveis globais.</li>
+<li>Ao importar uma coleção com ambientes, eles viram <strong>perfis</strong> e seus globais viram variáveis globais.</li>
 </ul>
 </section>
 
@@ -257,8 +267,8 @@ pm.environment.set("token", r.access_token);</code></pre>
 <section id="import-export"><h2>Importar e exportar</h2>
 <p>Você não começa do zero. O Caesar importa o que você já tem e exporta quando quiser:</p>
 <table><thead><tr><th>Formato</th><th>Importar</th><th>Exportar</th></tr></thead><tbody>
-<tr><td>Postman (coleções e environments v2.1)</td><td>Sim</td><td>Sim (JSON)</td></tr>
-<tr><td>Insomnia</td><td>Sim</td><td>–</td></tr>
+<tr><td>Outros clientes de API (coleções v2.1 e ambientes)</td><td>Sim</td><td>Sim (JSON)</td></tr>
+<tr><td>Outros clientes de API (exportações JSON)</td><td>Sim</td><td>–</td></tr>
 <tr><td>JSON do Caesar</td><td>Sim</td><td>Sim</td></tr>
 <tr><td>YAML</td><td>Sim</td><td>Sim</td></tr>
 <tr><td>HAR (do navegador)</td><td>Sim</td><td>Sim</td></tr>
@@ -284,7 +294,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <li><strong>Gerar variáveis</strong> a partir da query e um <strong>seletor de operação</strong> quando houver várias.</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/graphql.gif" alt="Escrever uma query GraphQL com autocompletar, carregar o schema e enviá-la" loading="lazy"><figcaption>Query com autocompletar e o schema carregado.</figcaption></figure>
-<p>As requisições GraphQL são importadas e exportadas com o Postman.</p>
+<p>As requisições GraphQL são importadas e exportadas no formato padrão de coleções.</p>
 </section>
 
 <section id="websocket"><h2>WebSockets</h2>
@@ -419,14 +429,14 @@ pm.environment.set("token", r.access_token);</code></pre>
 
 <section id="faq"><h2>Perguntas frequentes</h2>
 <h3>O Caesar é bom para testar APIs?</h3>
-<p>Sim: cobre REST, GraphQL e WebSocket com testes, variáveis, perfis, importação do Postman e geração de código, em um app leve que funciona offline.</p>
+<p>Sim: cobre REST, GraphQL e WebSocket com testes, variáveis, perfis, importação de coleções e geração de código, em um app leve que funciona offline.</p>
 <h3>É grátis e de código aberto?</h3>
 <p>É grátis no modo Convidado e seu código é público, mas <strong>não é código aberto</strong>: usa a licença FSL e é proibido vendê-lo. Cada versão passa a ser MIT após dois anos.</p>
 <h3>Onde ficam armazenadas as minhas coleções?</h3>
 <p>No seu dispositivo. Elas só saem dele se você ativar o sync ou compartilhar com uma equipe, e nesse caso são criptografadas.</p>
-<h3>Posso trazer minhas coleções do Postman?</h3>
+<h3>Posso trazer minhas coleções de outro cliente de API?</h3>
 <p>Sim. Importe o arquivo da coleção (e dos environments, que viram perfis) pela barra lateral.</p>
-<h3>Meus scripts do Postman funcionam?</h3>
+<h3>Meus scripts atuais funcionam?</h3>
 <p>Os testes com <code>pm.test</code>, <code>pm.expect</code>, <code>pm.response.json()</code> e as funções para guardar variáveis funcionam. O Caesar usa um interpretador seguro para um subconjunto de JavaScript, então um script que dependa de bibliotecas externas ou da rede não será executado.</p>
 <h3>Existe linha de comando ou integração com CI?</h3>
 <p>Por enquanto o Caesar é um aplicativo desktop. Você pode exportar requisições como cURL ou código para usar nos seus scripts.</p>

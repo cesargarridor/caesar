@@ -49,6 +49,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesarガイド：すべての機能をGIFで解説">
@@ -214,7 +224,7 @@
 <li>変数を<kbd>Ctrl</kbd>+クリックすると、リクエストを離れずに、その値を表示して編集できます。</li>
 <li><kbd>Ctrl</kbd>+<kbd>Space</kbd>で変数ピッカーが開きます。</li>
 <li>変数を<strong>シークレット</strong>に設定すると、一目では見えなくなります。</li>
-<li>Postmanからインポートすると、そのEnvironmentsは<strong>プロファイル</strong>に、Globalsはグローバル変数になります。</li>
+<li>環境付きのコレクションをインポートすると、環境は<strong>プロファイル</strong>になり、グローバル変数はグローバル変数になります。</li>
 </ul>
 </section>
 
@@ -257,8 +267,8 @@ pm.environment.set("token", r.access_token);</code></pre>
 <section id="import-export"><h2>インポートとエクスポート</h2>
 <p>ゼロから始める必要はありません。Caesarは、すでにお持ちのものをインポートし、いつでもエクスポートできます。</p>
 <table><thead><tr><th>形式</th><th>インポート</th><th>エクスポート</th></tr></thead><tbody>
-<tr><td>Postman（v2.1のコレクションとEnvironments）</td><td>可</td><td>可（JSON）</td></tr>
-<tr><td>Insomnia</td><td>可</td><td>–</td></tr>
+<tr><td>他のAPIクライアント（v2.1コレクションと環境）</td><td>可</td><td>可（JSON）</td></tr>
+<tr><td>他のAPIクライアント（JSONエクスポート）</td><td>可</td><td>–</td></tr>
 <tr><td>Caesar JSON</td><td>可</td><td>可</td></tr>
 <tr><td>YAML</td><td>可</td><td>可</td></tr>
 <tr><td>HAR（ブラウザから）</td><td>可</td><td>可</td></tr>
@@ -284,7 +294,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <li>クエリから<strong>変数を生成</strong>でき、複数のオペレーションがある場合は<strong>オペレーションセレクター</strong>で選択できます。</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/graphql.gif" alt="オートコンプリート付きでGraphQLクエリを記述し、スキーマを読み込んで送信する" loading="lazy"><figcaption>オートコンプリート付きのクエリと、読み込み済みのスキーマ。</figcaption></figure>
-<p>GraphQLリクエストは、Postmanとともにインポート・エクスポートされます。</p>
+<p>GraphQLリクエストは標準のコレクション形式でインポート・エクスポートされます。</p>
 </section>
 
 <section id="websocket"><h2>WebSocket</h2>
@@ -419,14 +429,14 @@ pm.environment.set("token", r.access_token);</code></pre>
 
 <section id="faq"><h2>よくある質問</h2>
 <h3>CaesarはAPIのテストに向いていますか？</h3>
-<p>はい。REST、GraphQL、WebSocketに対応し、テスト、変数、プロファイル、Postmanのインポート、コード生成も備えた、オフラインで動作する軽量なアプリです。</p>
+<p>はい。REST、GraphQL、WebSocketに対応し、テスト、変数、プロファイル、コレクションのインポート、コード生成を備え、オフラインで動作する軽量アプリです。</p>
 <h3>無料でオープンソースですか？</h3>
 <p>ゲストモードでは無料で、コードも公開されていますが、<strong>オープンソースではありません</strong>。FSLライセンスを採用しており、販売は禁止されています。各バージョンは2年後にMITライセンスになります。</p>
 <h3>コレクションはどこに保存されますか？</h3>
 <p>お使いのデバイスに保存されます。同期をオンにするかチームと共有した場合にのみデバイスの外に出ますが、その場合は暗号化されます。</p>
-<h3>Postmanのコレクションを移行できますか？</h3>
+<h3>他のAPIクライアントのコレクションを持ち込めますか？</h3>
 <p>はい。サイドバーから、コレクションファイル（およびプロファイルになるEnvironments）をインポートしてください。</p>
-<h3>Postmanのスクリプトは動作しますか？</h3>
+<h3>既存のスクリプトは動作しますか？</h3>
 <p><code>pm.test</code>、<code>pm.expect</code>、<code>pm.response.json()</code>を使ったテストと、変数を保存する関数は動作します。CaesarはJavaScriptのサブセット用の安全なインタープリターを使用するため、外部ライブラリやネットワークに依存するスクリプトは実行できません。</p>
 <h3>コマンドラインやCIとの連携はありますか？</h3>
 <p>現時点では、Caesarはデスクトップアプリケーションです。リクエストをcURLやコードとしてエクスポートして、スクリプトで利用できます。</p>

@@ -49,6 +49,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Caesar">
 <meta property="og:title" content="Caesar 指南：每项功能，附 GIF 演示">
@@ -214,7 +224,7 @@
 <li>按住 <kbd>Ctrl</kbd> 点击变量，可查看并编辑它的值，无需离开当前请求。</li>
 <li><kbd>Ctrl</kbd>+<kbd>Space</kbd> 打开变量选择器。</li>
 <li>你可以将变量标记为<strong>机密</strong>，使其不会一眼就被看到。</li>
-<li>从 Postman 导入时，它的 environments 会变成<strong>配置档案</strong>，它的 globals 会变成全局变量。</li>
+<li>导入带环境的集合时，环境会变成<strong>配置档案</strong>，其全局变量会变成全局变量。</li>
 </ul>
 </section>
 
@@ -257,8 +267,8 @@ pm.environment.set("token", r.access_token);</code></pre>
 <section id="import-export"><h2>导入与导出</h2>
 <p>你不必从零开始。Caesar 可以导入你已有的内容，并随时导出：</p>
 <table><thead><tr><th>格式</th><th>导入</th><th>导出</th></tr></thead><tbody>
-<tr><td>Postman（v2.1 集合和 environments）</td><td>支持</td><td>支持（JSON）</td></tr>
-<tr><td>Insomnia</td><td>支持</td><td>–</td></tr>
+<tr><td>其他 API 客户端（v2.1 集合和环境）</td><td>支持</td><td>支持（JSON）</td></tr>
+<tr><td>其他 API 客户端（JSON 导出）</td><td>支持</td><td>–</td></tr>
 <tr><td>Caesar JSON</td><td>支持</td><td>支持</td></tr>
 <tr><td>YAML</td><td>支持</td><td>支持</td></tr>
 <tr><td>HAR（来自浏览器）</td><td>支持</td><td>支持</td></tr>
@@ -284,7 +294,7 @@ pm.environment.set("token", r.access_token);</code></pre>
 <li>根据查询<strong>生成变量</strong>，存在多个操作时提供<strong>操作选择器</strong>。</li>
 </ul>
 <figure class="gif"><img src="../media/gifs/graphql.gif" alt="编写带自动补全的 GraphQL 查询，加载 schema 并发送" loading="lazy"><figcaption>带自动补全并已加载 schema 的查询。</figcaption></figure>
-<p>GraphQL 请求可随 Postman 一起导入和导出。</p>
+<p>GraphQL 请求会以标准集合格式导入和导出。</p>
 </section>
 
 <section id="websocket"><h2>WebSocket</h2>
@@ -419,14 +429,14 @@ pm.environment.set("token", r.access_token);</code></pre>
 
 <section id="faq"><h2>常见问题</h2>
 <h3>Caesar 适合测试 API 吗？</h3>
-<p>适合：它涵盖 REST、GraphQL 和 WebSocket，支持测试、变量、配置档案、Postman 导入和代码生成，是一款可离线运行的轻量应用。</p>
+<p>可以：它涵盖 REST、GraphQL 和 WebSocket，提供测试、变量、配置档案、集合导入和代码生成，是一款离线可用的轻量应用。</p>
 <h3>它免费且开源吗？</h3>
 <p>访客模式免费，代码也是公开的，但它<strong>不是开源软件</strong>：它采用 FSL 许可，禁止出售。每个版本在两年后转为 MIT。</p>
 <h3>我的集合存储在哪里？</h3>
 <p>在你的设备上。只有当你开启同步或与团队共享时，它们才会离开设备，而且那时会经过加密。</p>
-<h3>我可以导入我的 Postman 集合吗？</h3>
+<h3>我能带来其他 API 客户端的集合吗？</h3>
 <p>可以。在侧边栏中导入集合文件（以及会变成配置档案的 environments）。</p>
-<h3>我的 Postman 脚本能用吗？</h3>
+<h3>我现有的脚本能用吗？</h3>
 <p>使用 <code>pm.test</code>、<code>pm.expect</code>、<code>pm.response.json()</code> 的测试以及存储变量的函数都可以。Caesar 使用的是仅支持 JavaScript 子集的安全解释器，因此依赖外部库或网络的脚本无法运行。</p>
 <h3>有命令行或 CI 集成吗？</h3>
 <p>目前 Caesar 是桌面应用。你可以把请求导出为 cURL 或代码，用在你的脚本中。</p>
