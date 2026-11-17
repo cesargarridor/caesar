@@ -33,6 +33,8 @@ fn main() {
         "local_save",
         "local_wipe",
         "sync_sign_in",
+        "sync_reset_password",
+        "flush_done",
         "sync_google",
         "sync_link_confirm",
         "sync_link_cancel",

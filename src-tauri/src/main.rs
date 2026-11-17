@@ -1416,6 +1416,34 @@ struct UpdateInfo {
     notes: Option<String>,
 }
 
+/// Cierre de la aplicación en curso: la interfaz está volcando sus últimos cambios a disco (ver `begin_flush`).
+static CLOSING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Antes de salir (cerrar ventana, Cmd+Q, Alt+F4) se avisa a la interfaz para que vuelque ya lo pendiente (la barrera de 2 s de
+/// guardado no puede perder el último cambio). Cuando termina llama a `flush_done`; si no responde, se sale igual a los 3 s.
+fn begin_flush(app: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+    use tauri::Emitter;
+    if CLOSING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    if app.emit_to("main", "flush-before-close", ()).is_err() {
+        app.exit(0);
+        return;
+    }
+    let h = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        h.exit(0);
+    });
+}
+
+/// La interfaz ya guardó todo: ahora sí se puede salir.
+#[tauri::command]
+fn flush_done(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[tauri::command]
 fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
@@ -1486,6 +1514,12 @@ fn main() {
         .manage(mock::MockState::default())
         .manage(deeplink::DeepLinks::default())
         .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" && !CLOSING.load(std::sync::atomic::Ordering::SeqCst) {
+                    api.prevent_close();
+                    { use tauri::Manager; begin_flush(window.app_handle()); }
+                }
+            }
             if let tauri::WindowEvent::Focused(true) = event {
                 { use tauri::Manager; sync::on_focus(window.app_handle()); }
             }
@@ -1522,6 +1556,7 @@ fn main() {
             pick_file,
             save_text_file,
             app_version,
+            flush_done,
             check_update,
             install_update,
             vault::vault_status,
@@ -1589,7 +1624,18 @@ fn main() {
             ws::ws_send,
             ws::ws_close
         ])
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!())
+        .map(|app| {
+            app.run(|handle, event| {
+                // Cmd+Q y otras salidas que no pasan por «cerrar ventana»: se vuelca antes de morir.
+                if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                    if !CLOSING.load(std::sync::atomic::Ordering::SeqCst) {
+                        api.prevent_exit();
+                        begin_flush(handle);
+                    }
+                }
+            })
+        });
 
     if let Err(e) = result {
         eprintln!("Error fatal al iniciar Caesar: {e}");

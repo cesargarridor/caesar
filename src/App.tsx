@@ -37,7 +37,7 @@ import {
   DEFAULT_WS, FREE_WORKSPACES, addTombstones, canCreateWorkspace, collectNodeIds, isWiping, loadWsActive, loadWsList, newWsId, loadProfiles, newProfileId, normProfiles, removeWsData, saveWsActive, saveWsList, snapshotAll, wsKey, type WsMeta,
 } from "./lib/workspaces";
 import {
-  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncNow, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, onSyncRemote, onUpdateProgress, saveTextFile,
+  appVersion, checkTrialAndWhitelist, checkUpdate, executeRequest, syncNow, syncStatus, teamJoin, teamPublish, teamUnshare, installUpdate, parseCollectionContent, pickTextFiles, localSave, flushDone, onSyncRemote, onUpdateProgress, saveTextFile,
   onAccountChanged,
   onUpgradeResult,
   deeplinkTake,
@@ -299,6 +299,23 @@ export default function App() {
     }, 2000);
     return () => clearTimeout(id);
   }, [collections, vars, profiles, wsList, wsId]);
+  // Cierre de la aplicación (cerrar ventana, Cmd+Q, Alt+F4): Rust avisa y aquí se vuelca YA lo pendiente, sin esperar la barrera de 2 s.
+  const snapRef = useRef({ wsList, wsId, collections, vars, profiles });
+  snapRef.current = { wsList, wsId, collections, vars, profiles };
+  useEffect(() => {
+    const un = listen("flush-before-close", async () => {
+      try {
+        const x = snapRef.current;
+        if (!isWiping()) {
+          save(wsKey("collections", x.wsId), x.collections);
+          await localSave(JSON.stringify(snapshotAll(x.wsList, x.wsId, x.collections, x.vars, x.profiles)));
+        }
+      } catch { /* se sale igual: Rust no espera más de 3 s */ }
+      await flushDone().catch(() => {});
+    });
+    return () => { void un.then((f) => f()).catch(() => {}); };
+  }, []);
+
   // ───── espacios de trabajo ─────
   /** Carga otro espacio: lee su bloque del disco y lo pone en pantalla al instante (sin red). */
   const enterWs = (id: string) => {
@@ -492,6 +509,7 @@ export default function App() {
     else closeTabs(ids);
   };
   /** Guarda varias pestañas de una vez (una sola actualización de colecciones, para que los borradores no se pisen). */
+  // TODO: v1.1 - Refactorizar saveMany para invocar el SaveToDialog secuencialmente
   const saveMany = (list: Tab[]) => {
     let cols = collections;
     for (const tab of list) {

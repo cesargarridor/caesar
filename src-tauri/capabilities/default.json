@@ -38,6 +38,8 @@
     "allow-local-save",
     "allow-local-wipe",
     "allow-sync-sign-in",
+    "allow-sync-reset-password",
+    "allow-flush-done",
     "allow-sync-google",
     "allow-sync-link-confirm",
     "allow-sync-link-cancel",

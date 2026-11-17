@@ -63,6 +63,8 @@ export const syncSignIn = (email: string, password: string, create: boolean) =>
   invoke<string>("sync_sign_in", { email, password, create });
 /** Envía el correo para restablecer la contraseña (no revela si la cuenta existe). */
 export const syncResetPassword = (email: string) => invoke<void>("sync_reset_password", { email });
+/** La interfaz terminó de volcar sus cambios al cerrar: Rust ya puede salir. */
+export const flushDone = () => invoke<void>("flush_done");
 export interface DeviceCode { user_code: string; verification_uri: string; device_code: string; interval: number; expires_in: number }
 export const syncGoogle = () => invoke<void>("sync_google");
 export const syncLinkConfirm = (password: string) => invoke<void>("sync_link_confirm", { password });
