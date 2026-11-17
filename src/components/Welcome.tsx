@@ -73,13 +73,14 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
   const accountsOn = st?.configured ?? true;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-deep p-8">
-      <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-4 w-fit">
+    <div className="fixed inset-0 z-[70] flex overflow-y-auto bg-deep p-4 sm:p-6">
+      {/* m-auto (y no items-center) centra cuando cabe y deja hacer scroll hasta arriba cuando no cabe; solo hay scroll si la ventana es muy pequeña. */}
+      <div className={`m-auto w-full text-center ${mode ? "max-w-sm" : "max-w-sm md:max-w-3xl"}`}>
+        <div className="mx-auto mb-3 w-fit [@media(max-height:790px)]:hidden">
           <CatLogo size={96} />
         </div>
         <h1 className="cosmic-text text-4xl font-normal tracking-[-0.02em]">Caesar</h1>
-        <p className="mt-2 mb-8 text-sm text-slate">{t("Bienvenido. Elige cómo quieres empezar.")}</p>
+        <p className="mt-2 mb-5 text-sm text-slate">{t("Bienvenido. Elige cómo quieres empezar.")}</p>
 
         {mode ? (
           <form
@@ -117,8 +118,8 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
             <button onClick={finish} className="btn-aurora w-full px-4 py-2.5 font-semibold">{t("Entrar en modo local")}</button>
           </div>
         ) : (
-          <div className="space-y-3 text-left">
-            <button onClick={finish} disabled={!ok} className="w-full rounded-[14px] bg-kelp p-4 text-left ring-1 ring-fg/10 hover:ring-fg/30 disabled:opacity-50">
+          <div className="grid gap-3 text-left md:grid-cols-2 md:items-stretch">
+            <button onClick={finish} disabled={!ok} className="w-full self-start rounded-[14px] bg-kelp p-4 text-left ring-1 ring-fg/10 hover:ring-fg/30 disabled:opacity-50">
               <span className="flex items-center gap-2 text-sm font-semibold text-mist"><HardDrive size={16} /> {t("Continuar como Invitado (Local)")}</span>
               <span className="mt-1 block text-xs text-slate">
                 {t("Sin cuenta. Tus datos se guardan solo en este dispositivo (si lo borras o cambias de equipo, los perderás). Un espacio de trabajo, sin compartir con equipos ni sincronizar.")}
@@ -145,7 +146,7 @@ export default function Welcome({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        <div className="mt-8">
+        <div className="mx-auto mt-4 max-w-md">
           <ConsentChecks agree={agree} age={age} onAgree={setAgree} onAge={setAge} />
           {!ok && <p className="mt-2 text-left text-xs text-slate">{t("Marca las dos casillas para continuar.")}</p>}
         </div>
