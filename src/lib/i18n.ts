@@ -868,6 +868,7 @@ const D: Record<string, Row> = {
   "Al crear la cuenta tienes 7 días para activar Pro; mientras tanto funciona en local.": ["When you create an account you have 7 days to activate Pro; meanwhile it works locally.", "Nach dem Erstellen des Kontos hast du 7 Tage Zeit, um Pro zu aktivieren; bis dahin funktioniert es lokal.", "À la création du compte, tu as 7 jours pour activer Pro ; en attendant, il fonctionne en local.", "Alla creazione dell’account hai 7 giorni per attivare Pro; nel frattempo funziona in locale."],
   "Cuenta vinculada automáticamente": ["Account linked automatically", "Konto automatisch verknüpft", "Compte lié automatiquement", "Account collegato automaticamente"],
   "Esta función requiere el plan Pro.": ["This feature requires the Pro plan.", "Diese Funktion erfordert den Pro-Tarif.", "Cette fonctionnalité nécessite l’offre Pro.", "Questa funzione richiede il piano Pro."],
+  "¿Dónde quieres guardar esta petición?": ["Where do you want to save this request?", "Wo möchtest du diese Anfrage speichern?", "Où veux-tu enregistrer cette requête ?", "Dove vuoi salvare questa richiesta?"],
   "Seguridad de la contraseña": ["Password strength", "Passwortstärke", "Sécurité du mot de passe", "Sicurezza della password"],
   "Muy débil": ["Very weak", "Sehr schwach", "Très faible", "Molto debole"],
   "Débil": ["Weak", "Schwach", "Faible", "Debole"],

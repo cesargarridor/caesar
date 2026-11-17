@@ -76,6 +76,7 @@ import {
   applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
+import SaveToDialog from "./components/SaveToDialog";
 import type { KV, ProfilesState, ProgressEvent, VarProfile, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
 const STEP_DEFS = [
@@ -266,6 +267,8 @@ export default function App() {
   /** Editor grande de variables / perfiles / colección (null = cerrado). collIdx = colección elegida (por defecto la de la pestaña activa). */
   const [varsDlg, setVarsDlg] = useState<null | { section: VarsSection; collIdx?: number; collTab?: "vars" | "auth" }>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  /** Selector «¿Dónde quieres guardar?» para una petición huérfana (sin colección). `close`: cerrar la pestaña al guardar. */
+  const [saveDlg, setSaveDlg] = useState<null | { tabId: string; close: boolean }>(null);
 
   const activeOrNull = tabs.find((t) => t.id === activeId) ?? tabs[0] ?? null;
   const active = activeOrNull ?? NO_TAB;
@@ -864,18 +867,32 @@ export default function App() {
       if (!silent) setFlash("save");
       return;
     }
-    // Borrador: se guarda en la primera colección (o se crea una).
-    const node = nodeFromRequest(suggestName(req), req);
+    // Petición huérfana (cURL pegado, borrador…): no se guarda a ciegas, se pregunta dónde.
+    if (!silent) setSaveDlg({ tabId: tab.id, close: false });
+  };
+
+  /** Termina el guardado de una petición huérfana en la carpeta/colección elegida ("new" = colección nueva) y la ancla a la barra lateral. */
+  const saveOrphanTo = (to: string) => {
+    const dlg = saveDlg;
+    setSaveDlg(null);
+    const tab = dlg && tabs.find((x) => x.id === dlg.tabId);
+    if (!dlg || !tab) return;
+    const node = nodeFromRequest(suggestName(tab.req), tab.req);
     let base = collections;
-    let target = "0";
-    if (base.length === 0 || base[0].type !== "folder") {
+    let target = to;
+    if (to === "new") {
       base = [...base, newFolderNode(t("Mi colección"))];
       target = String(base.length - 1);
     }
     const { nodes, path } = addChild(base, target, node);
     setCollections(nodes);
-    patchTab(tab.id, (t) => ({ ...t, path, name: node.name, dirty: false }));
-    setFlash("save");
+    openFolder(getAt(nodes, target)?.type === "folder" ? (getAt(nodes, target) as { uid?: string }).uid : undefined);
+    if (dlg.close) {
+      closeTab(tab.id);
+    } else {
+      patchTab(tab.id, (x) => ({ ...x, path, name: node.name, dirty: false }));
+      setFlash("save");
+    }
   };
 
   const handleExport = async (path: string, format: ExportFormat = "json") => {
@@ -1292,6 +1309,14 @@ export default function App() {
           />
         )}
         {mockPath && mockNode?.type === "folder" && <MockDialog key={mockPath} folder={mockNode} onClose={() => setMockPath(null)} />}
+        {saveDlg && tabs.find((x) => x.id === saveDlg.tabId) && (
+          <SaveToDialog
+            collections={collections}
+            name={suggestName(tabs.find((x) => x.id === saveDlg.tabId)!.req)}
+            onClose={() => setSaveDlg(null)}
+            onPick={saveOrphanTo}
+          />
+        )}
         {moveFrom && getAt(collections, moveFrom) && (
           <MoveDialog
             collections={collections}
@@ -1341,6 +1366,13 @@ export default function App() {
                 <button
                   onClick={() => {
                     const t = tabs.find((x) => x.id === pendingClose);
+                    const orphan = !!t && (!t.path || getAt(collections, t.path)?.type !== "request");
+                    if (t && orphan) {
+                      // Sin colección: se pregunta dónde guardarla y la pestaña se cierra al elegir (cancelar = sigue abierta).
+                      setSaveDlg({ tabId: t.id, close: true });
+                      setPendingClose(null);
+                      return;
+                    }
                     if (t) handleSave(t);
                     closeTab(pendingClose);
                     setPendingClose(null);

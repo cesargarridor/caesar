@@ -849,4 +849,5 @@ export const EXTRA_D: Record<string, [string, string, string, string]> = {
   "Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Revisa también el spam.": ["Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha. Verifique também o spam.", "如果该邮箱存在账号，我们已发送重置密码的链接。也请检查垃圾邮件。", "このメールアドレスのアカウントがある場合、パスワード再設定のリンクを送信しました。迷惑メールも確認してください。", "Если аккаунт с такой почтой существует, мы отправили ссылку для сброса пароля. Проверьте и спам."],
   "Enviar de nuevo": ["Enviar novamente", "重新发送", "再送信", "Отправить снова"],
   "Enviar enlace": ["Enviar link", "发送链接", "リンクを送信", "Отправить ссылку"],
+  "¿Dónde quieres guardar esta petición?": ["Onde você quer salvar esta requisição?", "要将此请求保存到哪里？", "このリクエストをどこに保存しますか？", "Куда сохранить этот запрос?"],
 };
