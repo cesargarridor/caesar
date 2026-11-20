@@ -146,6 +146,17 @@ fn collect(items: &Value, inherited: &Value, only: Option<&str>, inside: bool, o
                 let ct = if body["options"]["raw"]["language"] == "json" { "application/json" } else { "text/plain" };
                 (Some((ct.to_string(), body["raw"].as_str().unwrap_or("").to_string())), vec![])
             }
+            Some("graphql") => {
+                let q = body["graphql"]["query"].as_str().unwrap_or("");
+                let v = body["graphql"]["variables"].as_str().unwrap_or("").trim();
+                let mut payload = serde_json::json!({ "query": q });
+                if !v.is_empty() {
+                    if let Ok(parsed) = serde_json::from_str::<Value>(v) {
+                        payload["variables"] = parsed;
+                    }
+                }
+                (Some(("application/json".to_string(), payload.to_string())), vec![])
+            }
             Some("urlencoded") => (None, kv_list(&body["urlencoded"])),
             _ => (None, vec![]),
         };

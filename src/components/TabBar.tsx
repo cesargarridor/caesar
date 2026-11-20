@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Globe, Plug, Plus, X, XCircle } from "lucide-react";
+import { Braces, Globe, Plug, Plus, X, XCircle } from "lucide-react";
 import { METHOD_COLORS } from "./SidebarTree";
 import { suggestName } from "../lib/tree";
 import type { Tab } from "../types";
@@ -14,14 +14,16 @@ interface Props {
   onNew: () => void;
   /** Nueva pestaña WebSocket (menú del «+»). */
   onNewWs?: () => void;
+  /** Nueva pestaña GraphQL (menú del «+»). */
+  onNewGql?: () => void;
   /** Cierra varias pestañas (menú contextual y botón «cerrar todas»); `id` = pestaña sobre la que se pidió. */
   onCloseMany?: (mode: CloseMode, id: string | null) => void;
 }
 
-export const tabTitle = (t: Tab) => (t.path ? t.name : t.req.url ? suggestName(t.req).replace(/^\S+\s/, "") : tr("Nueva petición"));
+export const tabTitle = (t: Tab) => (t.path ? t.name : t.req.url ? suggestName(t.req).replace(/^\S+\s/, "") : t.req.kind === "gql" ? tr("Nueva GraphQL") : t.req.kind === "ws" ? tr("Nueva WebSocket") : tr("Nueva petición"));
 
 /** Pestañas de peticiones abiertas. El punto indica cambios sin guardar. */
-export default function TabBar({ tabs, activeId, onSelect, onClose, onNew, onNewWs, onCloseMany }: Props) {
+export default function TabBar({ tabs, activeId, onSelect, onClose, onNew, onNewWs, onNewGql, onCloseMany }: Props) {
   const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
   const [menu, setMenu] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -81,7 +83,9 @@ export default function TabBar({ tabs, activeId, onSelect, onClose, onNew, onNew
               active ? "bg-deep text-mist" : "text-slate hover:bg-fg/5 hover:text-silver"
             }`}
           >
-            <span className={`text-[10px] font-semibold ${METHOD_COLORS[t.req.method] ?? "text-silver"}`}>{t.req.method}</span>
+            <span className={`text-[10px] font-semibold ${METHOD_COLORS[t.req.kind === "gql" ? "GQL" : t.req.method] ?? "text-silver"}`}>
+              {t.req.kind === "gql" ? "GQL" : t.req.method}
+            </span>
             <span className="truncate">{tabTitle(t)}</span>
             {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-lav" title={tr("Cambios sin guardar")} />}
             <button
@@ -100,13 +104,13 @@ export default function TabBar({ tabs, activeId, onSelect, onClose, onNew, onNew
       <div ref={box} className="relative mb-1 shrink-0">
         <button
           onClick={(e) => {
-            if (!onNewWs) return onNew();
+            if (!onNewWs && !onNewGql) return onNew();
             const r = e.currentTarget.getBoundingClientRect();
             setPos({ x: r.left, y: r.bottom + 4 });
             setMenu((m) => !m);
           }}
-          aria-haspopup={onNewWs ? "menu" : undefined}
-          aria-expanded={onNewWs ? menu : undefined}
+          aria-haspopup={onNewWs || onNewGql ? "menu" : undefined}
+          aria-expanded={onNewWs || onNewGql ? menu : undefined}
           className="rounded-[10px] p-1.5 text-slate hover:bg-fg/10 hover:text-mist"
           title={tr("Nueva pestaña")}
           aria-label={tr("Nueva pestaña")}
@@ -118,9 +122,16 @@ export default function TabBar({ tabs, activeId, onSelect, onClose, onNew, onNew
             <button role="menuitem" onClick={() => { setMenu(false); onNew(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-silver hover:bg-fg/10 hover:text-mist">
               <Globe size={14} /> HTTP
             </button>
-            <button role="menuitem" onClick={() => { setMenu(false); onNewWs?.(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-silver hover:bg-fg/10 hover:text-mist">
-              <Plug size={14} /> WebSocket
-            </button>
+            {onNewGql && (
+              <button role="menuitem" onClick={() => { setMenu(false); onNewGql(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-silver hover:bg-fg/10 hover:text-mist">
+                <Braces size={14} /> GraphQL
+              </button>
+            )}
+            {onNewWs && (
+              <button role="menuitem" onClick={() => { setMenu(false); onNewWs(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-silver hover:bg-fg/10 hover:text-mist">
+                <Plug size={14} /> WebSocket
+              </button>
+            )}
           </div>
         )}
       </div>

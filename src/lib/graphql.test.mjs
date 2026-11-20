@@ -4,8 +4,14 @@ import assert from "node:assert/strict";
 import { gqlRaw, gqlVarsError, listOperations, extractVarDefs, effectiveOp } from "./graphql.ts";
 import { formatGql } from "./graphqlFormat.ts";
 import { gqlSyntaxIssue, lex } from "./graphqlLex.ts";
-import { parseIntrospection, varsTemplate, operationSnippet, fieldSnippet, searchSchema, countTypes, INTROSPECTION_QUERY } from "./graphqlSchema.ts";
+import { parseIntrospection, parseSdl, parseAnySchema, buildQueryFromSelection, varsTemplate, operationSnippet, fieldSnippet, searchSchema, countTypes, INTROSPECTION_QUERY } from "./graphqlSchema.ts";
 import { completionAt } from "./graphqlComplete.ts";
+import { checkJson, issueText } from "./jsonCheck.ts";
+import { newGqlNode, nodeFromRequest, ensureIds, suggestName } from "./tree.ts";
+import { requestFromNode, buildExecuteArgs } from "./request.ts";
+import { makeShareLink, parseShareLink } from "./shareLink.ts";
+import { exportCollection } from "./collectionExport.ts";
+import { detectAndParse, exportHar, exportYaml } from "./interchange.ts";
 
 const tr = (r) => ({ kind: "NON_NULL", name: null, ofType: r });
 const list = (r) => ({ kind: "LIST", name: null, ofType: r });
@@ -146,4 +152,167 @@ test("autocompletado", () => {
   assert.equal(at("{ # us|\n }"), null);
   assert.deepEqual(labels(at("mu|")), ["mutation"]);
   assert.deepEqual(labels(at("mutation { cr| }")), ["createUser"]);
+});
+
+test("parseSdl y parseAnySchema importan esquemas SDL (.graphql) y JSON", () => {
+  const sdl = `
+    """Esquema de ejemplo"""
+    schema {
+      query: RootQuery
+      mutation: RootMutation
+    }
+
+    scalar DateTime
+
+    enum Role {
+      "Administrador"
+      ADMIN
+      USER
+    }
+
+    interface Node {
+      id: ID!
+    }
+
+    type User implements Node {
+      "Identificador"
+      id: ID!
+      name: String!
+      role: Role = USER
+      friends(limit: Int = 10): [User!]!
+      oldField: String @deprecated(reason: "usar name")
+    }
+
+    input UserInput {
+      name: String!
+      role: Role = USER
+    }
+
+    union SearchResult = User
+
+    type RootQuery {
+      user(id: ID!): User
+      users(role: Role): [User!]!
+    }
+
+    type RootMutation {
+      createUser(input: UserInput!): User!
+    }
+
+    directive @auth(role: Role = ADMIN) on FIELD_DEFINITION
+  `;
+  const s = parseSdl(sdl);
+  assert.equal(s.queryType, "RootQuery");
+  assert.equal(s.mutationType, "RootMutation");
+  assert.equal(s.types.User.fields.find((f) => f.name === "oldField").deprecated, true);
+  assert.equal(s.types.User.fields.find((f) => f.name === "friends").args[0].defaultValue, "10");
+  assert.deepEqual(s.types.Node.possibleTypes, ["User"]);
+  assert.deepEqual(s.types.SearchResult.possibleTypes, ["User"]);
+  assert.deepEqual(s.types.Role.enumValues.map((e) => e.name), ["ADMIN", "USER"]);
+  assert.equal(s.types.UserInput.inputFields[0].required, true);
+  assert.equal(s.directives[0].name, "auth");
+  assert.equal(parseAnySchema(sdl).queryType, "RootQuery");
+  assert.equal(parseAnySchema(JSON.stringify(intro)).queryType, "Query");
+});
+
+test("buildQueryFromSelection construye queries y variables con checkboxes como Postman", () => {
+  const fields = new Set(["query.user", "query.user.id", "query.user.name"]);
+  const args = new Set(["query.user@id"]);
+  const built = buildQueryFromSelection(schema, "query", "GetUser", fields, args, {});
+  assert.equal(built.query, "query GetUser($id: ID!) {\n  user(id: $id) {\n    id\n    name\n  }\n}");
+  assert.deepEqual(JSON.parse(built.vars), { id: "" });
+});
+
+test("buildQueryFromSelection soporta campos anidados, valores personalizados de argumento y mutaciones", () => {
+  const fields = new Set(["query.user", "query.user.id", "query.user.friends", "query.user.friends.name"]);
+  const args = new Set(["query.user@id"]);
+  const built = buildQueryFromSelection(schema, "query", "", fields, args, { "query.user@id": '"42"' });
+  assert.equal(built.query, 'query {\n  user(id: "42") {\n    id\n    friends {\n      name\n    }\n  }\n}');
+  assert.equal(built.vars, "");
+
+  // Mutación con variable en argumento
+  const mFields = new Set(["mutation.createUser", "mutation.createUser.id"]);
+  const mBuilt = buildQueryFromSelection(schema, "mutation", "AddUser", mFields, new Set(), {});
+  assert.equal(mBuilt.query, "mutation AddUser($input: UserInput!) {\n  createUser(input: $input) {\n    id\n  }\n}");
+  assert.deepEqual(JSON.parse(mBuilt.vars), { input: { name: "", age: 0, role: "ADMIN" } });
+});
+
+test("GraphQL como tipo de petición (kind: gql): creación, árbol, ejecución, shareLink y exportación", async () => {
+  const node = newGqlNode("Mi GraphQL");
+  assert.equal(node.kind, "gql");
+  assert.equal(node.method, "POST");
+  assert.equal(node.body.mode, "graphql");
+
+  const req = requestFromNode({
+    ...node,
+    url: "https://api.ejemplo.com/graphql?env=prod",
+    body: { mode: "graphql", gqlQuery: "query Q($id: ID!) { user(id: $id) { name } }", gqlVars: '{"id": "{{userId}}"}', gqlOp: "Q" },
+  });
+  assert.equal(req.kind, "gql");
+  assert.equal(req.method, "POST");
+  assert.equal(suggestName(req), "GQL /graphql");
+
+  const savedNode = nodeFromRequest("Guardada", req);
+  assert.equal(savedNode.kind, "gql");
+  assert.equal(savedNode.method, "POST");
+  assert.equal(savedNode.body.mode, "graphql");
+
+  // Una petición HTTP con body.mode === "graphql" (sin kind) se conserva como HTTP (con GraphQL en el Body)
+  const httpWithGqlBody = ensureIds([{
+    type: "request",
+    name: "HTTP con GraphQL en body",
+    method: "POST",
+    url: "https://api.ejemplo.com/graphql",
+    headers: [],
+    body: { mode: "graphql", gqlQuery: "{ users { id } }", gqlVars: "" },
+    auth: { type: "none" },
+  }])[0];
+  assert.equal(httpWithGqlBody.kind, undefined);
+  assert.equal(httpWithGqlBody.method, "POST");
+  assert.equal(httpWithGqlBody.body.mode, "graphql");
+  const httpReq = requestFromNode(httpWithGqlBody);
+  assert.equal(httpReq.kind, undefined);
+  assert.equal(httpReq.body.mode, "graphql");
+
+  // Argumentos de ejecución con sustitución de {{variables}}
+  const execArgs = buildExecuteArgs(req, [{ key: "userId", value: "99", enabled: true }]);
+  assert.equal(execArgs.method, "POST");
+  assert.equal(execArgs.body.mode, "json");
+  assert.deepEqual(JSON.parse(execArgs.body.raw), {
+    query: "query Q($id: ID!) { user(id: $id) { name } }",
+    variables: { id: "99" },
+  });
+
+  // ShareLink ida y vuelta conserva kind === "gql"
+  const { link } = await makeShareLink(req);
+  const parsed = await parseShareLink(link);
+  assert.equal(parsed.kind, "gql");
+  assert.equal(parsed.method, "POST");
+  assert.equal(parsed.body.mode, "graphql");
+  assert.equal(parsed.body.gqlQuery, req.body.gqlQuery);
+
+  // Exportación a Postman v2.1, HAR y YAML
+  const folder = { type: "folder", name: "Col", children: [savedNode] };
+  const pmJson = JSON.parse(exportCollection(folder, []));
+  assert.equal(pmJson.item[0].request.method, "POST");
+  assert.equal(pmJson.item[0].request.body.mode, "graphql");
+  assert.equal(pmJson.item[0].request.body.graphql.query, req.body.gqlQuery);
+
+  const harJson = JSON.parse(exportHar(folder, [{ key: "userId", value: "99", enabled: true }]));
+  assert.equal(harJson.log.entries[0].request.method, "POST");
+  assert.ok(harJson.log.entries[0].request.postData.text.includes('"99"'));
+
+  const yamlText = exportYaml(folder, []);
+  const reimported = detectAndParse(yamlText);
+  assert.equal(reimported.kind, "ready");
+});
+
+test("checkJson detecta posición exacta (línea, columna y offset) sin falsear variables {{x}}", () => {
+  assert.equal(checkJson('{\n  "id": {{id}},\n  "ok": true\n}'), null);
+  const err = checkJson('{\n  "a": 1\n  "b": 2\n}');
+  assert.ok(err);
+  assert.equal(err.line, 3);
+  assert.equal(err.col, 3);
+  assert.ok(issueText(err).includes("línea 3, columna 3"));
+  assert.ok(issueText(err).includes("falta una coma"));
 });

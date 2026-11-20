@@ -56,6 +56,15 @@ aside:hover .cat-logo { animation: cat-wiggle 2.4s ease-in-out infinite; }
 .cat-logo:hover { transform: scale(1.18) rotate(-6deg); }
 @keyframes cat-wiggle { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(-8deg); } 97% { transform: rotate(8deg); } }
 select option { background: var(--t-kelp); color: var(--t-mist); }
+
+/* En campos con capa coloreada superpuesta (VarInput, JsonEditor), la selección del navegador solo pinta el fondo
+   y deja el texto nativo transparente para que no se duplique sobre la capa coloreada en macOS/WebKit. */
+input.caesar-transparent-text::selection,
+textarea.caesar-transparent-text::selection {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: color-mix(in srgb, var(--t-accent) 32%, transparent);
+}
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--t-fg) 22%, transparent); border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

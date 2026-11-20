@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BookOpen, Download, Loader2, Minimize2, RefreshCw, Sparkles, Wand2 } from "lucide-react";
+import { BookOpen, ClipboardPaste, Download, FileUp, Loader2, Minimize2, RefreshCw, Sparkles, Wand2, X } from "lucide-react";
 import JsonEditor from "./JsonEditor";
 import GraphqlSchemaPanel from "./GraphqlSchemaPanel";
 import type { AuthData, BodyData, KV, RequestState } from "../types";
 import { t } from "../lib/i18n";
-import { executeRequest } from "../api";
+import { executeRequest, pickTextFile } from "../api";
 import { buildExecuteArgs, substitute } from "../lib/request";
 import { buildUrl } from "../lib/url";
 import { signRequest, SIGNED_TYPES } from "../lib/authSign";
@@ -13,7 +13,7 @@ import { formatGql } from "../lib/graphqlFormat";
 import { gqlSyntaxIssue, lex } from "../lib/graphqlLex";
 import { completionAt, type GqlCompletion, type GqlCompletionResult } from "../lib/graphqlComplete";
 import {
-  INTROSPECTION_QUERY, countTypes, fieldSnippet, operationSnippet, parseIntrospection, varsTemplate,
+  INTROSPECTION_QUERY, buildQueryFromSelection, countTypes, fieldSnippet, operationSnippet, parseAnySchema, parseIntrospection, varsTemplate,
   type GqlField, type GqlSchema, type RootKind,
 } from "../lib/graphqlSchema";
 import { clearCachedSchema, loadCachedSchema, saveCachedSchema } from "../lib/graphqlCache";
@@ -26,6 +26,19 @@ interface Props {
   inherited?: AuthData | null;
   /** Cambia el método HTTP (GraphQL va por POST). */
   onMethod?: (m: string) => void;
+  /** Si se pasa un esquema externo (desde GraphqlPanel), se usa ese. */
+  externalSchema?: {
+    schema: GqlSchema | null;
+    at: number;
+    source?: "introspection" | "file";
+    fileName?: string;
+    loading: boolean;
+    error: string | null;
+    onIntrospect: () => void;
+    onImportFile: () => void;
+    onImportText: (text: string) => void;
+    onForget: () => void;
+  };
 }
 
 const EXAMPLE = "query GetUsers {\n  users {\n    id\n    name\n  }\n}";
@@ -34,7 +47,7 @@ const btn = "flex items-center gap-1 rounded-md border border-fg/10 px-2 py-1 te
 const KEYWORDS = new Set(["query", "mutation", "subscription", "fragment", "on", "schema", "type", "input", "enum", "interface", "union", "scalar", "directive", "extend", "implements"]);
 
 /** Resaltado GraphQL con los colores del body: palabras clave, argumentos, $variables, strings, comentarios. */
-function paintGql(text: string): ReactNode[] {
+export function paintGql(text: string): ReactNode[] {
   const toks = lex(text);
   const out: ReactNode[] = [];
   toks.forEach((tk, i) => {
@@ -63,39 +76,44 @@ function paintGql(text: string): ReactNode[] {
   return out;
 }
 
-export default function GraphqlEditor({ body, onChange, req, vars, inherited, onMethod }: Props) {
+export default function GraphqlEditor({ body, onChange, req, vars, inherited, onMethod, externalSchema }: Props) {
   const query = body.gqlQuery ?? "";
   const gqlVars = body.gqlVars ?? "";
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // ── esquema ──
-  const [schema, setSchema] = useState<GqlSchema | null>(null);
-  const [at, setAt] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [panel, setPanel] = useState(false);
+  // ── esquema (propio si no viene de GraphqlPanel) ──
+  const [ownSchema, setOwnSchema] = useState<GqlSchema | null>(null);
+  const [ownAt, setOwnAt] = useState(0);
+  const [ownSource, setOwnSource] = useState<"introspection" | "file" | undefined>(undefined);
+  const [ownFile, setOwnFile] = useState<string | undefined>(undefined);
+  const [ownLoading, setOwnLoading] = useState(false);
+  const [ownError, setOwnError] = useState<string | null>(null);
+  const [panel, setPanel] = useState(true);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
   const token = useRef(0);
   const cacheUrl = useMemo(() => substitute(buildUrl(req.url, req.params), vars).trim(), [req.url, req.params, vars]);
 
-  // Al cambiar de URL se recupera el esquema cacheado (si lo hay) sin tocar la red.
   useEffect(() => {
+    if (externalSchema) return;
     token.current++;
-    setLoading(false);
-    setError(null);
+    setOwnLoading(false);
+    setOwnError(null);
     const c = loadCachedSchema(cacheUrl);
-    setSchema(c?.schema ?? null);
-    setAt(c?.at ?? 0);
-    if (!c) setPanel(false);
-  }, [cacheUrl]);
+    setOwnSchema(c?.schema ?? null);
+    setOwnAt(c?.at ?? 0);
+    setOwnSource(c?.source);
+    setOwnFile(c?.fileName);
+  }, [cacheUrl, externalSchema]);
 
-  const loadSchema = async () => {
+  const ownLoadSchema = async () => {
     if (!cacheUrl) {
-      setError(t("Escribe primero la URL del endpoint GraphQL arriba para poder cargar el esquema."));
+      setOwnError(t("Escribe primero la URL del endpoint GraphQL arriba para poder cargar el esquema."));
       return;
     }
     const my = ++token.current;
-    setLoading(true);
-    setError(null);
+    setOwnLoading(true);
+    setOwnError(null);
     try {
       const auth = inherited ?? req.auth;
       const base = buildExecuteArgs(
@@ -113,23 +131,134 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
         const m = (e as Error).message;
         throw new Error(res.status >= 400 ? t("El servidor respondió {0} {1}. {2}", res.status, res.statusText, m) : m);
       }
-      const c = saveCachedSchema(cacheUrl, parsed);
-      setSchema(c.schema);
-      setAt(c.at);
+      const c = saveCachedSchema(cacheUrl, parsed, "introspection");
+      setOwnSchema(c.schema);
+      setOwnAt(c.at);
+      setOwnSource("introspection");
+      setOwnFile(undefined);
+      setPanel(true);
     } catch (e) {
       if (my !== token.current) return;
       const m = typeof e === "string" ? e : (e as Error)?.message ?? String(e);
-      setError(t("No se pudo cargar el esquema: {0}", m));
+      setOwnError(t("No se pudo cargar el esquema: {0}", m));
     } finally {
-      if (my === token.current) setLoading(false);
+      if (my === token.current) setOwnLoading(false);
     }
   };
 
-  const forget = () => {
+  const ownImportFile = async () => {
+    setOwnError(null);
+    try {
+      const f = await pickTextFile();
+      if (!f) return;
+      const parsed = parseAnySchema(f.content);
+      const c = saveCachedSchema(cacheUrl || "__local__", parsed, "file", f.name);
+      setOwnSchema(c.schema);
+      setOwnAt(c.at);
+      setOwnSource("file");
+      setOwnFile(f.name);
+      setPanel(true);
+    } catch (e) {
+      const m = typeof e === "string" ? e : (e as Error)?.message ?? String(e);
+      setOwnError(t("No se pudo importar el esquema: {0}", m));
+    }
+  };
+
+  const ownImportText = (text: string) => {
+    setOwnError(null);
+    try {
+      const parsed = parseAnySchema(text);
+      const c = saveCachedSchema(cacheUrl || "__local__", parsed, "file", "SDL");
+      setOwnSchema(c.schema);
+      setOwnAt(c.at);
+      setOwnSource("file");
+      setOwnFile("SDL");
+      setPanel(true);
+      setPasteOpen(false);
+      setPasteText("");
+    } catch (e) {
+      const m = typeof e === "string" ? e : (e as Error)?.message ?? String(e);
+      setOwnError(t("No se pudo importar el esquema: {0}", m));
+    }
+  };
+
+  const ownForget = () => {
     clearCachedSchema(cacheUrl);
-    setSchema(null);
-    setAt(0);
-    setPanel(false);
+    setOwnSchema(null);
+    setOwnAt(0);
+    setOwnSource(undefined);
+    setOwnFile(undefined);
+  };
+
+  const schema = externalSchema ? externalSchema.schema : ownSchema;
+  const at = externalSchema ? externalSchema.at : ownAt;
+  const source = externalSchema ? externalSchema.source : ownSource;
+  const fileName = externalSchema ? externalSchema.fileName : ownFile;
+  const loading = externalSchema ? externalSchema.loading : ownLoading;
+  const error = externalSchema ? externalSchema.error : ownError;
+  const loadSchema = externalSchema ? externalSchema.onIntrospect : ownLoadSchema;
+  const importFile = externalSchema ? externalSchema.onImportFile : ownImportFile;
+  const importText = externalSchema ? externalSchema.onImportText : ownImportText;
+  const forget = externalSchema ? externalSchema.onForget : ownForget;
+
+  // ── Constructor interactivo (checkboxes en el explorador del esquema) ──
+  const [selFields, setSelFields] = useState<Set<string>>(() => new Set());
+  const [selArgs, setSelArgs] = useState<Set<string>>(() => new Set());
+  const [argVals, setArgVals] = useState<Record<string, string>>({});
+  const [activeRoot, setActiveRoot] = useState<RootKind>("query");
+
+  const rebuildFromSelection = (kind: RootKind, nextFields: Set<string>, nextArgs: Set<string>, nextVals: Record<string, string>) => {
+    if (!schema) return;
+    const ops = listOperations(query);
+    const opName = ops.find((o) => o.kind === kind && o.name)?.name ?? "";
+    const built = buildQueryFromSelection(schema, kind, opName, nextFields, nextArgs, nextVals);
+    const next: BodyData = { ...body, gqlQuery: built.query };
+    if (built.vars) {
+      const d = extractVarDefs(built.query, null);
+      next.gqlVars = varsTemplate(d, schema, gqlVars);
+    }
+    onChange(next);
+  };
+
+  const handleToggleField = (kind: RootKind, path: string, _f: GqlField) => {
+    const nextFields = new Set(selFields);
+    if (activeRoot !== kind) {
+      // Si cambia de raíz (query -> mutation), limpiamos la selección anterior de otra raíz
+      for (const p of [...nextFields]) if (!p.startsWith(kind + ".")) nextFields.delete(p);
+      setActiveRoot(kind);
+    }
+    if (nextFields.has(path)) {
+      nextFields.delete(path);
+      for (const p of [...nextFields]) if (p.startsWith(path + ".")) nextFields.delete(p);
+    } else {
+      nextFields.add(path);
+      // Aseguramos que todos los padres estén marcados
+      const parts = path.split(".");
+      for (let i = 2; i < parts.length; i++) {
+        nextFields.add(parts.slice(0, i).join("."));
+      }
+    }
+    setSelFields(nextFields);
+    rebuildFromSelection(kind, nextFields, selArgs, argVals);
+  };
+
+  const handleToggleArg = (kind: RootKind, argPath: string) => {
+    const nextArgs = new Set(selArgs);
+    if (!nextArgs.delete(argPath)) nextArgs.add(argPath);
+    const fieldPath = argPath.split("@")[0];
+    const nextFields = new Set(selFields);
+    if (nextArgs.has(argPath) && !nextFields.has(fieldPath)) {
+      nextFields.add(fieldPath);
+      setSelFields(nextFields);
+    }
+    setSelArgs(nextArgs);
+    rebuildFromSelection(kind, nextFields, nextArgs, argVals);
+  };
+
+  const handleArgValue = (kind: RootKind, argPath: string, val: string) => {
+    const nextVals = { ...argVals, [argPath]: val };
+    setArgVals(nextVals);
+    rebuildFromSelection(kind, selFields, selArgs, nextVals);
   };
 
   // ── operaciones y variables ──
@@ -253,6 +382,18 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
     return false;
   };
 
+  const goToPos = (pos: number) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.focus();
+    ta.setSelectionRange(pos, Math.min(query.length, pos + 1));
+    const cs = getComputedStyle(ta);
+    const fs = parseFloat(cs.fontSize) || 13;
+    const lineH = parseFloat(cs.lineHeight) || fs * 1.846;
+    const line = query.slice(0, pos).split("\n").length - 1;
+    ta.scrollTop = Math.max(0, 12 + line * lineH - ta.clientHeight / 2 + lineH / 2);
+  };
+
   const issueText = issue
     ? issue.kind === "unclosed" ? t("Falta cerrar «{0}» abierto en la línea {1}.", issue.ch, issue.line)
       : issue.kind === "unexpected" ? t("Sobra «{0}» en la línea {1}.", issue.ch, issue.line)
@@ -265,12 +406,20 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
         {schema ? (
           <>
             <span className="text-xs text-slate" title={new Date(at).toLocaleString()}>
-              {t("Esquema cargado · {0} tipos · {1}", countTypes(schema), new Date(at).toLocaleString())}
+              {source === "file" && fileName
+                ? t("Esquema importado ({0}) · {1} tipos", fileName, countTypes(schema))
+                : t("Esquema cargado · {0} tipos · {1}", countTypes(schema), new Date(at).toLocaleString())}
             </span>
-            <button onClick={loadSchema} disabled={loading} className={btn} title={t("Volver a pedir el esquema al servidor")}>
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} {t("Refrescar")}
+            <button onClick={loadSchema} disabled={loading} className={btn} title={t("Volver a pedir el esquema al servidor (introspección)")}>
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} {t("Introspección")}
             </button>
-            <button onClick={() => setPanel((p) => !p)} className={`${btn} ${panel ? "border-aqua text-aqua" : ""}`} title={t("Mostrar u ocultar la documentación del esquema")}>
+            <button onClick={importFile} className={btn} title={t("Importar esquema GraphQL desde un archivo (.graphql, .gql o .json)")}>
+              <FileUp size={13} /> {t("Importar archivo")}
+            </button>
+            <button onClick={() => setPasteOpen((o) => !o)} className={`${btn} ${pasteOpen ? "border-aqua text-aqua" : ""}`} title={t("Pegar esquema GraphQL (SDL o JSON)")}>
+              <ClipboardPaste size={13} /> {t("Pegar SDL")}
+            </button>
+            <button onClick={() => setPanel((p) => !p)} className={`${btn} ${panel ? "border-aqua text-aqua" : ""}`} title={t("Mostrar u ocultar el explorador del esquema")}>
               <BookOpen size={13} /> {t("Esquema")}
             </button>
             <button onClick={forget} className={btn} title={t("Olvidar el esquema guardado de esta URL")}>
@@ -278,9 +427,17 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
             </button>
           </>
         ) : (
-          <button onClick={loadSchema} disabled={loading} className={`${btn} border-aqua/50 text-aqua`} title={t("Pide el esquema al servidor (introspección) para activar el autocompletado y la documentación")}>
-            {loading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {loading ? t("Cargando esquema…") : t("Cargar esquema")}
-          </button>
+          <>
+            <button onClick={loadSchema} disabled={loading} className={`${btn} border-aqua/50 text-aqua`} title={t("Pide el esquema al servidor (introspección) para activar el autocompletado y el explorador")}>
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {loading ? t("Cargando esquema…") : t("Usar introspección")}
+            </button>
+            <button onClick={importFile} className={btn} title={t("Importar esquema GraphQL desde un archivo (.graphql, .gql o .json)")}>
+              <FileUp size={13} /> {t("Importar esquema (.graphql / .json)")}
+            </button>
+            <button onClick={() => setPasteOpen((o) => !o)} className={`${btn} ${pasteOpen ? "border-aqua text-aqua" : ""}`} title={t("Pegar esquema GraphQL (SDL o JSON)")}>
+              <ClipboardPaste size={13} /> {t("Pegar SDL / JSON")}
+            </button>
+          </>
         )}
         {ops.length > 1 && (
           <label className="flex items-center gap-1 text-xs text-slate" title={t("La query tiene varias operaciones: elige cuál ejecutar")}>
@@ -303,11 +460,39 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
         </span>
       </div>
 
-      {error && <p className="text-xs text-rose">{error}</p>}
-      {!schema && !error && !loading && (
-        <p className="text-xs text-slate">{t("Consejo: carga el esquema para tener autocompletado (Ctrl+Espacio) y ver qué campos ofrece el servidor.")}</p>
+      {pasteOpen && (
+        <div className="flex flex-col gap-2 rounded-xl border border-fg/15 bg-kelp p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-silver">{t("Pega tu esquema GraphQL (SDL .graphql o JSON de introspección)")}</span>
+            <button onClick={() => setPasteOpen(false)} className="text-slate hover:text-mist" aria-label={t("Cerrar")}>
+              <X size={14} />
+            </button>
+          </div>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"type Query {\n  users: [User!]!\n}\n\ntype User {\n  id: ID!\n  name: String!\n}"}
+            spellCheck={false}
+            className="h-32 w-full resize-y rounded-lg bg-deep p-2.5 font-mono text-xs text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setPasteOpen(false)} className={btn}>{t("Cancelar")}</button>
+            <button
+              onClick={() => importText(pasteText)}
+              disabled={!pasteText.trim()}
+              className={`${btn} border-aqua/50 text-aqua`}
+            >
+              {t("Cargar esquema")}
+            </button>
+          </div>
+        </div>
       )}
-      {req.method === "GET" && (
+
+      {error && <p className="text-xs text-rose">{error}</p>}
+      {!schema && !error && !loading && !pasteOpen && (
+        <p className="text-xs text-slate">{t("Carga el esquema por introspección o importa un archivo .graphql / .json para construir queries con un clic y tener autocompletado (Ctrl+Espacio).")}</p>
+      )}
+      {req.kind !== "gql" && req.method === "GET" && (
         <p className="text-xs text-amber-400">
           {t("GraphQL se envía por POST; con GET muchos servidores lo rechazan.")}{" "}
           {onMethod && <button className="underline hover:text-aqua" onClick={() => onMethod("POST")}>{t("Cambiar a POST")}</button>}
@@ -316,8 +501,18 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 @3xl:flex-row">
         {schema && panel && (
-          <div className="h-56 shrink-0 @3xl:h-auto @3xl:w-72">
-            <GraphqlSchemaPanel schema={schema} onInsertOp={insertOp} onInsertField={insertField} />
+          <div className="h-64 shrink-0 @3xl:h-auto @3xl:w-72">
+            <GraphqlSchemaPanel
+              schema={schema}
+              onInsertOp={insertOp}
+              onInsertField={insertField}
+              selectedFields={selFields}
+              selectedArgs={selArgs}
+              argValues={argVals}
+              onToggleField={handleToggleField}
+              onToggleArg={handleToggleArg}
+              onArgValue={handleArgValue}
+            />
           </div>
         )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 @2xl:flex-row">
@@ -330,6 +525,7 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
                 requestAnimationFrame(() => refresh(false));
               }}
               highlight={false}
+              lineNumbers
               paintText={paintGql}
               taRef={taRef}
               onKeyDownExtra={onKey}
@@ -363,7 +559,15 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
                 </div>
               )}
             </JsonEditor>
-            {issueText && <p className="text-xs text-rose">{issueText}</p>}
+            {issue && issueText && (
+              <button
+                type="button"
+                onClick={() => goToPos(issue.pos)}
+                className="self-start text-left text-xs text-rose hover:underline"
+              >
+                {issueText}
+              </button>
+            )}
           </div>
           <div className="flex min-h-40 min-w-0 flex-1 flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -389,10 +593,11 @@ export default function GraphqlEditor({ body, onChange, req, vars, inherited, on
               value={gqlVars}
               onChange={(v) => onChange({ ...body, gqlVars: v })}
               highlight
+              lineNumbers
               placeholder={'{ "id": 1 }'}
               className="min-h-40 flex-1"
             />
-            {varsErr && <p className="text-xs text-rose">{t(varsErr)}</p>}
+            {varsErr === "Las variables deben ser un objeto JSON." && <p className="text-xs text-rose">{t(varsErr)}</p>}
             {!gqlVars.trim() && defs.length > 0 && (
               <p className="text-xs text-slate">{t("La query usa variables ({0}): pulsa «Generar variables» para rellenarlas.", defs.map((d) => "$" + d.name).join(", "))}</p>
             )}

@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Code2, Link2, Save, Send, Settings2, Terminal } from "lucide-react";
-import type { Settings } from "../types";
+import type { RequestKind, Settings } from "../types";
 import { METHOD_COLORS } from "./SidebarTree";
 import { looksLikeCurl } from "../lib/curl";
 import VarInput from "./VarInput";
+import KindSelect from "./KindSelect";
 import { t } from "../lib/i18n";
 
 
 interface Props {
+  kind?: RequestKind;
+  onKind?: (k: RequestKind) => void;
   method: string;
   /** Métodos que ofrece el desplegable (los base + los que el usuario activó en Ajustes). */
   methods: string[];
@@ -64,7 +67,7 @@ const ghost =
 const done =
   "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-xs font-semibold uppercase tracking-[0.025em] text-leaf ring-1 ring-leaf/70 bg-leaf/10";
 
-export default function RequestBar({ method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand, settings, onSettings }: Props) {
+export default function RequestBar({ kind = "http", onKind, method, methods, onMore, url, sending, onMethod, onUrlEdit, onCurl, onSend, onSave, onImportCurl, onCodegen, onShareLink, codegenOpen, flash, extra = [], onCommand, settings, onSettings }: Props) {
   const [netOpen, setNetOpen] = useState(false);
   const netRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function RequestBar({ method, methods, onMore, url, sending, onMe
   return (
     <div className="flex flex-col gap-2 p-4">
       <div className="flex gap-2">
+        {onKind && <KindSelect kind={kind} onChange={onKind} />}
         <select
           value={method}
           onChange={(e) => (e.target.value === "__more__" ? onMore() : onMethod(e.target.value))}

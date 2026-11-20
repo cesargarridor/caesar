@@ -203,7 +203,7 @@ export function useTheme() {
 }
 
 /** Colores de método: tono fijo, pero se acerca a blanco/negro lo justo para llegar a 4.5:1 en los tres fondos del tema. */
-const METHOD_BASE: Record<string, string> = { get: "#3ccfae", post: "#ffb829", put: "#b9a2ff", del: "#ff6b6b", ws: "#5ab0ff" };
+const METHOD_BASE: Record<string, string> = { get: "#3ccfae", post: "#ffb829", put: "#b9a2ff", del: "#ff6b6b", ws: "#5ab0ff", gql: "#e535ab" };
 const rgbOf = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const lumOf = (c: number[]) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const ratio = (a: number[], b: number[]) => { const [x, y] = [lumOf(a), lumOf(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };

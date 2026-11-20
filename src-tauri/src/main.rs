@@ -671,13 +671,13 @@ struct TextFile {
     content: String,
 }
 
-/// Elige un archivo de colección (JSON, YAML o HAR) y devuelve su texto. `Ok(None)` = canceló.
+/// Elige un archivo de colección o esquema (JSON, YAML, HAR o GraphQL) y devuelve su texto. `Ok(None)` = canceló.
 #[tauri::command]
 async fn pick_text_file(app: tauri::AppHandle) -> Result<Option<TextFile>, String> {
     let picked = app
         .dialog()
         .file()
-        .add_filter("Colección (JSON, YAML o HAR)", &["json", "yaml", "yml", "har"])
+        .add_filter("Colección o esquema (JSON, YAML, HAR, GraphQL)", &["json", "yaml", "yml", "har", "graphql", "gql"])
         .blocking_pick_file();
     let Some(file) = picked else {
         return Ok(None);

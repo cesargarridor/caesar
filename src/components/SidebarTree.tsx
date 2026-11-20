@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import DelayTip from "./DelayTip";
-import { Check, ChevronDown, Download, ChevronRight, Copy, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
+import { Braces, Check, ChevronDown, Download, ChevronRight, Copy, FilePlus2, Folder, Play, Plug, Server, FolderOpen, FolderInput, FolderPlus, Library, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Share2, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import type { RequestNode, TreeNode } from "../types";
 import { t } from "../lib/i18n";
 import { useAccount } from "../lib/account";
@@ -16,6 +16,7 @@ export const METHOD_COLORS: Record<string, string> = {
   HEAD: "text-[var(--t-m-get)]",
   OPTIONS: "text-[var(--t-m-put)]",
   WS: "text-[var(--t-m-ws)]",
+  GQL: "text-[var(--t-m-gql)]",
 };
 
 export interface TreeActions {
@@ -27,6 +28,8 @@ export interface TreeActions {
   onAddRequest: (path: string) => void;
   /** Nueva petición WebSocket dentro de la carpeta. */
   onAddSocket: (path: string) => void;
+  /** Nueva petición GraphQL dentro de la carpeta. */
+  onAddGraphql?: (path: string) => void;
   onAddFolder: (path: string) => void;
   /** Clonar la petición o carpeta (la copia queda justo debajo). */
   onClone: (path: string) => void;
@@ -234,6 +237,7 @@ export default function SidebarTree(props: Props) {
   };
   const addItems: MenuItem[] = [
     { label: t("Nueva petición"), icon: <FilePlus2 size={14} />, onClick: () => { props.onOpenFolder(node.type === "folder" ? node.uid : undefined); props.onAddRequest(path); } },
+    ...(props.onAddGraphql ? [{ label: t("Nueva petición GraphQL"), icon: <Braces size={14} />, onClick: () => { props.onOpenFolder(node.type === "folder" ? node.uid : undefined); props.onAddGraphql!(path); } }] : []),
     { label: t("Nueva petición WebSocket"), icon: <Plug size={14} />, onClick: () => { props.onOpenFolder(node.type === "folder" ? node.uid : undefined); props.onAddSocket(path); } },
     { label: t("Nueva carpeta"), icon: <FolderPlus size={14} />, onClick: () => { props.onOpenFolder(node.type === "folder" ? node.uid : undefined); props.onAddFolder(path); } },
   ];
@@ -355,7 +359,9 @@ export default function SidebarTree(props: Props) {
       role="button"
     >
       {lineHere && <DropLine pos={lineHere} indent={indent + 6} />}
-      <span className={`min-w-[3rem] shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.method] ?? "text-silver"}`}>{node.method}</span>
+      <span className={`min-w-[3rem] shrink-0 text-[10px] font-semibold ${METHOD_COLORS[node.kind === "gql" ? "GQL" : node.method] ?? "text-silver"}`}>
+        {node.kind === "gql" ? "GQL" : node.method}
+      </span>
       {isRenaming ? (
         <RenameInput initial={node.name} onDone={(v) => props.onRename(path, v)} onCancel={props.onCancelRename} />
       ) : (
