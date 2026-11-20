@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Plus, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
 import { t } from "../lib/i18n";
 import { rootTypeName, searchSchema, userTypes, type GqlField, type GqlSchema, type RootKind } from "../lib/graphqlSchema";
 
@@ -9,6 +9,13 @@ interface Props {
   onInsertOp: (kind: RootKind, f: GqlField) => void;
   /** Campo anidado -> lo inserta en la posición del cursor. */
   onInsertField: (f: GqlField) => void;
+  /** Constructor interactivo de Postman: selección con checkboxes. */
+  selectedFields?: Set<string>;
+  selectedArgs?: Set<string>;
+  argValues?: Record<string, string>;
+  onToggleField?: (kind: RootKind, path: string, f: GqlField) => void;
+  onToggleArg?: (kind: RootKind, argPath: string) => void;
+  onArgValue?: (kind: RootKind, argPath: string, val: string) => void;
 }
 
 type View = { t: "home" } | { t: "type"; name: string } | { t: "field"; parent: string; name: string };
@@ -22,14 +29,28 @@ const ROOTS: { kind: RootKind; label: string; hint: string }[] = [
 const row = "flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-fg/5";
 const chip = "rounded bg-fg/10 px-1.5 py-px text-[10px] text-slate";
 
-export default function GraphqlSchemaPanel({ schema, onInsertOp, onInsertField }: Props) {
+export default function GraphqlSchemaPanel({
+  schema, onInsertOp, onInsertField, selectedFields, selectedArgs, argValues, onToggleField, onToggleArg, onArgValue,
+}: Props) {
+  const [mode, setMode] = useState<"builder" | "docs">("builder");
   const [view, setView] = useState<View>({ t: "home" });
   const [hist, setHist] = useState<View[]>([]);
   const [q, setQ] = useState("");
+  const [openPaths, setOpenPaths] = useState<Set<string>>(() => new Set(["root:query", "root:mutation", "root:subscription"]));
+
+  const toggleOpen = (p: string) => {
+    setOpenPaths((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(p)) next.add(p);
+      return next;
+    });
+  };
+
   const go = (v: View) => {
     setHist((h) => [...h, view]);
     setView(v);
     setQ("");
+    setMode("docs");
   };
   const back = () => {
     setView(hist[hist.length - 1] ?? { t: "home" });
@@ -38,6 +59,98 @@ export default function GraphqlSchemaPanel({ schema, onInsertOp, onInsertField }
   const hits = useMemo(() => searchSchema(schema, q), [schema, q]);
   const types = useMemo(() => userTypes(schema), [schema]);
   const rootOf = (typeName: string): RootKind | null => (ROOTS.find((r) => rootTypeName(schema, r.kind) === typeName)?.kind ?? null);
+
+  const renderBuilderField = (kind: RootKind, f: GqlField, path: string, depth: number) => {
+    if (depth > 5) return null;
+    const childType = schema.types[f.typeName];
+    const isComposite = !!childType && (childType.kind === "OBJECT" || childType.kind === "INTERFACE" || childType.kind === "UNION");
+    const hasExpandable = isComposite || f.args.length > 0;
+    const isOpen = openPaths.has(path);
+    const isChecked = selectedFields?.has(path) ?? false;
+
+    return (
+      <div key={path} className="select-none">
+        <div
+          style={{ paddingLeft: 6 + depth * 12 }}
+          className="group flex items-center gap-1.5 rounded py-1 pr-2 text-xs hover:bg-fg/5"
+        >
+          {hasExpandable ? (
+            <button
+              type="button"
+              onClick={() => toggleOpen(path)}
+              className="shrink-0 p-0.5 text-slate hover:text-mist"
+              aria-label={isOpen ? t("Contraer") : t("Expandir")}
+            >
+              {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
+          {onToggleField ? (
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={() => {
+                onToggleField(kind, path, f);
+                if (!isChecked && hasExpandable && !isOpen) toggleOpen(path);
+              }}
+              className="accent-[var(--t-accent)] shrink-0 cursor-pointer"
+            />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => (hasExpandable ? toggleOpen(path) : onToggleField ? onToggleField(kind, path, f) : onInsertField(f))}
+            title={f.description || f.type}
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          >
+            <span className={`truncate font-mono ${isChecked ? "font-semibold text-aqua" : "text-silver"}`}>{f.name}</span>
+            <span className="ml-auto shrink-0 truncate font-mono text-[10px] text-slate">{f.type}</span>
+          </button>
+        </div>
+
+        {isOpen && (
+          <div className="border-l border-fg/10 ml-3">
+            {f.args.length > 0 && (
+              <div className="py-0.5">
+                {f.args.map((a) => {
+                  const argKey = `${path}@${a.name}`;
+                  const argChecked = a.required || (selectedArgs?.has(argKey) ?? false);
+                  const val = argValues?.[argKey] ?? "";
+                  return (
+                    <div
+                      key={argKey}
+                      style={{ paddingLeft: 10 + depth * 12 }}
+                      className="flex flex-wrap items-center gap-1.5 py-0.5 pr-2 text-[11px]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={argChecked}
+                        disabled={a.required}
+                        onChange={() => onToggleArg?.(kind, argKey)}
+                        className="accent-[var(--t-accent)] shrink-0 cursor-pointer"
+                      />
+                      <span className="font-mono text-lav" title={a.description || a.type}>{a.name}:</span>
+                      <span className="font-mono text-[10px] text-slate">{a.type}</span>
+                      {argChecked && onArgValue && (
+                        <input
+                          value={val}
+                          onChange={(e) => onArgValue(kind, argKey, e.target.value)}
+                          placeholder={`$${a.name}`}
+                          spellCheck={false}
+                          className="ml-auto w-24 rounded border border-fg/15 bg-deep px-1.5 py-0.5 font-mono text-[11px] text-mist outline-none focus:border-aqua"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {isComposite && childType.fields.map((cf) => renderBuilderField(kind, cf, `${path}.${cf.name}`, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const fieldDetail = (parent: string, name: string) => {
     const f = schema.types[parent]?.fields.find((x) => x.name === name);
@@ -137,9 +250,23 @@ export default function GraphqlSchemaPanel({ schema, onInsertOp, onInsertField }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 rounded-[10px] bg-kelp p-2 ring-1 ring-fg/10 glass">
-      <p className="text-[11px] leading-snug text-slate">
-        {t("El esquema es la lista de lo que el servidor permite pedir. Haz clic en un campo para ver sus argumentos y añadirlo a la query.")}
-      </p>
+      <div className="flex items-center gap-1 rounded-lg bg-deep p-0.5 text-xs">
+        <button
+          type="button"
+          onClick={() => setMode("builder")}
+          className={`flex-1 rounded-md px-2 py-1 font-medium ${mode === "builder" ? "bg-kelp text-aqua shadow-sm" : "text-slate hover:text-silver"}`}
+        >
+          {t("Explorador")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("docs")}
+          className={`flex-1 rounded-md px-2 py-1 font-medium ${mode === "docs" ? "bg-kelp text-aqua shadow-sm" : "text-slate hover:text-silver"}`}
+        >
+          {t("Documentación")}
+        </button>
+      </div>
+
       <div className="flex items-center gap-1.5 rounded-md border border-fg/10 px-2 py-1 focus-within:border-aqua">
         <Search size={13} className="shrink-0 text-slate" />
         <input
@@ -149,11 +276,13 @@ export default function GraphqlSchemaPanel({ schema, onInsertOp, onInsertField }
           className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-slate/60"
         />
       </div>
-      {view.t !== "home" && !q && (
+
+      {mode === "docs" && view.t !== "home" && !q && (
         <button onClick={back} className="flex items-center gap-1 self-start text-xs text-slate hover:text-aqua" title={t("Volver")}>
           <ArrowLeft size={13} /> {t("Volver")}
         </button>
       )}
+
       <div className="min-h-0 flex-1 overflow-auto">
         {q.trim() ? (
           hits.length ? (
@@ -167,6 +296,30 @@ export default function GraphqlSchemaPanel({ schema, onInsertOp, onInsertField }
           ) : (
             <p className="p-2 text-xs text-slate">{t("Sin resultados.")}</p>
           )
+        ) : mode === "builder" ? (
+          <div className="flex flex-col gap-2">
+            {ROOTS.map((r) => {
+              const rt = rootTypeName(schema, r.kind);
+              const fields = (rt && schema.types[rt]?.fields) || [];
+              if (!fields.length) return null;
+              const rKey = `root:${r.kind}`;
+              const rOpen = openPaths.has(rKey);
+              return (
+                <div key={r.kind}>
+                  <button
+                    type="button"
+                    onClick={() => toggleOpen(rKey)}
+                    className="flex w-full items-center gap-1 px-1 py-1 text-left text-xs font-semibold text-silver hover:text-mist"
+                  >
+                    {rOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    <span>{t(r.label)}</span>
+                    <span className="ml-auto text-[10px] font-normal text-slate">{fields.length}</span>
+                  </button>
+                  {rOpen && fields.map((f) => renderBuilderField(r.kind, f, `${r.kind}.${f.name}`, 0))}
+                </div>
+              );
+            })}
+          </div>
         ) : view.t === "field" ? (
           fieldDetail(view.parent, view.name)
         ) : view.t === "type" ? (

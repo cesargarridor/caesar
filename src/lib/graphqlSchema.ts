@@ -1,4 +1,6 @@
-/** Modelo del esquema GraphQL (a partir de la introspección), plantilla de variables y snippets. Sin dependencias de React/Tauri. */
+import { lex } from "./graphqlLex.ts";
+
+/** Modelo del esquema GraphQL (a partir de la introspección o de un archivo SDL .graphql/.gql), plantilla de variables y snippets. Sin dependencias de React/Tauri. */
 
 export const INTROSPECTION_QUERY = `query IntrospectionQuery {
   __schema {
@@ -137,6 +139,340 @@ export function parseIntrospection(input: unknown): GqlSchema {
   };
 }
 
+const BUILTIN_SCALARS = ["Int", "Float", "String", "Boolean", "ID"];
+
+function unquoteSdl(raw: string): string {
+  if (raw.startsWith('"""')) return raw.slice(3, raw.endsWith('"""') ? -3 : undefined).replace(/\\"""/g, '"""').trim();
+  if (raw.startsWith('"')) return raw.slice(1, raw.endsWith('"') ? -1 : undefined).replace(/\\(["\\/bfnrt])/g, "$1");
+  return raw;
+}
+
+/** Convierte un esquema SDL (.graphql / .gql) al modelo GqlSchema. */
+export function parseSdl(src: string): GqlSchema {
+  const toks = lex(src).filter((t) => t.kind !== "ws" && t.kind !== "comment");
+  let i = 0;
+  const types: Record<string, GqlType> = {};
+  const directives: GqlDirective[] = [];
+  let queryType: string | null = null;
+  let mutationType: string | null = null;
+  let subscriptionType: string | null = null;
+
+  const ensureType = (name: string, kind: GqlKind, description = ""): GqlType => {
+    if (!types[name]) {
+      types[name] = { name, kind, description, fields: [], inputFields: [], enumValues: [], possibleTypes: [] };
+    } else {
+      if (description && !types[name].description) types[name].description = description;
+      if (kind !== "OBJECT" || types[name].kind === "OBJECT") types[name].kind = kind;
+    }
+    return types[name];
+  };
+
+  const readTypeExpr = (): { type: string; typeName: string } => {
+    let type = "";
+    let typeName = "";
+    let depth = 0;
+    while (i < toks.length) {
+      const tk = toks[i];
+      if (tk.kind === "punct" && tk.text === "[") {
+        type += "[";
+        depth++;
+        i++;
+      } else if (tk.kind === "punct" && tk.text === "]" && depth > 0) {
+        type += "]";
+        depth--;
+        i++;
+      } else if (tk.kind === "punct" && tk.text === "!") {
+        type += "!";
+        i++;
+      } else if (tk.kind === "name" && (!typeName || depth > 0)) {
+        if (!typeName) typeName = tk.text;
+        type += tk.text;
+        i++;
+      } else {
+        break;
+      }
+      if (depth === 0 && typeName && !(toks[i]?.kind === "punct" && toks[i].text === "!")) break;
+    }
+    return { type: type || "?", typeName };
+  };
+
+  const readValueText = (): string => {
+    let out = "";
+    let depth = 0;
+    while (i < toks.length) {
+      const tk = toks[i];
+      if (depth === 0 && (tk.kind === "directive" || (tk.kind === "punct" && (tk.text === ")" || tk.text === "}" || tk.text === ",")) || (tk.kind === "name" && toks[i + 1]?.text === ":"))) {
+        break;
+      }
+      if (tk.kind === "punct" && "([{".includes(tk.text)) depth++;
+      else if (tk.kind === "punct" && ")]}".includes(tk.text)) {
+        if (depth === 0) break;
+        depth--;
+      }
+      out += tk.text;
+      i++;
+      if (depth === 0) break;
+    }
+    return out;
+  };
+
+  const skipDirectives = (): boolean => {
+    let deprecated = false;
+    while (toks[i]?.kind === "directive") {
+      if (toks[i].text === "@deprecated") deprecated = true;
+      i++;
+      if (toks[i]?.kind === "punct" && toks[i].text === "(") {
+        let d = 1;
+        i++;
+        while (i < toks.length && d > 0) {
+          if (toks[i].kind === "punct" && toks[i].text === "(") d++;
+          else if (toks[i].kind === "punct" && toks[i].text === ")") d--;
+          i++;
+        }
+      }
+    }
+    return deprecated;
+  };
+
+  const readArgsList = (closeTok: ")" | "}"): GqlArg[] => {
+    const out: GqlArg[] = [];
+    while (i < toks.length && !(toks[i].kind === "punct" && toks[i].text === closeTok)) {
+      if (toks[i].kind === "punct" && toks[i].text === ",") {
+        i++;
+        continue;
+      }
+      let desc = "";
+      if (toks[i]?.kind === "string") {
+        desc = unquoteSdl(toks[i].text);
+        i++;
+      }
+      if (toks[i]?.kind !== "name") {
+        i++;
+        continue;
+      }
+      const name = toks[i].text;
+      i++;
+      if (toks[i]?.text === ":") i++;
+      const { type, typeName } = readTypeExpr();
+      let defaultValue: string | null = null;
+      if (toks[i]?.kind === "punct" && toks[i].text === "=") {
+        i++;
+        defaultValue = readValueText();
+      }
+      skipDirectives();
+      out.push({
+        name,
+        description: desc,
+        type,
+        typeName,
+        defaultValue,
+        required: type.endsWith("!") && defaultValue === null,
+      });
+    }
+    if (toks[i]?.kind === "punct" && toks[i].text === closeTok) i++;
+    return out;
+  };
+
+  const readFieldsBlock = (): GqlField[] => {
+    const out: GqlField[] = [];
+    if (!(toks[i]?.kind === "punct" && toks[i].text === "{")) return out;
+    i++;
+    while (i < toks.length && !(toks[i].kind === "punct" && toks[i].text === "}")) {
+      if (toks[i].kind === "punct" && toks[i].text === ",") {
+        i++;
+        continue;
+      }
+      let desc = "";
+      if (toks[i]?.kind === "string") {
+        desc = unquoteSdl(toks[i].text);
+        i++;
+      }
+      if (toks[i]?.kind !== "name") {
+        i++;
+        continue;
+      }
+      const name = toks[i].text;
+      i++;
+      let args: GqlArg[] = [];
+      if (toks[i]?.kind === "punct" && toks[i].text === "(") {
+        i++;
+        args = readArgsList(")");
+      }
+      if (toks[i]?.text === ":") i++;
+      const { type, typeName } = readTypeExpr();
+      // Si un campo tiene un valor por defecto inesperado en SDL, se salta
+      if (toks[i]?.kind === "punct" && toks[i].text === "=") {
+        i++;
+        readValueText();
+      }
+      const deprecated = skipDirectives();
+      out.push({ name, description: desc, args, type, typeName, deprecated });
+    }
+    if (toks[i]?.kind === "punct" && toks[i].text === "}") i++;
+    return out;
+  };
+
+  while (i < toks.length) {
+    let desc = "";
+    if (toks[i].kind === "string") {
+      desc = unquoteSdl(toks[i].text);
+      i++;
+    }
+    if (i >= toks.length) break;
+    if (toks[i].kind === "name" && toks[i].text === "extend") i++;
+    const kw = toks[i];
+    if (kw?.kind !== "name") {
+      i++;
+      continue;
+    }
+
+    if (kw.text === "schema") {
+      i++;
+      skipDirectives();
+      if (toks[i]?.kind === "punct" && toks[i].text === "{") {
+        i++;
+        while (i < toks.length && !(toks[i].kind === "punct" && toks[i].text === "}")) {
+          const k = toks[i]?.text;
+          const colon = toks[i + 1]?.text === ":";
+          const v = toks[i + 2]?.kind === "name" ? toks[i + 2].text : null;
+          if (colon && v) {
+            if (k === "query") queryType = v;
+            else if (k === "mutation") mutationType = v;
+            else if (k === "subscription") subscriptionType = v;
+            i += 3;
+          } else i++;
+        }
+        if (toks[i]?.text === "}") i++;
+      }
+    } else if (kw.text === "type" || kw.text === "interface") {
+      const kind: GqlKind = kw.text === "interface" ? "INTERFACE" : "OBJECT";
+      i++;
+      if (toks[i]?.kind !== "name") continue;
+      const name = toks[i].text;
+      i++;
+      const ty = ensureType(name, kind, desc);
+      while (toks[i]?.kind === "name" && toks[i].text === "implements") {
+        i++;
+        if (toks[i]?.text === "&") i++;
+        while (toks[i]?.kind === "name") {
+          const iface = ensureType(toks[i].text, "INTERFACE");
+          if (!iface.possibleTypes.includes(name)) iface.possibleTypes.push(name);
+          i++;
+          if (toks[i]?.text === "&") i++;
+          else break;
+        }
+      }
+      skipDirectives();
+      ty.fields.push(...readFieldsBlock());
+    } else if (kw.text === "input") {
+      i++;
+      if (toks[i]?.kind !== "name") continue;
+      const name = toks[i].text;
+      i++;
+      const ty = ensureType(name, "INPUT_OBJECT", desc);
+      skipDirectives();
+      if (toks[i]?.kind === "punct" && toks[i].text === "{") {
+        i++;
+        ty.inputFields.push(...readArgsList("}"));
+      }
+    } else if (kw.text === "enum") {
+      i++;
+      if (toks[i]?.kind !== "name") continue;
+      const name = toks[i].text;
+      i++;
+      const ty = ensureType(name, "ENUM", desc);
+      skipDirectives();
+      if (toks[i]?.kind === "punct" && toks[i].text === "{") {
+        i++;
+        while (i < toks.length && !(toks[i].kind === "punct" && toks[i].text === "}")) {
+          if (toks[i].kind === "punct" && toks[i].text === ",") {
+            i++;
+            continue;
+          }
+          let vDesc = "";
+          if (toks[i]?.kind === "string") {
+            vDesc = unquoteSdl(toks[i].text);
+            i++;
+          }
+          if (toks[i]?.kind === "name") {
+            ty.enumValues.push({ name: toks[i].text, description: vDesc });
+            i++;
+            skipDirectives();
+          } else i++;
+        }
+        if (toks[i]?.text === "}") i++;
+      }
+    } else if (kw.text === "union") {
+      i++;
+      if (toks[i]?.kind !== "name") continue;
+      const name = toks[i].text;
+      i++;
+      const ty = ensureType(name, "UNION", desc);
+      skipDirectives();
+      if (toks[i]?.text === "=") {
+        i++;
+        if (toks[i]?.text === "|") i++;
+        while (toks[i]?.kind === "name") {
+          if (!ty.possibleTypes.includes(toks[i].text)) ty.possibleTypes.push(toks[i].text);
+          i++;
+          if (toks[i]?.text === "|") i++;
+          else break;
+        }
+      }
+    } else if (kw.text === "scalar") {
+      i++;
+      if (toks[i]?.kind === "name") {
+        ensureType(toks[i].text, "SCALAR", desc);
+        i++;
+        skipDirectives();
+      }
+    } else if (kw.text === "directive") {
+      i++;
+      const dTok = toks[i];
+      const dName = dTok?.kind === "directive" ? dTok.text.slice(1) : dTok?.kind === "name" ? dTok.text : "";
+      if (dName) i++;
+      let args: GqlArg[] = [];
+      if (toks[i]?.kind === "punct" && toks[i].text === "(") {
+        i++;
+        args = readArgsList(")");
+      }
+      if (toks[i]?.kind === "name" && toks[i].text === "repeatable") i++;
+      if (toks[i]?.kind === "name" && toks[i].text === "on") {
+        i++;
+        if (toks[i]?.text === "|") i++;
+        while (toks[i]?.kind === "name") {
+          i++;
+          if (toks[i]?.text === "|") i++;
+          else break;
+        }
+      }
+      if (dName) directives.push({ name: dName, description: desc, args });
+    } else {
+      i++;
+    }
+  }
+
+  if (Object.keys(types).length === 0) {
+    throw new Error("El esquema no contiene ningún tipo GraphQL válido.");
+  }
+  for (const s of BUILTIN_SCALARS) {
+    if (!types[s]) types[s] = { name: s, kind: "SCALAR", description: "", fields: [], inputFields: [], enumValues: [], possibleTypes: [] };
+  }
+  if (!queryType && types.Query) queryType = "Query";
+  if (!mutationType && types.Mutation) mutationType = "Mutation";
+  if (!subscriptionType && types.Subscription) subscriptionType = "Subscription";
+
+  return { queryType, mutationType, subscriptionType, types, directives };
+}
+
+/** Parsea un esquema GraphQL tanto en formato JSON de introspección como en SDL (.graphql / .gql). */
+export function parseAnySchema(text: string): GqlSchema {
+  const t = text.trim();
+  if (!t) throw new Error("El esquema está vacío.");
+  if (t.startsWith("{")) return parseIntrospection(t);
+  return parseSdl(t);
+}
+
 /** Tipos "de usuario": sin los internos (__Schema…) ni los escalares estándar. */
 export function userTypes(s: GqlSchema): GqlType[] {
   return Object.values(s.types)
@@ -251,6 +587,96 @@ export function operationSnippet(s: GqlSchema, kind: RootKind, f: GqlField, name
   let sel = f.name + call;
   if (isComposite(s.types[f.typeName])) sel += ` {\n${subSelection(s, f.typeName).map((n) => `    ${n}`).join("\n")}\n  }`;
   return `${header}${vars} {\n  ${sel}\n}`;
+}
+
+/**
+ * Construye una query/mutation/subscription a partir de una selección árbol:
+ * cada clave del mapa `selected` es una ruta como `"query.user"` o `"query.user.friends.name"`,
+ * y `checkedArgs` contiene rutas de argumentos activos como `"query.user@id"`.
+ */
+export function buildQueryFromSelection(
+  schema: GqlSchema,
+  kind: RootKind,
+  opName: string,
+  selectedFields: Set<string>,
+  selectedArgs: Set<string>,
+  argValues: Record<string, string>,
+): { query: string; vars: string } {
+  const rt = rootTypeName(schema, kind);
+  const rootType = rt ? schema.types[rt] : null;
+  if (!rootType) return { query: "", vars: "" };
+
+  const varDefs: { name: string; type: string }[] = [];
+  const usedVars = new Set<string>();
+
+  const allocVar = (base: string, type: string): string => {
+    let name = base;
+    let n = 2;
+    while (usedVars.has(name)) name = `${base}${n++}`;
+    usedVars.add(name);
+    varDefs.push({ name, type });
+    return name;
+  };
+
+  const renderField = (f: GqlField, path: string, indent: string, depth: number): string | null => {
+    const hasSelectedChild = [...selectedFields].some((p) => p.startsWith(path + "."));
+    if (!selectedFields.has(path) && !hasSelectedChild) return null;
+
+    const activeArgs = f.args.filter((a) => selectedArgs.has(`${path}@${a.name}`) || a.required);
+    let argsStr = "";
+    if (activeArgs.length > 0) {
+      const parts = activeArgs.map((a) => {
+        const key = `${path}@${a.name}`;
+        const custom = argValues[key]?.trim();
+        if (custom) {
+          if (custom.startsWith("$")) {
+            const vn = custom.slice(1);
+            if (!usedVars.has(vn)) {
+              usedVars.add(vn);
+              varDefs.push({ name: vn, type: a.type });
+            }
+          }
+          return `${a.name}: ${custom}`;
+        }
+        const vName = allocVar(a.name, a.type);
+        return `${a.name}: $${vName}`;
+      });
+      argsStr = `(${parts.join(", ")})`;
+    }
+
+    const childType = schema.types[f.typeName];
+    if (isComposite(childType) && depth < 6) {
+      const childLines: string[] = [];
+      for (const cf of childType.fields) {
+        const cp = `${path}.${cf.name}`;
+        const rendered = renderField(cf, cp, indent + "  ", depth + 1);
+        if (rendered) childLines.push(rendered);
+      }
+      if (childLines.length === 0) {
+        for (const sf of subSelection(schema, f.typeName)) {
+          childLines.push(`${indent}  ${sf}`);
+        }
+      }
+      return `${indent}${f.name}${argsStr} {\n${childLines.join("\n")}\n${indent}}`;
+    }
+    return `${indent}${f.name}${argsStr}`;
+  };
+
+  const topLines: string[] = [];
+  for (const rf of rootType.fields) {
+    const p = `${kind}.${rf.name}`;
+    const r = renderField(rf, p, "  ", 0);
+    if (r) topLines.push(r);
+  }
+
+  if (topLines.length === 0) return { query: "", vars: "" };
+
+  const cleanName = opName.trim().replace(/[^A-Za-z0-9_]/g, "");
+  const headerName = cleanName ? ` ${cleanName}` : "";
+  const varsHeader = varDefs.length ? `(${varDefs.map((v) => `$${v.name}: ${v.type}`).join(", ")})` : "";
+  const query = `${kind}${headerName}${varsHeader && !cleanName ? " " + varsHeader : varsHeader} {\n${topLines.join("\n")}\n}`;
+  const vars = varsTemplate(varDefs, schema);
+  return { query, vars };
 }
 
 // ───────── búsqueda ─────────

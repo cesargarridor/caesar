@@ -24,6 +24,7 @@ import RequestTabs from "./components/RequestTabs";
 import ResponsePanel from "./components/ResponsePanel";
 import CodeSnippetPanel from "./components/CodeSnippetPanel";
 import WebSocketPanel from "./components/WebSocketPanel";
+import GraphqlPanel from "./components/GraphqlPanel";
 import WsMessages from "./components/WsMessages";
 import { disposeWs, wsStatusOf } from "./lib/wsStore";
 import { sendDraft, startWs } from "./lib/wsRequest";
@@ -60,7 +61,7 @@ import { exportCollection } from "./lib/collectionExport";
 import { collectNestedVars, foldNestedVars, importSummary, mergeGlobals, profileFromEnv, type ImportCounts } from "./lib/vars";
 import { detectAndParse, exportExt, exportFileName, exportHar, exportYaml, type ExportFormat } from "./lib/interchange";
 import {
-  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newRequestNode, newWsNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
+  addChild, addFolder, ensureIds, getAt, moveCollection, moveNode, moveRelative, newFolderNode, newGqlNode, newRequestNode, newWsNode, nodeFromRequest, pathAfterDelete, pathAfterInsert,
   removeAt, renameAt, suggestName, updateAt,
   cloneNode, insertAfter,
 } from "./lib/tree";
@@ -78,7 +79,8 @@ import {
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import SaveToDialog from "./components/SaveToDialog";
-import type { KV, ProfilesState, ProgressEvent, VarProfile, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
+import { defaultWsConfig } from "./lib/ws";
+import type { KV, ProfilesState, ProgressEvent, RequestKind, VarProfile, RequestNode, RequestState, ResponseData, StepState, Tab, TreeNode, UpdateState } from "./types";
 
 const STEP_DEFS = [
   { id: "validate", label: "Validando petición" },
@@ -472,6 +474,20 @@ export default function App() {
   const patchTab = (id: string, fn: (t: Tab) => Tab) => setTabs((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));
   const patch = (p: Partial<RequestState>) => patchTab(active.id, (t) => ({ ...t, req: { ...t.req, ...p }, dirty: true }));
 
+  /** Cambia el tipo de petición (HTTP, GraphQL, WebSocket) en la pestaña activa conservando la URL, auth, headers y cuerpo. */
+  const changeKind = (next: RequestKind) => {
+    const cur = active.req;
+    if ((cur.kind ?? "http") === next) return;
+    if (cur.kind === "ws" && next !== "ws") disposeWs(active.id);
+    if (next === "ws") {
+      patch({ kind: "ws", method: "WS", ws: cur.ws ?? defaultWsConfig() });
+    } else if (next === "gql") {
+      patch({ kind: "gql", method: "POST", body: { ...cur.body, mode: "graphql" } });
+    } else {
+      patch({ kind: "http", method: cur.method === "WS" ? "GET" : cur.method });
+    }
+  };
+
   const openTab = (tab: Tab) => {
     setTabs((ts) => [...ts, tab]);
     setActiveId(tab.id);
@@ -480,6 +496,10 @@ export default function App() {
   const newTab = () => openTab(blankTab());
   const newWsTab = () => {
     const node = newWsNode(t("Nueva WebSocket"));
+    openTab({ id: newId(), req: requestFromNode(node), path: null, name: node.name, dirty: false });
+  };
+  const newGqlTab = () => {
+    const node = newGqlNode(t("Nueva GraphQL"));
     openTab({ id: newId(), req: requestFromNode(node), path: null, name: node.name, dirty: false });
   };
 
@@ -785,6 +805,14 @@ export default function App() {
 
   const handleAddSocket = (path: string) => {
     const node = newWsNode(t("Nueva WebSocket"));
+    const { nodes, path: np } = addChild(collections, path, node);
+    setCollections(nodes);
+    openTab({ id: newId(), req: requestFromNode(node), path: np, name: node.name, dirty: false });
+    setRenamingPath(np);
+  };
+
+  const handleAddGraphql = (path: string) => {
+    const node = newGqlNode(t("Nueva GraphQL"));
     const { nodes, path: np } = addChild(collections, path, node);
     setCollections(nodes);
     openTab({ id: newId(), req: requestFromNode(node), path: np, name: node.name, dirty: false });
@@ -1307,6 +1335,7 @@ export default function App() {
         onCancelRename={() => setRenamingPath(null)}
         onAddRequest={handleAddRequest}
         onAddSocket={handleAddSocket}
+        onAddGraphql={handleAddGraphql}
         onAddFolder={handleAddFolder}
         onClone={handleClone}
         onMove={handleMove}
@@ -1323,7 +1352,7 @@ export default function App() {
         <div className="fs-scale fs-request flex min-h-0 flex-1 flex-col">
         <div className="flex items-end">
           <div className="min-w-0 flex-1">
-            <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onCloseMany={requestCloseMany} />
+            <TabBar tabs={tabs} activeId={activeOrNull?.id ?? null} onSelect={setActiveId} onClose={requestClose} onNew={newTab} onNewWs={newWsTab} onNewGql={newGqlTab} onCloseMany={requestCloseMany} />
           </div>
           <ProfileBar profiles={profiles} onProfile={(active) => setProfiles((p) => ({ ...p, active }))} onManage={() => setManageTick((n) => n + 1)} onShowResolved={() => setVarsDlg({ section: "resolved" })} />
         </div>
@@ -1462,13 +1491,14 @@ export default function App() {
           );
         })()}
         {!activeOrNull ? (
-          <EmptyTabs onNew={newTab} onNewWs={newWsTab} newCombo={getCombos("newTab")[0] ? prettyCombo(getCombos("newTab")[0]) : undefined} />
+          <EmptyTabs onNew={newTab} onNewWs={newWsTab} onNewGql={newGqlTab} newCombo={getCombos("newTab")[0] ? prettyCombo(getCombos("newTab")[0]) : undefined} />
         ) : req.kind === "ws" ? (
           <WebSocketPanel
             key={active.id}
             id={active.id}
             req={req}
             patch={patch}
+            onKind={changeKind}
             auth={effAuth}
             vars={effVars}
             profiles={profiles}
@@ -1478,8 +1508,28 @@ export default function App() {
             saved={flash === "save"}
             onError={(text) => setNotice({ kind: "err", text })}
           />
+        ) : req.kind === "gql" ? (
+          <GraphqlPanel
+            key={active.id}
+            tabId={active.id}
+            req={req}
+            patch={patch}
+            onKind={changeKind}
+            inherited={effAuth}
+            vars={effVars}
+            sending={sending}
+            onSend={handleSend}
+            onSave={() => handleSave()}
+            onCodegen={() => setCodegenOpen((o) => !o)}
+            codegenOpen={codegenOpen}
+            onShareLink={copyShareLink}
+            flash={flash}
+            onAi={() => setShowAi(true)}
+          />
         ) : (
         <RequestBar
+          kind="http"
+          onKind={changeKind}
           onShareLink={copyShareLink}
           settings={req.settings}
           onSettings={(settings) => patch({ settings })}
@@ -1556,14 +1606,14 @@ export default function App() {
             {notice.text}
           </div>
         )}
-        {activeOrNull && req.kind !== "ws" && <RequestTabs key={active.id} tabId={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} onAi={() => setShowAi(true)} />}
+        {activeOrNull && req.kind !== "ws" && req.kind !== "gql" && <RequestTabs key={active.id} tabId={active.id} req={req} patch={patch} inherited={effAuth} vars={effVars} onAi={() => setShowAi(true)} />}
         </div>
         {!activeOrNull ? null : req.kind === "ws" ? (
           <WsMessages key={active.id} id={active.id} />
         ) : (
           <ResponsePanel response={res.response} error={res.error} sending={sending} steps={steps} script={res.script ?? null} hideEmpty={hideEmpty} />
         )}
-        {activeOrNull && sending && req.kind !== "ws" && <NetworkLoader steps={steps} method={req.method} />}
+        {activeOrNull && sending && req.kind !== "ws" && <NetworkLoader steps={steps} method={req.kind === "gql" ? "GQL" : req.method} />}
         {showSettings && (
           <SettingsModal
             themeId={themeId}

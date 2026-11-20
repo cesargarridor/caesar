@@ -5,6 +5,9 @@ export interface CachedSchema {
   schema: GqlSchema;
   /** ms desde epoch */
   at: number;
+  /** Origen del esquema: introspección o archivo importado. */
+  source?: "introspection" | "file";
+  fileName?: string;
 }
 
 const PREFIX = "caesar.gqlSchema:";
@@ -29,13 +32,15 @@ export function loadCachedSchema(url: string): CachedSchema | null {
   return null;
 }
 
-export function saveCachedSchema(url: string, schema: GqlSchema): CachedSchema {
-  const v = { schema, at: Date.now() };
-  mem.set(url, v);
-  try {
-    localStorage.setItem(PREFIX + url, JSON.stringify(v));
-  } catch {
-    /* cuota llena: queda solo en memoria */
+export function saveCachedSchema(url: string, schema: GqlSchema, source: "introspection" | "file" = "introspection", fileName?: string): CachedSchema {
+  const v: CachedSchema = { schema, at: Date.now(), source, ...(fileName ? { fileName } : {}) };
+  if (url) {
+    mem.set(url, v);
+    try {
+      localStorage.setItem(PREFIX + url, JSON.stringify(v));
+    } catch {
+      /* cuota llena: queda solo en memoria */
+    }
   }
   return v;
 }

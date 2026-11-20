@@ -1,8 +1,8 @@
 // Importar y exportar colecciones en otros formatos: JSON/YAML (v4 y v5) y HAR (HTTP Archive 1.2).
 // El formato JSON v2.1 lo procesa Rust al importar (parse_collection_content) y collectionExport.ts al exportar.
-import { gqlRaw } from "./graphql";
+import { gqlRaw } from "./graphql.ts";
 import YAML from "yaml";
-import { parsePostmanEnv, type PostmanEnv } from "./vars";
+import { parsePostmanEnv, type PostmanEnv } from "./vars.ts";
 import type { AuthData, BodyData, ImportedCollection, KV, RequestNode, TreeNode } from "../types";
 
 export type ExportFormat = "json" | "yaml" | "har";
@@ -73,6 +73,23 @@ function insBody(b: unknown): BodyData {
         : { key: str(p.name), value: fromEnvVars(str(p.value)), enabled: !p.disabled, kind: "text" as const },
     );
   } else if (typeof b.text === "string" && b.text !== "") {
+    if (mime.includes("graphql")) {
+      try {
+        const p = JSON.parse(b.text);
+        if (isObj(p) && typeof p.query === "string") {
+          out.mode = "graphql";
+          out.gqlQuery = fromEnvVars(p.query);
+          out.gqlVars = isObj(p.variables) ? JSON.stringify(p.variables, null, 2) : typeof p.variables === "string" ? fromEnvVars(p.variables) : "";
+          out.gqlOp = typeof p.operationName === "string" ? p.operationName : "";
+          return out;
+        }
+      } catch {
+        /* si no es JSON {query, variables}, es la query cruda */
+      }
+      out.mode = "graphql";
+      out.gqlQuery = fromEnvVars(b.text);
+      return out;
+    }
     out.mode = mime.includes("json") ? "json" : "text";
     out.raw = fromEnvVars(b.text);
   }
@@ -166,13 +183,16 @@ function insUrl(url: string, params: Obj[]): string {
 }
 
 function insRequest(r: Obj): RequestNode {
+  const body = insBody(r.body);
+  const isGql = body.mode === "graphql";
   return {
     type: "request",
     name: str(r.name) || "Petición",
-    method: (str(r.method) || "GET").toUpperCase(),
+    method: isGql ? "POST" : (str(r.method) || "GET").toUpperCase(),
+    ...(isGql ? { kind: "gql" as const } : {}),
     url: insUrl(str(r.url), arr(r.parameters)),
     headers: arr(r.headers).map((h) => kv(str(h.name), fromEnvVars(str(h.value)), !h.disabled)),
-    body: insBody(r.body),
+    body,
     auth: insAuth(r.authentication),
     tests: "",
   };
@@ -290,7 +310,7 @@ function parseHar(doc: Obj): ImportedCollection {
 const rid = (p: string) => `${p}_${crypto.randomUUID().replace(/-/g, "")}`;
 
 function reqBody(n: RequestNode): BodyData {
-  const gql = n.body.mode === "graphql"; // los formatos externos reciben GraphQL como JSON
+  const gql = n.kind === "gql" || n.body.mode === "graphql"; // los formatos externos reciben GraphQL como JSON
   return {
     mode: gql ? "json" : ((n.body.mode as BodyData["mode"]) ?? "none"),
     raw: gql ? gqlRaw(n.body) : (n.body.raw ?? ""),

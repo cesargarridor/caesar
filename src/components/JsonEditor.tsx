@@ -115,8 +115,10 @@ export default function JsonEditor({
     t.setSelectionRange(pos, Math.min(value.length, pos + 1));
     const before = value.slice(0, pos);
     const line = before.split("\n").length - 1;
-    const { lineH } = metrics(t);
+    const col = pos - (before.lastIndexOf("\n") + 1);
+    const { lineH, charW } = metrics(t);
     t.scrollTop = Math.max(0, PAD + line * lineH - t.clientHeight / 2 + lineH / 2);
+    t.scrollLeft = Math.max(0, col * charW - t.clientWidth / 2);
   };
 
   // ── búsqueda (Ctrl+F) ──
@@ -214,86 +216,88 @@ export default function JsonEditor({
           setCur((c) => c + (e.shiftKey ? -1 : 1));
         }
       }}
-      className={`relative overflow-hidden rounded-[10px] bg-kelp ring-1 ring-fg/10 focus-within:ring-aqua glass ${className}`}
+      className={`relative flex flex-col overflow-hidden rounded-[10px] bg-kelp ring-1 ring-fg/10 focus-within:ring-aqua glass ${className}`}
     >
-      {marks && (
-        <pre ref={markPre} aria-hidden style={{ ...mono, ...padL, color: "transparent" }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
-          {marks}
-          {"\n"}
-        </pre>
-      )}
-      {colored && (
-        <pre ref={pre} aria-hidden style={{ ...mono, ...padL }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
-          {paintText ? paintText(value) : paint(value)}
-          {"\n"}
-        </pre>
-      )}
-      <textarea
-        ref={setTa}
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (onKeyDownExtra?.(e)) return;
-          handleEditKey(e, pairs);
-        }}
-        onClick={onCaretMove}
-        onBlur={onCaretMove}
-        onPaste={(e) => highlight && !paintText && handlePasteJson(e)}
-        onScroll={(e) => {
-          const { scrollTop, scrollLeft } = e.currentTarget;
-          if (gut.current) gut.current.scrollTop = scrollTop;
-          for (const p of [pre.current, markPre.current]) {
-            if (p) {
-              p.scrollTop = scrollTop;
-              p.scrollLeft = scrollLeft;
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {marks && (
+          <pre ref={markPre} aria-hidden style={{ ...mono, ...padL, color: "transparent" }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
+            {marks}
+            {"\n"}
+          </pre>
+        )}
+        {colored && (
+          <pre ref={pre} aria-hidden style={{ ...mono, ...padL }} className={`pointer-events-none absolute inset-0 m-0 overflow-hidden ${shared}`}>
+            {paintText ? paintText(value) : paint(value)}
+            {"\n"}
+          </pre>
+        )}
+        <textarea
+          ref={setTa}
+          autoFocus={autoFocus}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (onKeyDownExtra?.(e)) return;
+            handleEditKey(e, pairs);
+          }}
+          onClick={onCaretMove}
+          onBlur={onCaretMove}
+          onPaste={(e) => highlight && !paintText && handlePasteJson(e)}
+          onScroll={(e) => {
+            const { scrollTop, scrollLeft } = e.currentTarget;
+            if (gut.current) gut.current.scrollTop = scrollTop;
+            for (const p of [pre.current, markPre.current]) {
+              if (p) {
+                p.scrollTop = scrollTop;
+                p.scrollLeft = scrollLeft;
+              }
             }
-          }
-        }}
-        spellCheck={false}
-        wrap="off"
-        placeholder={placeholder}
-        style={{ ...mono, ...padL, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
-        className={`absolute inset-0 block h-full w-full resize-none bg-transparent outline-none placeholder:text-slate/60 ${shared} ${colored ? "" : "text-silver"}`}
-      />
-      {lineNumbers && (
-        <div
-          ref={gut}
-          aria-hidden
-          style={{ ...mono, width: `calc(var(--fs-body, 13px) * 0.6 * ${digits} + 20px)` }}
-          className="pointer-events-none absolute inset-y-0 left-0 select-none overflow-hidden border-r border-fg/10 bg-kelp py-3 pr-2 text-right text-slate/70"
-        >
-          {Array.from({ length: lines }, (_, i) => <div key={i}>{i + 1}</div>)}
-          <div>&nbsp;</div>
-        </div>
-      )}
-      {children}
+          }}
+          spellCheck={false}
+          wrap="off"
+          placeholder={placeholder}
+          style={{ ...mono, ...padL, color: colored ? "transparent" : undefined, caretColor: "var(--t-mist)" }}
+          className={`absolute inset-0 block h-full w-full resize-none bg-transparent outline-none placeholder:text-slate/60 ${shared} ${colored ? "" : "text-silver"}`}
+        />
+        {lineNumbers && (
+          <div
+            ref={gut}
+            aria-hidden
+            style={{ ...mono, width: `calc(var(--fs-body, 13px) * 0.6 * ${digits} + 20px)` }}
+            className="pointer-events-none absolute inset-y-0 left-0 select-none overflow-hidden border-r border-fg/10 bg-kelp py-3 pr-2 text-right text-slate/70"
+          >
+            {Array.from({ length: lines }, (_, i) => <div key={i}>{i + 1}</div>)}
+            <div>&nbsp;</div>
+          </div>
+        )}
+        {children}
+        {findOpen && (
+          <FindBar
+            className="absolute right-4 top-2 z-20"
+            query={query}
+            onQuery={(q) => {
+              setQuery(q);
+              setCur(0);
+            }}
+            index={idx}
+            total={matches.length}
+            onNext={() => setCur((c) => c + 1)}
+            onPrev={() => setCur((c) => c - 1)}
+            onClose={closeFind}
+            focusKey={focusKey}
+          />
+        )}
+      </div>
       {issue && (
         <button
           type="button"
           onClick={() => goTo(issue.pos)}
           title={issue.snippet.trim().slice(0, 200)}
-          className="absolute inset-x-0 bottom-0 z-10 flex items-start gap-2 bg-deep/95 px-3 py-1.5 text-left text-xs text-rose ring-1 ring-rose/40 hover:bg-deep"
+          className="flex shrink-0 items-start gap-2 border-t border-rose/30 bg-deep/95 px-3 py-1.5 text-left text-xs text-rose hover:bg-deep"
         >
           <AlertCircle size={14} className="mt-px shrink-0" />
           <span className="min-w-0 break-words">{issueText(issue)}</span>
         </button>
-      )}
-      {findOpen && (
-        <FindBar
-          className="absolute right-4 top-2 z-20"
-          query={query}
-          onQuery={(q) => {
-            setQuery(q);
-            setCur(0);
-          }}
-          index={idx}
-          total={matches.length}
-          onNext={() => setCur((c) => c + 1)}
-          onPrev={() => setCur((c) => c - 1)}
-          onClose={closeFind}
-          focusKey={focusKey}
-        />
       )}
     </div>
   );

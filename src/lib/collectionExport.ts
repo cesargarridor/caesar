@@ -111,8 +111,9 @@ function pmAuth(a: Partial<AuthData> & { type?: string }): Record<string, unknow
 }
 
 function pmRequest(n: RequestNode) {
+  const isGql = n.kind === "gql" || n.body.mode === "graphql";
   const body = pmBody({
-    mode: (n.body.mode as BodyData["mode"]) ?? "none",
+    mode: isGql ? "graphql" : ((n.body.mode as BodyData["mode"]) ?? "none"),
     raw: n.body.raw ?? "",
     formdata: n.body.formdata ?? [],
     urlencoded: n.body.urlencoded ?? [],
@@ -123,7 +124,7 @@ function pmRequest(n: RequestNode) {
   const auth = pmAuth(n.auth);
   return {
     // Postman v2.1 no tiene WebSockets: se exporta como GET con URL ws(s):// y una nota; Caesar la reconoce al importar.
-    method: n.kind === "ws" ? "GET" : n.method,
+    method: n.kind === "ws" ? "GET" : isGql ? "POST" : n.method,
     ...(n.kind === "ws" ? { description: "WebSocket" } : {}),
     header: n.headers.map((h) => ({ key: h.key, value: h.value, type: "text", ...(h.enabled ? {} : { disabled: true }) })),
     ...(body ? { body } : {}),

@@ -58,10 +58,12 @@ export default function HistoryPanel({ onOpen, bare }: { onOpen: (e: HistoryEntr
           {list.length === 0 ? (
             <p className="px-2 py-3 text-center text-xs font-light text-slate">{t("Aquí aparecen las últimas peticiones que envíes sin guardarlas en una colección.")}</p>
           ) : (
-            list.map((e) => (
+            list.map((e) => {
+              const badge = e.req?.kind === "gql" ? "GQL" : e.method;
+              return (
               <div key={e.id} className="group flex items-center gap-1 rounded-lg hover:bg-fg/10">
                 <button onClick={() => onOpen(e)} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left" title={e.url}>
-                  <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[e.method] ?? "text-silver"}`}>{e.method}</span>
+                  <span className={`w-12 shrink-0 text-[10px] font-semibold ${METHOD_COLORS[badge] ?? "text-silver"}`}>{badge}</span>
                   <span className="min-w-0 flex-1 truncate text-xs text-silver">{e.url.replace(/^https?:\/\//, "")}</span>
                   <span className="shrink-0 text-[10px] text-slate">{e.status ? `${e.status} · ` : ""}{ago(e.at)}</span>
                 </button>
@@ -69,7 +71,8 @@ export default function HistoryPanel({ onOpen, bare }: { onOpen: (e: HistoryEntr
                   <X size={13} />
                 </button>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
