@@ -1,16 +1,17 @@
-import { Plug, Plus } from "lucide-react";
+import { Braces, Plug, Plus } from "lucide-react";
 import CatLogo from "./CatLogo";
 import { t } from "../lib/i18n";
 
 interface Props {
   onNew: () => void;
   onNewWs: () => void;
+  onNewGql?: () => void;
   /** Atajo actual de «Nueva pestaña» (ya formateado), si tiene. */
   newCombo?: string;
 }
 
 /** Pantalla sin pestañas abiertas: gato en gris casi invisible al fondo, título y atajos de inicio. */
-export default function EmptyTabs({ onNew, onNewWs, newCombo }: Props) {
+export default function EmptyTabs({ onNew, onNewWs, onNewGql, newCombo }: Props) {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
       <div
@@ -29,6 +30,15 @@ export default function EmptyTabs({ onNew, onNewWs, newCombo }: Props) {
             {t("Nueva petición")}
             {newCombo && <kbd className="rounded bg-fg/15 px-1.5 py-0.5 font-sans text-[11px] font-normal">{newCombo}</kbd>}
           </button>
+          {onNewGql && (
+            <button
+              onClick={onNewGql}
+              className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-slate hover:bg-fg/10 hover:text-mist"
+            >
+              <Braces size={15} aria-hidden="true" />
+              {t("Nueva GraphQL")}
+            </button>
+          )}
           <button
             onClick={onNewWs}
             className="flex items-center gap-2 rounded-[10px] px-4 py-2 text-sm text-slate hover:bg-fg/10 hover:text-mist"

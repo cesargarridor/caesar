@@ -4,7 +4,8 @@ import KVEditor from "./KVEditor";
 import AuthEditor from "./AuthEditor";
 import VarInput from "./VarInput";
 import WsComposer from "./WsComposer";
-import type { AuthData, KV, ProfilesState, RequestState, WsConfig } from "../types";
+import KindSelect from "./KindSelect";
+import type { AuthData, KV, ProfilesState, RequestKind, RequestState, WsConfig } from "../types";
 import { applyUrlEdit, buildUrl } from "../lib/url";
 import { normWsConfig, parseSubprotocols } from "../lib/ws";
 import { disconnectWs, pingWs, useWsSession, type WsStatus } from "../lib/wsStore";
@@ -16,6 +17,7 @@ interface Props {
   id: string;
   req: RequestState;
   patch: (p: Partial<RequestState>) => void;
+  onKind?: (k: RequestKind) => void;
   /** Autorización efectiva (resuelta con «Inherit») y variables efectivas. */
   auth: AuthData;
   vars: KV[];
@@ -55,7 +57,7 @@ export function WsStatusBadge({ status, retry }: { status: WsStatus; retry?: { n
 }
 
 /** Barra superior + pestañas de configuración de una petición WebSocket. Los mensajes van en WsMessages. */
-export default function WebSocketPanel({ id, req, patch, auth, vars, profiles, onProfile, onManageProfiles, onShowResolved, onSave, saved, onError }: Props) {
+export default function WebSocketPanel({ id, req, patch, onKind, auth, vars, profiles, onProfile, onManageProfiles, onShowResolved, onSave, saved, onError }: Props) {
   const session = useWsSession(id);
   const cfg = normWsConfig(req.ws);
   const setCfg = (p: Partial<WsConfig>) => patch({ ws: { ...cfg, ...p } });
@@ -110,12 +112,16 @@ export default function WebSocketPanel({ id, req, patch, auth, vars, profiles, o
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <span
-            title={t("Tipo de petición")}
-            className="flex items-center rounded-[10px] bg-kelp px-4 py-2 text-sm font-semibold text-[#5ab0ff] ring-1 ring-fg/10"
-          >
-            WebSocket
-          </span>
+          {onKind ? (
+            <KindSelect kind="ws" onChange={onKind} />
+          ) : (
+            <span
+              title={t("Tipo de petición")}
+              className="flex items-center rounded-[10px] bg-kelp px-4 py-2 text-sm font-semibold text-[#5ab0ff] ring-1 ring-fg/10"
+            >
+              WebSocket
+            </span>
+          )}
           <VarInput
             id="caesar-url"
             value={fullUrl}

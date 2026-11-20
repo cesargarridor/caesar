@@ -2,6 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normVars, parsePostmanEnv, mergeGlobals, uniqueProfileName, profileFromEnv, collectNestedVars, foldNestedVars, importSummary, filterVarIdx, resolveVars } from "./vars.ts";
+import { applyUrlEdit, buildUrl, encodeParam } from "./url.ts";
+import { readFileSync } from "node:fs";
 
 test("entorno de Postman -> perfil con secret", () => {
   const env = parsePostmanEnv({ name: "Dev", _postman_variable_scope: "environment", values: [
@@ -67,4 +69,21 @@ test("filtro y resolución por ámbito", () => {
   assert.equal(r.length, 1);
   assert.equal(r[0].scope, "profile");
   assert.deepEqual(r[0].shadowed, ["global", "collection"]);
+});
+
+test("URL con variables {{MS_MERCHANT}}/api/... y VarInput sin duplicación de texto al seleccionar", () => {
+  const raw = "{{MS_MERCHANT}}/api/merchantAcquirer/merchant/validateMerchantByClient?terminal=1&merchant={{ID}}";
+  const edit = applyUrlEdit(raw, []);
+  assert.equal(edit.url, "{{MS_MERCHANT}}/api/merchantAcquirer/merchant/validateMerchantByClient");
+  assert.equal(buildUrl(edit.url, edit.params), raw);
+  assert.equal(encodeParam("{{ID}}"), "{{ID}}");
+
+  // Comprueba que VarInput e index.css incluyen la protección contra el doble renderizado en selección (::selection transparente y translateX)
+  const varInputSrc = readFileSync("src/components/VarInput.tsx", "utf8");
+  const cssSrc = readFileSync("src/index.css", "utf8");
+  assert.ok(varInputSrc.includes("caesar-transparent-text"));
+  assert.ok(varInputSrc.includes("WebkitTextFillColor: \"transparent\""));
+  assert.ok(varInputSrc.includes("translateX("));
+  assert.ok(cssSrc.includes("input.caesar-transparent-text::selection"));
+  assert.ok(cssSrc.includes("-webkit-text-fill-color: transparent !important"));
 });
