@@ -1,6 +1,6 @@
 import type { RequestNode, RequestState, TreeNode } from "../types";
-import { buildUrl } from "./url";
-import { defaultWsConfig } from "./ws";
+import { buildUrl } from "./url.ts";
+import { defaultWsConfig } from "./ws.ts";
 
 const idx = (path: string) => path.split("/").map(Number);
 
@@ -91,6 +91,14 @@ export const newWsNode = (name = "Nueva WebSocket"): RequestNode => ({
   ws: defaultWsConfig(),
 });
 
+/** Petición GraphQL nueva (method "POST", kind "gql"). */
+export const newGqlNode = (name = "Nueva GraphQL"): RequestNode => ({
+  ...newRequestNode(name),
+  method: "POST",
+  kind: "gql",
+  body: { mode: "graphql", raw: "", formdata: [], urlencoded: [], gqlQuery: "", gqlVars: "", gqlOp: "" },
+});
+
 let uidSeq = 0;
 export const newUid = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}${(uidSeq++).toString(36)}`;
 
@@ -101,7 +109,12 @@ export function ensureIds(nodes: TreeNode[]): TreeNode[] {
   return nodes.map((n) => {
     if (n.type === "folder") return { ...n, uid: n.uid ?? newUid(), children: ensureIds(n.children) };
     // Una petición con URL ws(s):// (p. ej. importada de Postman, que no tiene WebSockets) es una WebSocket.
-    const r: RequestNode = !n.kind && /^wss?:\/\//i.test(n.url.trim()) ? { ...n, method: "WS", kind: "ws", ws: defaultWsConfig() } : n;
+    let r: RequestNode = n;
+    if (!r.kind && /^wss?:\/\//i.test(r.url.trim())) {
+      r = { ...r, method: "WS", kind: "ws", ws: defaultWsConfig() };
+    } else if (r.kind === "gql") {
+      r = { ...r, method: "POST", kind: "gql", body: { ...r.body, mode: "graphql" } };
+    }
     return r.id ? r : { ...r, id: crypto.randomUUID() };
   });
 }
@@ -243,26 +256,28 @@ export function moveNode(nodes: TreeNode[], from: string, to: string) {
 
 /** Estado de la UI -> nodo guardable en la colección. */
 export function nodeFromRequest(name: string, req: RequestState, prev?: TreeNode | null): RequestNode {
+  const isGql = req.kind === "gql";
   return {
     type: "request",
     name,
     id: (prev?.type === "request" && prev.id) || crypto.randomUUID(),
     updatedAt: Date.now(),
-    method: req.method,
+    method: req.kind === "ws" ? "WS" : isGql ? "POST" : req.method,
     url: buildUrl(req.url, req.params),
     headers: req.headers,
-    body: { ...req.body },
+    body: isGql ? { ...req.body, mode: "graphql" } : { ...req.body },
     auth: { ...req.auth },
     tests: req.tests ?? "",
-    ...(req.kind === "ws" ? { kind: "ws" as const, ws: req.ws } : {}),
+    ...(req.kind === "ws" ? { kind: "ws" as const, ws: req.ws } : isGql ? { kind: "gql" as const } : {}),
   };
 }
 
 export function suggestName(req: RequestState): string {
+  const prefix = req.kind === "gql" ? "GQL" : req.method;
   try {
     const u = new URL(buildUrl(req.url, []).replace(/\{\{[^}]*\}\}/g, "x"));
-    return `${req.method} ${u.pathname === "/" ? u.host : u.pathname}`;
+    return `${prefix} ${u.pathname === "/" ? u.host : u.pathname}`;
   } catch {
-    return "Nueva petición";
+    return req.kind === "gql" ? "Nueva GraphQL" : req.kind === "ws" ? "Nueva WebSocket" : "Nueva petición";
   }
 }

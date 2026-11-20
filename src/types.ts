@@ -63,8 +63,8 @@ export interface Settings {
   httpVersion?: "auto" | "1.1" | "2";
 }
 
-/** Tipo de petición: HTTP (por defecto, también lo guardado antes) o WebSocket. */
-export type RequestKind = "http" | "ws";
+/** Tipo de petición: HTTP (por defecto, también lo guardado antes), WebSocket o GraphQL. */
+export type RequestKind = "http" | "ws" | "gql";
 
 /** Formato del compositor de mensajes WebSocket. */
 export type WsMsgFormat = "text" | "json" | "hex" | "base64";

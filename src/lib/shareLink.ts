@@ -22,6 +22,7 @@ interface Payload {
   u: string;
   h: [string, string][];
   b: { mode: string; raw?: string; urlencoded?: [string, string][]; formdata?: [string, string][]; q?: string; qv?: string; op?: string };
+  k?: "gql";
 }
 
 export const looksLikeShareLink = (s: string) => {
@@ -72,12 +73,14 @@ export async function makeShareLink(req: RequestState): Promise<{ link: string; 
     return [k.key, k.value];
   });
   const b = req.body;
+  const isGql = req.kind === "gql";
   const p: Payload = {
     v: 1,
-    m: req.method,
+    m: isGql ? "POST" : req.method,
     u: buildUrl(req.url, req.params),
     h,
-    b: { mode: b.mode, raw: b.raw || undefined, urlencoded: pairs(b.urlencoded), formdata: pairs(b.formdata), q: b.gqlQuery || undefined, qv: b.gqlVars || undefined, op: b.gqlOp || undefined },
+    b: { mode: isGql ? "graphql" : b.mode, raw: b.raw || undefined, urlencoded: pairs(b.urlencoded), formdata: pairs(b.formdata), q: b.gqlQuery || undefined, qv: b.gqlVars || undefined, op: b.gqlOp || undefined },
+    ...(isGql ? { k: "gql" as const } : {}),
   };
   const bytes = new TextEncoder().encode(JSON.stringify(p));
   let payload = toB64Url(bytes);
@@ -124,11 +127,13 @@ export async function parseShareLink(text: string): Promise<RequestState> {
   const method = /^[A-Za-z]{1,20}$/.test(p.m ?? "") ? (p.m as string).toUpperCase() : "GET";
   const mode = (MODES as readonly string[]).includes(p.b?.mode ?? "") ? (p.b!.mode as BodyData["mode"]) : "none";
   const b = p.b ?? { mode };
+  const isGql = p.k === "gql";
   return {
     ...base,
-    method,
+    method: isGql ? "POST" : method,
+    ...(isGql ? { kind: "gql" as const } : {}),
     ...applyUrlEdit(str(p.u, 8000), []),
     headers: kvs(p.h),
-    body: { ...base.body, mode, raw: str(b.raw, MAX_JSON), urlencoded: kvs(b.urlencoded), formdata: kvs(b.formdata), gqlQuery: str(b.q, MAX_JSON), gqlVars: str(b.qv, MAX_JSON), gqlOp: str(b.op, 200) },
+    body: { ...base.body, mode: isGql ? "graphql" : mode, raw: str(b.raw, MAX_JSON), urlencoded: kvs(b.urlencoded), formdata: kvs(b.formdata), gqlQuery: str(b.q, MAX_JSON), gqlVars: str(b.qv, MAX_JSON), gqlOp: str(b.op, 200) },
   };
 }

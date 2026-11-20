@@ -26,8 +26,9 @@ function describeRequest(req: RequestState): string {
     .filter((h) => h.enabled && h.key)
     .map((h) => `${h.key}: ${/auth|token|key|secret|cookie/i.test(h.key) ? "***" : h.value}`)
     .join("\n");
-  const body = req.body.mode === "none" ? "" : cut(req.body.mode === "graphql" ? req.body.gqlQuery ?? "" : req.body.raw, 8000);
-  return `${req.method} ${req.url}\n${hdr ? `Cabeceras:\n${hdr}\n` : ""}${body ? `Cuerpo:\n${body}\n` : ""}`;
+  const isGql = req.kind === "gql" || req.body.mode === "graphql";
+  const body = req.body.mode === "none" && !isGql ? "" : cut(isGql ? req.body.gqlQuery ?? "" : req.body.raw, 8000);
+  return `${isGql ? "GRAPHQL (POST)" : req.method} ${req.url}\n${hdr ? `Cabeceras:\n${hdr}\n` : ""}${body ? `Cuerpo:\n${body}\n` : ""}`;
 }
 
 interface Props {

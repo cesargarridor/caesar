@@ -77,7 +77,7 @@ export default function WsComposer({ cfg, onCfg, connected, onSend, onPing, erro
       </div>
       <div className="min-h-32 flex-1">
         {cfg.draftFormat === "json" ? (
-          <JsonEditor value={cfg.draft} onChange={(draft) => onCfg({ draft })} placeholder='{"type": "ping"}' className="h-full min-h-32" />
+          <JsonEditor lineNumbers value={cfg.draft} onChange={(draft) => onCfg({ draft })} placeholder='{"type": "ping"}' className="h-full min-h-32" />
         ) : (
           <textarea
             value={cfg.draft}
@@ -89,9 +89,9 @@ export default function WsComposer({ cfg, onCfg, connected, onSend, onPing, erro
           />
         )}
       </div>
-      {(problem || error) && (
+      {((problem && cfg.draftFormat !== "json") || error) && (
         <p role="alert" className="text-xs text-rose">
-          {problem ?? error}
+          {(cfg.draftFormat !== "json" ? problem : null) ?? error}
         </p>
       )}
       <div className="flex items-center gap-2">

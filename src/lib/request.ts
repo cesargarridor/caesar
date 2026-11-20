@@ -1,8 +1,8 @@
 import type { AuthData, KV, RequestNode, RequestState, TreeNode } from "../types";
-import { buildUrl, encodeParam } from "./url";
-import { defaultSettings, emptyAuth } from "./curl";
-import { gqlRaw } from "./graphql";
-import { normWsConfig } from "./ws";
+import { buildUrl, encodeParam } from "./url.ts";
+import { defaultSettings, emptyAuth } from "./curl.ts";
+import { gqlRaw } from "./graphql.ts";
+import { normWsConfig } from "./ws.ts";
 
 /** Reemplaza {{variable}} usando las variables definidas; las desconocidas se dejan tal cual. */
 export function substitute(s: string, vars: KV[]): string {
@@ -41,13 +41,13 @@ export function buildExecuteArgs(req: RequestState, vars: KV[]) {
   }
 
   return {
-    method: req.method,
+    method: req.kind === "gql" ? "POST" : req.method,
     url,
     headers,
     body: {
       // GraphQL viaja como un POST JSON {query, variables}
-      mode: req.body.mode === "graphql" ? "json" : req.body.mode,
-      raw: req.body.mode === "graphql" ? gqlRaw(req.body, sub) : sub(req.body.raw),
+      mode: req.kind === "gql" || req.body.mode === "graphql" ? "json" : req.body.mode,
+      raw: req.kind === "gql" || req.body.mode === "graphql" ? gqlRaw(req.body, sub) : sub(req.body.raw),
       formdata: subKv(req.body.formdata),
       urlencoded: subKv(req.body.urlencoded),
     },
@@ -110,9 +110,10 @@ export function requestFromNode(n: RequestNode): RequestState {
 
   const auth = normAuth(n.auth);
 
-  const mode = ["none", "json", "text", "formdata", "urlencoded", "graphql"].includes(n.body.mode) ? n.body.mode : "none";
+  const isGql = n.kind === "gql";
+  const mode = isGql ? "graphql" : ["none", "json", "text", "formdata", "urlencoded", "graphql"].includes(n.body.mode) ? n.body.mode : "none";
   return {
-    method: n.kind === "ws" ? "WS" : n.method,
+    method: n.kind === "ws" ? "WS" : isGql ? "POST" : n.method,
     url: base,
     params,
     headers: n.headers,
@@ -128,6 +129,6 @@ export function requestFromNode(n: RequestNode): RequestState {
     },
     settings: defaultSettings(),
     tests: n.tests ?? "",
-    ...(n.kind === "ws" ? { kind: "ws" as const, ws: normWsConfig(n.ws) } : {}),
+    ...(n.kind === "ws" ? { kind: "ws" as const, ws: normWsConfig(n.ws) } : isGql ? { kind: "gql" as const } : {}),
   };
 }
