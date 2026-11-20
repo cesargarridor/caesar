@@ -21,6 +21,7 @@ if (!message) {
 const git = (...a) => execFileSync("git", a, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim();
 const read = (p) => readFileSync(p, "utf8");
 const write = (p, s) => writeFileSync(p, s);
+const coauthor = "Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>";
 
 // ── versión siguiente ──
 const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
@@ -74,9 +75,9 @@ try {
   write(`release-notes/${tag}.md`, notes.map((l) => (l.startsWith("- ") ? l : `- ${l}`)).join("\n") + "\n");
 
   git("add", "-A");
-  git("commit", "-m", `${tag}: ${message}`);
+  git("commit", "-m", `${tag}: ${message}`, "-m", coauthor);
   git("switch", "master");
-  git("merge", "--no-ff", branch, "-m", `Merge ${branch}`);
+  git("merge", "--no-ff", branch, "-m", `Merge ${branch}`, "-m", coauthor);
   git("tag", "-a", tag, "-m", `Caesar ${tag}`);
   git("branch", "-d", branch);
 } catch (e) {
