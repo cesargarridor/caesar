@@ -264,11 +264,26 @@ jobs:
     if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-22.04
     steps:
-      - name: Publicar la Release
+      - name: Sincronizar firmas de latest.json y publicar la Release
         env:
           GH_TOKEN: ${{ github.ref_type == 'tag' && secrets.GITHUB_TOKEN || secrets.BETA_TOKEN }}
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
+            mkdir -p /tmp/sigs
+            gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern '*.sig' --pattern 'latest.json' --dir /tmp/sigs
+            node -e '
+              const fs = require("fs");
+              const d = "/tmp/sigs";
+              const j = JSON.parse(fs.readFileSync(d + "/latest.json", "utf8"));
+              for (const [k, v] of Object.entries(j.platforms || {})) {
+                const file = (v.url || "").split("/").pop() + ".sig";
+                if (fs.existsSync(d + "/" + file)) {
+                  v.signature = fs.readFileSync(d + "/" + file, "utf8").trim();
+                }
+              }
+              fs.writeFileSync(d + "/latest.json", JSON.stringify(j, null, 2) + "\n");
+            '
+            gh release upload "${{ github.ref_name }}" /tmp/sigs/latest.json --repo "${{ github.repository }}" --clobber
             gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
           else
             gh release edit "beta-${{ github.run_number }}" --repo "${{ github.repository_owner }}/caesar-beta" --draft=false --prerelease

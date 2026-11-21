@@ -87,6 +87,13 @@ try {
 if (noPush) {
   console.log(`\n${tag} creada en local (sin push). Para publicar: git push origin master ${tag}`);
 } else {
+  // Si existía un borrador o release previa con este mismo tag (p. ej. un intento anterior cancelado), se borra antes de
+  // subir el tag para que tauri-action no mezcle las firmas (.sig) nuevas con un latest.json antiguo.
+  try {
+    execFileSync("gh", ["release", "delete", tag, "--yes"], { stdio: "ignore" });
+  } catch {
+    /* no existía release previa */
+  }
   git("push", "origin", "master", tag);
   console.log(`\n${tag} publicada. GitHub Actions está compilando: https://github.com/cesargarridor/caesar/actions`);
 }
