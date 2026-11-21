@@ -37,7 +37,7 @@ export default function KindSelect({ kind, onChange }: Props) {
   const CurIcon = cur.Icon;
 
   return (
-    <div ref={ref} className="relative flex items-center">
+    <div ref={ref} className="relative flex">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -45,7 +45,7 @@ export default function KindSelect({ kind, onChange }: Props) {
         aria-label={`${t("Tipo de petición")}: ${cur.label}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex items-center gap-1 self-center rounded-lg bg-kelp px-2 py-1 text-[11px] font-medium ring-1 ring-fg/10 transition-colors hover:ring-aqua/60 focus:outline-none focus:ring-aqua ${cur.color}`}
+        className={`flex h-full items-center gap-1 rounded-[10px] bg-kelp px-2 py-2 text-[11px] font-medium ring-1 ring-fg/10 transition-colors hover:ring-aqua/60 focus:outline-none focus:ring-aqua ${cur.color}`}
       >
         <CurIcon size={12} strokeWidth={1.75} className="shrink-0" />
         <span className="tracking-tight">{cur.short}</span>
