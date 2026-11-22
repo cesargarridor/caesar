@@ -248,6 +248,8 @@ async fn evaluate_inner(_app: &AppHandle, st: &SyncState, _allow_delete: bool) -
         store(st, &a);
         return Ok(a);
     }
+    // Caesar Suite Bundle comprado antes de registrarse: el Worker aplica los días pendientes de este email (una sola vez).
+    claim_pending_pass(st, &c.worker_url, &tok).await;
     if sync::billing_status(st).await?.active {
         let a = pro(false, false, false);
         store(st, &a);
@@ -319,6 +321,16 @@ pub async fn redeem_code(app: AppHandle, st: tauri::State<'_, SyncState>, code: 
         n => return Err(format!("No se pudo canjear el código ({n}). Inténtalo más tarde.")),
     }
     evaluate(&app, &st, false).await
+}
+
+/// Pide al Worker (`/account/claim`) que aplique a esta cuenta el pase del Caesar Suite Bundle comprado con su email, si lo hay.
+/// Best-effort: sin Worker, sin red o con cualquier error no hace nada (el siguiente arranque lo reintenta).
+async fn claim_pending_pass(st: &SyncState, worker_url: &str, tok: &str) {
+    if worker_url.is_empty() || !crate::limit::allow("claim_pending", 3, 60_000) {
+        return;
+    }
+    let Ok(body) = serde_json::to_vec(&serde_json::json!({ "idToken": tok })) else { return };
+    let _ = st.client.post(format!("{}/account/claim", worker_url.trim_end_matches('/'))).header("content-type", "application/json").body(body).send().await;
 }
 
 /// Registra en el servidor (Worker `/account/terms`) que esta cuenta aceptó los términos `version` y confirmó tener 14 años o más.
