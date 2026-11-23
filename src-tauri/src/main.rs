@@ -1576,6 +1576,7 @@ fn main() {
             vault::pairing_cancel,
             sync::sync_status,
             sync::local_save,
+            sync::local_load,
             sync::local_wipe,
             sync::sync_sign_in,
             sync::sync_reset_password,

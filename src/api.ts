@@ -57,6 +57,8 @@ export interface SyncStatus {
 export const syncStatus = () => invoke<SyncStatus>("sync_status");
 /** Borra `datos.json` de este equipo (sin copia de seguridad). */
 export const localWipe = () => invoke<void>("local_wipe");
+/** Datos guardados en disco (o su mejor copia) para restaurar si el almacenamiento del WebView se perdió. */
+export const localLoad = () => invoke<string | null>("local_load");
 export const localSave = (json: string) => invoke<void>("local_save", { json });
 /** Devuelve el modo resultante: "pro" o "limbo" (cuenta sin pagar, prueba de 7 días). */
 export const syncSignIn = (email: string, password: string, create: boolean) =>

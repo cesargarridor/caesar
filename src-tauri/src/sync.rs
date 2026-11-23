@@ -588,8 +588,15 @@ pub(crate) fn write_atomic(path: &PathBuf, bytes: &[u8]) -> Result<(), String> {
         let _ = f.set_permissions(std::fs::Permissions::from_mode(0o600)); // el tmp pudo existir con otros permisos
     }
     f.write_all(bytes).map_err(err)?;
+    // Forzar a disco antes del rename: un apagón o reinicio no puede dejar el archivo vacío o a medias.
+    f.sync_all().map_err(err)?;
     drop(f);
-    std::fs::rename(&tmp, path).map_err(err)
+    std::fs::rename(&tmp, path).map_err(err)?;
+    #[cfg(unix)]
+    if let Some(d) = path.parent().and_then(|p| std::fs::File::open(p).ok()) {
+        let _ = d.sync_all();
+    }
+    Ok(())
 }
 
 /// Restringe un archivo existente a 0600 (solo Unix).
@@ -802,12 +809,74 @@ pub fn local_save(app: AppHandle, st: tauri::State<SyncState>, json: String) -> 
             return Err("GUEST_LIMIT_WORKSPACES".into());
         }
     }
+    backup_before_save(&path, json.as_bytes());
     crate::localcrypt::write_data(&path, json.as_bytes())?;
     // Solo se marca para subir si hay sesión: un equipo nuevo, sin sesión, no debe pisar la nube con datos vacíos.
     if st.session.lock().map(|g| g.is_some()).unwrap_or(false) {
         st.dirty.store(true, Ordering::SeqCst);
     }
     Ok(())
+}
+
+/// Número de colecciones (raíces) en un JSON de datos, sumando todos los espacios.
+fn count_collections(b: &[u8]) -> usize {
+    let Ok(v) = serde_json::from_slice::<Value>(b) else { return 0 };
+    let n = |x: &Value| x.as_array().map(|a| a.len()).unwrap_or(0);
+    match v["workspaces"].as_array() {
+        Some(ws) if !ws.is_empty() => ws.iter().map(|w| n(&w["collections"])).sum(),
+        _ => n(&v["collections"]),
+    }
+}
+
+/// Copias de seguridad del disco: anillo de 8 copias (`datos.prev1.json` = la más reciente), rotado como mucho cada 5 min,
+/// más `datos.lastgood.json`, que guarda lo último con colecciones y nunca se sobrescribe con un estado vacío.
+/// Todas empiezan por `datos` para que la tierra quemada (`local_wipe`) también las borre.
+fn backup_before_save(path: &PathBuf, new_json: &[u8]) {
+    const RING: usize = 8;
+    const EVERY: Duration = Duration::from_secs(300);
+    let Some(dir) = path.parent() else { return };
+    let Ok(old) = crate::localcrypt::read_data(path) else { return };
+    let old_n = count_collections(&old);
+    if old_n == 0 {
+        return;
+    }
+    let write = |name: String| {
+        let _ = crate::localcrypt::write_data(&dir.join(name), &old);
+    };
+    // Si el guardado nuevo vacía o reduce lo que había, lo anterior se conserva siempre aparte.
+    if count_collections(new_json) < old_n {
+        write("datos.lastgood.json".into());
+    }
+    let p1 = dir.join("datos.prev1.json");
+    let recent = std::fs::metadata(&p1).and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).map(|e| e < EVERY).unwrap_or(false);
+    if recent {
+        return;
+    }
+    for i in (1..RING).rev() {
+        let _ = std::fs::rename(dir.join(format!("datos.prev{i}.json")), dir.join(format!("datos.prev{}.json", i + 1)));
+    }
+    write("datos.prev1.json".into());
+}
+
+/// Devuelve los datos guardados en disco para restaurar la interfaz si el almacenamiento del WebView se perdió.
+/// Elige `datos.json` si tiene colecciones; si no, la copia más reciente que las tenga.
+#[tauri::command]
+pub fn local_load(app: AppHandle) -> Result<Option<String>, String> {
+    let main = data_file(&app)?;
+    let dir = main.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let mut names = vec!["datos.json".to_string(), "datos.lastgood.json".to_string()];
+    names.extend((1..=8).map(|i| format!("datos.prev{i}.json")));
+    let mut fallback: Option<Vec<u8>> = None;
+    for n in names {
+        let Ok(b) = crate::localcrypt::read_data(&dir.join(&n)) else { continue };
+        if count_collections(&b) > 0 {
+            return Ok(Some(String::from_utf8_lossy(&b).into_owned()));
+        }
+        if fallback.is_none() && serde_json::from_slice::<Value>(&b).is_ok() {
+            fallback = Some(b);
+        }
+    }
+    Ok(fallback.map(|b| String::from_utf8_lossy(&b).into_owned()))
 }
 
 #[tauri::command]

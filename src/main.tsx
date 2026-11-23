@@ -10,6 +10,7 @@ import { initTheme } from "./lib/themes";
 import { applyFonts, getCatAnim, loadFonts } from "./lib/prefs";
 import { getLang } from "./lib/i18n";
 import { applyFontFamily, loadFontId } from "./lib/fonts";
+import { restoreFromDisk } from "./lib/restore";
 
 document.documentElement.lang = getLang();
 document.documentElement.toggleAttribute("data-cat-static", !getCatAnim());
@@ -17,7 +18,8 @@ initTheme();
 applyFonts(loadFonts());
 applyFontFamily(loadFontId());
 
-createRoot(document.getElementById("root")!).render(
+// Antes de montar: si el almacenamiento del WebView se perdió, se recupera desde el disco.
+restoreFromDisk().finally(() => createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ToastProvider>
       <AccountProvider>
@@ -25,4 +27,4 @@ createRoot(document.getElementById("root")!).render(
       </AccountProvider>
     </ToastProvider>
   </StrictMode>,
-);
+));
