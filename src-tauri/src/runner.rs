@@ -1,4 +1,4 @@
-//! Collection Runner (solo Pro): lectura segura del CSV de datos.
+//! Collection Runner (gratis e ilimitado): lectura segura del CSV de datos.
 //! Rust abre el selector nativo, lee el archivo y lo parsea con la caja `csv` sin ningún `unwrap`: un CSV mal formado
 //! (comillas sin cerrar, filas con otro número de columnas, UTF-8 inválido, archivo enorme) devuelve un error claro y nunca un panic.
 //! Las peticiones se ejecutan una a una desde la interfaz con el mismo `execute_request` de siempre (misma autenticación,
@@ -8,7 +8,6 @@ use serde::Serialize;
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
-use crate::sync::{require_pro, SyncState};
 
 const MAX_CSV_BYTES: u64 = 20 * 1024 * 1024;
 pub(crate) const MAX_ROWS: usize = 5000;
@@ -63,10 +62,9 @@ pub(crate) fn parse_csv(text: &str, name: &str) -> Result<CsvData, String> {
     Ok(CsvData { name: name.to_string(), headers, rows, truncated })
 }
 
-/// Abre el selector nativo, lee el CSV y lo devuelve. `Ok(None)` = el usuario canceló. Exige plan Pro.
+/// Abre el selector nativo, lee el CSV y lo devuelve. `Ok(None)` = el usuario canceló.
 #[tauri::command]
-pub async fn runner_pick_csv(app: AppHandle, st: tauri::State<'_, SyncState>) -> Result<Option<CsvData>, String> {
-    require_pro(&st)?;
+pub async fn runner_pick_csv(app: AppHandle) -> Result<Option<CsvData>, String> {
     let Some(file) = app.dialog().file().add_filter("CSV", &["csv", "txt", "tsv"]).blocking_pick_file() else {
         return Ok(None);
     };

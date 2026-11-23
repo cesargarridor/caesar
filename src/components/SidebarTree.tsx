@@ -37,7 +37,7 @@ export interface TreeActions {
   onExport: (path: string, format?: "json" | "yaml" | "har") => void;
   /** Compartir una colección con un equipo / ver su código. */
   onShare: (path: string) => void;
-  /** Collection Runner (Pro): ejecutar la carpeta con un CSV. */
+  /** Collection Runner: ejecutar la carpeta con un CSV. */
   onRun: (path: string) => void;
   /** Servidor Mock local con las peticiones de la carpeta. */
   onMock: (path: string) => void;
@@ -326,7 +326,7 @@ export default function SidebarTree(props: Props) {
           )}
           {!isRenaming && (
             <span className={`flex items-center gap-0.5 ${menu ? "" : "invisible group-hover:visible"}`}>
-              <IconBtn disabled={guest} title={guest ? t("Collection Runner con CSV (requiere el plan Pro)") : t("Collection Runner con CSV")} onClick={() => (guest ? props.onGoPro() : props.onRun(path))}><Play size={13} /></IconBtn>
+              <IconBtn title={t("Collection Runner con CSV")} onClick={() => props.onRun(path)}><Play size={13} /></IconBtn>
               <button title={t("Añadir")} aria-label={t("Añadir")} aria-haspopup="menu" onClick={openAt("add")} className="p-0.5 text-slate hover:text-aqua"><Plus size={15} /></button>
               <button title={t("Más acciones")} aria-label={t("Más acciones")} aria-haspopup="menu" onClick={openAt("more")} className="p-0.5 text-slate hover:text-mist"><MoreHorizontal size={15} /></button>
             </span>

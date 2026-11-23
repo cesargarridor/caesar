@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FileSpreadsheet, Lock, Play, Square, X } from "lucide-react";
+import { FileSpreadsheet, Play, Square, X } from "lucide-react";
 import { executeRequest, runnerPickCsv, type CsvData } from "../api";
 import type { KV, TreeNode } from "../types";
 import { buildExecuteArgs, requestFromNode, resolveInherit } from "../lib/request";
@@ -30,13 +30,11 @@ interface Props {
   /** Todas las colecciones (para heredar la autorización) y las variables ya mezcladas (globales + colección + perfil). */
   collections: TreeNode[];
   baseVars: KV[];
-  isPro: boolean;
-  onUpgrade: () => void;
   onClose: () => void;
 }
 
-/** Collection Runner (Pro): ejecuta cada petición de la carpeta por cada fila del CSV, inyectando las columnas como variables. */
-export default function RunnerDialog({ folder, path, collections, baseVars, isPro, onUpgrade, onClose }: Props) {
+/** Collection Runner: ejecuta cada petición de la carpeta por cada fila del CSV, inyectando las columnas como variables. */
+export default function RunnerDialog({ folder, path, collections, baseVars, onClose }: Props) {
   const [csv, setCsv] = useState<CsvData | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
@@ -51,7 +49,7 @@ export default function RunnerDialog({ folder, path, collections, baseVars, isPr
       const d = await runnerPickCsv();
       if (d) { setCsv(d); setRows([]); }
     } catch (e) {
-      setErr(typeof e === "string" ? (e.startsWith("PRO_REQUIRED") ? t("El Collection Runner requiere el plan Pro.") : e) : e instanceof Error ? e.message : t("Error desconocido"));
+      setErr(typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
     }
   };
 
@@ -107,13 +105,7 @@ export default function RunnerDialog({ folder, path, collections, baseVars, isPr
           <button onClick={() => { stop.current = true; onClose(); }} className="text-slate hover:text-mist" aria-label={t("Cerrar")}><X size={18} /></button>
         </div>
 
-        {!isPro ? (
-          <div className="space-y-3 rounded-xl bg-deep p-4 ring-1 ring-amber-400/40">
-            <p className="flex items-center gap-2 text-sm text-mist"><Lock size={15} /> {t("El Collection Runner con CSV es parte del plan Pro.")}</p>
-            <button className={btn} onClick={onUpgrade}>{t("Activar Pro")}</button>
-          </div>
-        ) : (
-          <>
+        <>
             <p className="text-xs text-slate">{t("Elige un CSV: la primera fila son los nombres de columna. Cada fila ejecuta las {0} petición(es) de esta carpeta, y cada columna se usa como variable (por ejemplo {{id}}).", items.length)}</p>
             <div className="flex flex-wrap items-center gap-2">
               <button className={ghost} onClick={pick} disabled={running}><FileSpreadsheet size={14} className="mr-2 inline" />{csv ? t("Cambiar CSV") : t("Elegir CSV")}</button>
@@ -157,8 +149,7 @@ export default function RunnerDialog({ folder, path, collections, baseVars, isPr
                 </div>
               </>
             )}
-          </>
-        )}
+        </>
       </div>
     </div>
   );

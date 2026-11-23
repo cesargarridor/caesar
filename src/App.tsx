@@ -1362,12 +1362,6 @@ export default function App() {
             path={runnerPath}
             collections={collections}
             baseVars={[...vars, ...(runnerRoot && runnerRoot.type === "folder" ? runnerRoot.variables ?? [] : []), ...profVars]}
-            isPro={account.is_pro}
-            onUpgrade={() => {
-              if (account.mode === "limbo") void openCheckout().catch(() => {});
-              else setNotice({ kind: "err", text: t("Crea una cuenta desde Ajustes para activar Pro.") });
-              setRunnerPath(null);
-            }}
             onClose={() => setRunnerPath(null)}
           />
         )}
