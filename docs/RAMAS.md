@@ -47,3 +47,9 @@ Versión de una beta: `X.Y.(Z+1)-N` (N = número de ejecución): mayor que la es
 
 El mensaje de `npm run release` / `node scripts/release.mjs` son las **notas**: una novedad por línea (separa con `
 ` o ` | `). Se guardan en `release-notes/vX.Y.Z.md`, salen en la Release y la app las muestra en el aviso de actualización (con botones *Actualizar ahora* / *Más tarde*).
+
+## winget y Homebrew
+
+- **Homebrew**: `brew install --cask cesargarridor/caesar/caesar`. El cask vive en el tap `cesargarridor/homebrew-caesar` (`Casks/caesar.rb`) y lo actualiza el job `packages` de `release.yml` (secreto `TAP_TOKEN`).
+- **winget**: `winget install CesarGarrido.Caesar`. La primera versión se envía a mano a `microsoft/winget-pkgs`; las siguientes las abre el job `packages` (secreto `WINGET_TOKEN`).
+- Para generar los manifiestos de cualquier versión ya publicada: `node scripts/package-managers.mjs X.Y.Z`.
