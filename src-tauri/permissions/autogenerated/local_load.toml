@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-load"
+description = "Enables the local_load command without any pre-configured scope."
+commands.allow = ["local_load"]
+
+[[permission]]
+identifier = "deny-local-load"
+description = "Denies the local_load command without any pre-configured scope."
+commands.deny = ["local_load"]
