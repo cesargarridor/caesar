@@ -24,6 +24,10 @@ export const pickFile = () => invoke<PickedFile | null>("pick_file");
 export const saveTextFile = (suggestedName: string, content: string, ext?: string) =>
   invoke<string | null>("save_text_file", { suggestedName, content, ext });
 
+/** «Guardar como» para una respuesta: texto o bytes en base64. Devuelve la ruta, o null si se cancela. */
+export const saveResponseFile = (suggestedName: string, content: string | null, dataB64: string | null) =>
+  invoke<string | null>("save_response_file", { suggestedName, content, dataB64 });
+
 export interface TextFile { name: string; content: string }
 export const pickTextFile = () => invoke<TextFile | null>("pick_text_file");
 export const pickTextFiles = () => invoke<TextFile[]>("pick_text_files");

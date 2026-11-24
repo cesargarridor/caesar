@@ -820,6 +820,35 @@ async fn save_text_file(
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
+/// «Guardar como» para una respuesta: texto (`content`) o bytes en base64 (`data_b64`). `Ok(None)` = el usuario canceló.
+#[tauri::command]
+async fn save_response_file(
+    app: tauri::AppHandle,
+    suggested_name: String,
+    content: Option<String>,
+    data_b64: Option<String>,
+) -> Result<Option<String>, String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine};
+    let bytes = match (data_b64, content) {
+        (Some(b), _) => B64.decode(b.as_bytes()).map_err(|_| "Los datos de la respuesta no son válidos.".to_string())?,
+        (None, Some(c)) => c.into_bytes(),
+        (None, None) => return Err("No hay contenido que guardar.".into()),
+    };
+    if bytes.len() > MAX_BINARY_RESPONSE_BYTES {
+        return Err("La respuesta supera el límite de 50 MB.".into());
+    }
+    let name: String = suggested_name
+        .chars()
+        .map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control() { '_' } else { c })
+        .collect();
+    let Some(file) = app.dialog().file().set_file_name(&name).blocking_save_file() else {
+        return Ok(None);
+    };
+    let path = file.into_path().map_err(|e| format!("Ruta de archivo no válida: {e}"))?;
+    tokio::fs::write(&path, &bytes).await.map_err(|e| format!("No se pudo guardar el archivo: {e}"))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
 fn mime_for(name: &str) -> &'static str {
     match name.rsplit('.').next().map(|e| e.to_ascii_lowercase()).as_deref() {
         Some("pdf") => "application/pdf",
@@ -885,6 +914,94 @@ struct ResponseData {
     pretty: Option<String>,
     /// Pasos de la petición con su duración.
     timeline: Vec<StepInfo>,
+    /// Tipo de contenido: "text" (incluye JSON y XML), "html", "pdf", "image" o "binary".
+    kind: String,
+    /// Cabecera Content-Type sin parámetros (puede estar vacía).
+    content_type: String,
+    /// Nombre sugerido para guardar la respuesta (Content-Disposition o último tramo de la URL).
+    file_name: String,
+    /// Bytes de la respuesta en base64 (solo pdf, image y binary; en text y html va `body`).
+    body_b64: Option<String>,
+}
+
+const MAX_BINARY_RESPONSE_BYTES: usize = 50 * 1024 * 1024; // 50 MB para PDF, imágenes y descargas
+
+/// Clasifica por Content-Type y, si no basta, por los primeros bytes.
+fn classify_body(content_type: &str, buf: &[u8]) -> &'static str {
+    let ct = content_type.to_ascii_lowercase();
+    if ct.contains("html") && !ct.contains("xhtml+xml-binary") {
+        return "html";
+    }
+    if ct == "application/pdf" || buf.starts_with(b"%PDF-") {
+        return "pdf";
+    }
+    if ct.starts_with("image/") || buf.starts_with(b"\x89PNG\r\n\x1a\n") || buf.starts_with(&[0xFF, 0xD8, 0xFF]) || buf.starts_with(b"GIF8") || (buf.len() > 12 && &buf[..4] == b"RIFF" && &buf[8..12] == b"WEBP") {
+        return "image";
+    }
+    let texty = ct.starts_with("text/")
+        || ["json", "xml", "javascript", "yaml", "x-www-form-urlencoded", "graphql", "csv", "x-ndjson"].iter().any(|k| ct.contains(k));
+    if texty {
+        return "text";
+    }
+    if ct.is_empty() || ct == "application/octet-stream" {
+        // Sin pista: es texto si es UTF-8 válido y sin bytes nulos.
+        if !buf.contains(&0) && std::str::from_utf8(buf).is_ok() {
+            let head = String::from_utf8_lossy(&buf[..buf.len().min(512)]).to_ascii_lowercase();
+            return if head.trim_start().starts_with("<!doctype html") || head.trim_start().starts_with("<html") { "html" } else { "text" };
+        }
+        return "binary";
+    }
+    if !buf.contains(&0) && std::str::from_utf8(buf).is_ok() && !ct.starts_with("audio/") && !ct.starts_with("video/") && !ct.contains("zip") {
+        return "text";
+    }
+    "binary"
+}
+
+fn is_download_type(content_type: &str) -> bool {
+    let ct = content_type.to_ascii_lowercase();
+    !(ct.is_empty() || ct.starts_with("text/") || ct.contains("json") || ct.contains("xml") || ct.contains("javascript") || ct.contains("yaml") || ct.contains("x-www-form-urlencoded") || ct.contains("graphql"))
+}
+
+/// Nombre de archivo sugerido: `filename=` de Content-Disposition, o el último tramo de la URL, o uno por tipo.
+fn suggest_file_name(headers: &[(String, String)], url_path: &str, kind: &str, content_type: &str) -> String {
+    let clean = |n: &str| -> String {
+        n.chars().map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control() { '_' } else { c }).collect::<String>().trim().to_string()
+    };
+    if let Some((_, cd)) = headers.iter().find(|(k, _)| k.eq_ignore_ascii_case("content-disposition")) {
+        for part in cd.split(';') {
+            let part = part.trim();
+            if let Some(v) = part.strip_prefix("filename=") {
+                let n = clean(v.trim().trim_matches('"'));
+                if !n.is_empty() {
+                    return n;
+                }
+            }
+        }
+    }
+    let last = url_path.rsplit('/').find(|x| !x.is_empty()).unwrap_or("");
+    let ext = match (kind, content_type.to_ascii_lowercase().as_str()) {
+        ("pdf", _) => "pdf",
+        ("html", _) => "html",
+        (_, "image/png") => "png",
+        (_, "image/jpeg") => "jpg",
+        (_, "image/gif") => "gif",
+        (_, "image/webp") => "webp",
+        (_, "image/svg+xml") => "svg",
+        (_, "application/zip") => "zip",
+        (_, ct) if ct.contains("json") => "json",
+        (_, ct) if ct.contains("xml") => "xml",
+        (_, ct) if ct.starts_with("text/") => "txt",
+        ("text", _) => "txt",
+        _ => "bin",
+    };
+    if !last.is_empty() {
+        let n = clean(last);
+        if n.contains('.') {
+            return n;
+        }
+        return format!("{n}.{ext}");
+    }
+    format!("respuesta.{ext}")
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1334,6 +1451,14 @@ async fn execute_request(
         .map(|(k, v)| (k.to_string(), String::from_utf8_lossy(v.as_bytes()).into_owned()))
         .collect();
 
+    let content_type = resp_headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+        .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let url_path = resp.url().path().to_string();
+    let max_bytes = if is_download_type(&content_type) { MAX_BINARY_RESPONSE_BYTES } else { MAX_RESPONSE_BYTES };
+
     // Lectura por chunks con tope de tamaño para no agotar la memoria.
     const L_DL: &str = "Descargando respuesta";
     tr.begin("download", L_DL);
@@ -1355,8 +1480,8 @@ async fn execute_request(
             tr.progress("download", L_DL, dl_start, &format!("{:.1} KB", buf.len() as f64 / 1024.0));
             last_emit = Instant::now();
         }
-        if buf.len() + chunk.len() > MAX_RESPONSE_BYTES {
-            let remaining = MAX_RESPONSE_BYTES - buf.len();
+        if buf.len() + chunk.len() > max_bytes {
+            let remaining = max_bytes - buf.len();
             buf.extend_from_slice(&chunk[..remaining]);
             truncated = true;
             break;
@@ -1369,15 +1494,24 @@ async fn execute_request(
     const L_PROC: &str = "Procesando respuesta";
     tr.begin("process", L_PROC);
     let t = Instant::now();
-    let body = String::from_utf8_lossy(&buf).into_owned();
-    let pretty = serde_json::from_str::<Value>(&body)
-        .ok()
-        .and_then(|v| serde_json::to_string_pretty(&v).ok());
+    let kind = classify_body(&content_type, &buf);
+    let file_name = suggest_file_name(&resp_headers, &url_path, kind, &content_type);
+    let (body, body_b64) = if matches!(kind, "pdf" | "image" | "binary") {
+        use base64::{engine::general_purpose::STANDARD as B64, Engine};
+        (String::new(), Some(B64.encode(&buf)))
+    } else {
+        (String::from_utf8_lossy(&buf).into_owned(), None)
+    };
+    let pretty = if kind == "text" {
+        serde_json::from_str::<Value>(&body).ok().and_then(|v| serde_json::to_string_pretty(&v).ok())
+    } else {
+        None
+    };
     tr.done(
         "process",
         L_PROC,
         t,
-        if pretty.is_some() { "JSON válido".into() } else { "texto".into() },
+        if pretty.is_some() { "JSON válido".into() } else { match kind { "text" => "texto".into(), other => other.to_string() } },
     );
 
     Ok(ResponseData {
@@ -1390,6 +1524,10 @@ async fn execute_request(
         body,
         pretty,
         timeline: tr.steps.clone(),
+        kind: kind.to_string(),
+        content_type,
+        file_name,
+        body_b64,
     })
 }
 
@@ -1555,6 +1693,7 @@ fn main() {
             open_url,
             pick_file,
             save_text_file,
+            save_response_file,
             app_version,
             flush_done,
             check_update,
@@ -1646,6 +1785,28 @@ fn main() {
 
 #[cfg(test)]
 mod security_tests {
+    #[test]
+    fn clasifica_respuestas() {
+        assert_eq!(classify_body("application/json", b"{}"), "text");
+        assert_eq!(classify_body("text/html; charset=utf-8", b"<p>"), "html");
+        assert_eq!(classify_body("application/pdf", b"%PDF-1.7"), "pdf");
+        assert_eq!(classify_body("application/octet-stream", b"%PDF-1.4\n"), "pdf");
+        assert_eq!(classify_body("", b"\x89PNG\r\n\x1a\n...."), "image");
+        assert_eq!(classify_body("image/svg+xml", b"<svg/>"), "image");
+        assert_eq!(classify_body("application/zip", b"PK\x03\x04\x00"), "binary");
+        assert_eq!(classify_body("", b"hola"), "text");
+        assert_eq!(classify_body("", b"<!DOCTYPE html><html>"), "html");
+        assert_eq!(classify_body("application/octet-stream", &[0xff, 0xfe, 0x00]), "binary");
+    }
+
+    #[test]
+    fn nombre_de_archivo_sugerido() {
+        let h = vec![("Content-Disposition".to_string(), "attachment; filename=\"informe.pdf\"".to_string())];
+        assert_eq!(suggest_file_name(&h, "/x/y", "pdf", "application/pdf"), "informe.pdf");
+        assert_eq!(suggest_file_name(&[], "/files/report", "pdf", "application/pdf"), "report.pdf");
+        assert_eq!(suggest_file_name(&[], "/", "html", "text/html"), "respuesta.html");
+    }
+
     use super::*;
 
     #[test]

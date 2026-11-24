@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Check, Copy, Filter, Maximize2, Minimize2, X } from "lucide-react";
+import { useEffect } from "react";
+import { Check, Copy, Download, Filter, Maximize2, Minimize2, X } from "lucide-react";
 import { filterResponse } from "../lib/jsonPath";
 import StepList from "./StepList";
 import JsonView from "./JsonView";
-import { openUrl } from "../api";
+import { openUrl, saveResponseFile } from "../api";
 import type { ResponseData, StepState } from "../types";
 import type { ScriptResult } from "../lib/script";
 import { t } from "../lib/i18n";
@@ -31,6 +32,45 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const [view, setView] = useState<"pretty" | "raw">("pretty");
   const [copied, setCopied] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  const [saved, setSaved] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const kind = response?.kind ?? "text";
+  const isFile = kind === "pdf" || kind === "image" || kind === "binary";
+  // Vista previa de PDF e imágenes: los bytes se convierten en una URL temporal (se libera al cambiar de respuesta).
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setSaved(null);
+    setSaveErr(null);
+    if (!response || !response.bodyB64 || (kind !== "pdf" && kind !== "image")) {
+      setBlobUrl(null);
+      return;
+    }
+    let url: string | null = null;
+    try {
+      const bin = atob(response.bodyB64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const type = kind === "pdf" ? "application/pdf" : response.contentType || "image/png";
+      url = URL.createObjectURL(new Blob([bytes], { type }));
+    } catch {
+      url = null;
+    }
+    setBlobUrl(url);
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [response, kind]);
+  const saveFile = async () => {
+    if (!response) return;
+    setSaveErr(null);
+    try {
+      const p = await saveResponseFile(response.fileName, response.bodyB64 ? null : response.body, response.bodyB64);
+      setSaved(p);
+    } catch (e) {
+      setSaveErr(typeof e === "string" ? e : e instanceof Error ? e.message : t("Error desconocido"));
+    }
+  };
 
   const open = useCallback((url: string) => {
     setLinkError(null);
@@ -157,7 +197,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         {tabBtn("headers", response ? `Headers ${response.headers.length}` : "Headers")}
         {tabBtn("timeline", "Timeline")}
         {script && tabBtn("tests", testsLabel)}
-        {tab === "body" && response && (
+        {tab === "body" && response && !isFile && kind !== "html" && (
           <span className="flex overflow-hidden rounded-md border border-fg/10 text-xs">
             {(["pretty", "raw"] as const).map((v) => (
               <button
@@ -170,9 +210,14 @@ export default function ResponsePanel({ response, error, sending, steps, script,
             ))}
           </span>
         )}
-        {tab === "body" && response && (
+        {tab === "body" && response && !isFile && (
           <button onClick={copy} className="flex items-center gap-1 text-xs text-silver hover:text-aqua">
             {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? t("Copiado") : t("Copy")}
+          </button>
+        )}
+        {tab === "body" && response && !sending && (
+          <button onClick={saveFile} className="flex items-center gap-1 text-xs text-silver hover:text-aqua" title={response.fileName}>
+            <Download size={13} /> {t("Guardar archivo")}
           </button>
         )}
         {response && !sending && (
@@ -197,7 +242,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         </button>
       </div>
 
-      {tab === "body" && response && !sending && !error && (
+      {tab === "body" && response && !sending && !error && !isFile && kind !== "html" && (
         <div className="flex items-center gap-2 border-b border-fg/10 px-3 py-1 text-xs">
           <Filter size={13} className="shrink-0 text-slate" />
           <input
@@ -223,6 +268,8 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         </div>
       )}
 
+      {saveErr && <p className="bg-rose/10 px-4 py-1 text-xs text-rose">{saveErr}</p>}
+      {saved && <p className="bg-leaf/10 px-4 py-1 text-xs text-leaf">{t("Guardado en {0}", saved)}</p>}
       {linkError && <p className="bg-rose/10 px-4 py-1 text-xs text-rose">{linkError}</p>}
 
       <div className="relative flex-1 overflow-auto">
@@ -238,6 +285,26 @@ export default function ResponsePanel({ response, error, sending, steps, script,
           <div className="flex h-full flex-col items-center justify-center gap-1">
             <p className="eyebrow">Response</p>
             <p className="text-sm text-slate">{t("Pulsa Send para ver la respuesta.")}</p>
+          </div>
+        ) : tab === "body" && kind === "html" ? (
+          // Sin scripts, sin formularios ni enlaces activos (sandbox vacío): solo se ve el documento.
+          <iframe title="html" sandbox="" srcDoc={response.body} className="h-full w-full bg-white" />
+        ) : tab === "body" && kind === "pdf" ? (
+          blobUrl ? (
+            <object data={blobUrl} type="application/pdf" className="h-full w-full">
+              <p className="p-4 text-sm text-slate">{t("Este sistema no puede mostrar PDF aquí. Usa «Guardar archivo» para abrirlo.")}</p>
+            </object>
+          ) : (
+            <p className="p-4 text-sm text-slate">{t("No se pudo mostrar el PDF. Usa «Guardar archivo».")}</p>
+          )
+        ) : tab === "body" && kind === "image" ? (
+          <div className="flex h-full items-center justify-center overflow-auto bg-kelp/40 p-4">
+            {blobUrl ? <img src={blobUrl} alt={response.fileName} className="max-h-full max-w-full object-contain" /> : <p className="text-sm text-slate">{t("No se pudo mostrar la imagen.")}</p>}
+          </div>
+        ) : tab === "body" && kind === "binary" ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
+            <p className="text-sm text-mist">{t("Respuesta binaria")} · {response.contentType || "application/octet-stream"} · {(response.sizeBytes / 1024).toFixed(1)} KB</p>
+            <p className="text-xs text-slate">{t("No se puede mostrar como texto. Usa «Guardar archivo».")}</p>
           </div>
         ) : tab === "body" ? (
           <JsonView text={shown} json={applied ? applied.json : showPretty} onOpen={open} hideEmpty={!applied && showPretty && hideEmpty} />

@@ -145,6 +145,13 @@ export interface ResponseData {
   body: string;
   pretty: string | null;
   timeline: { id: string; label: string; ms: number; detail: string }[];
+  /** "text" (JSON, XML, texto), "html", "pdf", "image" o "binary". */
+  kind: "text" | "html" | "pdf" | "image" | "binary";
+  contentType: string;
+  /** Nombre sugerido al guardar la respuesta. */
+  fileName: string;
+  /** Bytes en base64 (solo pdf, image y binary). */
+  bodyB64: string | null;
 }
 
 export interface StepState {
