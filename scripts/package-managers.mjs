@@ -40,7 +40,7 @@ writeFileSync(
 Platform:
 - Windows.Desktop
 MinimumOSVersion: 10.0.17763.0
-InstallerType: nsis
+InstallerType: nullsoft
 Scope: user
 InstallModes:
 - interactive
