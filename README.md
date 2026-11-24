@@ -37,6 +37,8 @@ Página de descargas con requisitos, instalación y verificación: https://cesar
 | **Windows** | `Caesar_x.y.z_x64-setup.exe` | El instalador normal (64 bits). También hay un `.msi`. **Próximamente en la Microsoft Store.** |
 | **macOS** (Intel y Apple Silicon) | `Caesar_x.y.z_universal.dmg` | Abre el `.dmg` y arrastra Caesar a Aplicaciones. |
 | **Ubuntu (Snap Store)** | `sudo snap install caesar` | O búscalo en la [tienda de aplicaciones de Ubuntu (Snap Store)](https://snapcraft.io/caesar). Se actualiza solo. |
+| **macOS (Homebrew)** | `brew install --cask cesargarridor/caesar/caesar` | Se actualiza solo. |
+| **Windows (winget)** | `winget install CesarGarrido.Caesar` | Disponible cuando se apruebe el [PR a winget-pkgs](https://github.com/microsoft/winget-pkgs/pull/488250). |
 | **Linux (Debian/Ubuntu)** | `Caesar_x.y.z_amd64.deb` | `sudo apt install ./Caesar_x.y.z_amd64.deb` |
 | **Linux (cualquier distro)** | `Caesar_x.y.z_amd64.AppImage` | `chmod +x Caesar_*.AppImage && ./Caesar_*.AppImage` |
 
