@@ -914,13 +914,13 @@ struct ResponseData {
     pretty: Option<String>,
     /// Pasos de la petición con su duración.
     timeline: Vec<StepInfo>,
-    /// Tipo de contenido: "text" (incluye JSON y XML), "html", "pdf", "image" o "binary".
+    /// Tipo de contenido: "text" (incluye JSON y XML), "html", "pdf", "image", "audio", "video" o "binary".
     kind: String,
     /// Cabecera Content-Type sin parámetros (puede estar vacía).
     content_type: String,
     /// Nombre sugerido para guardar la respuesta (Content-Disposition o último tramo de la URL).
     file_name: String,
-    /// Bytes de la respuesta en base64 (solo pdf, image y binary; en text y html va `body`).
+    /// Bytes de la respuesta en base64 (todo salvo text y html, donde va `body`).
     body_b64: Option<String>,
 }
 
@@ -937,6 +937,12 @@ fn classify_body(content_type: &str, buf: &[u8]) -> &'static str {
     }
     if ct.starts_with("image/") || buf.starts_with(b"\x89PNG\r\n\x1a\n") || buf.starts_with(&[0xFF, 0xD8, 0xFF]) || buf.starts_with(b"GIF8") || (buf.len() > 12 && &buf[..4] == b"RIFF" && &buf[8..12] == b"WEBP") {
         return "image";
+    }
+    if ct.starts_with("audio/") || buf.starts_with(b"ID3") || buf.starts_with(b"OggS") || buf.starts_with(b"fLaC") || (buf.len() > 12 && &buf[..4] == b"RIFF" && &buf[8..12] == b"WAVE") {
+        return "audio";
+    }
+    if ct.starts_with("video/") || (buf.len() >= 8 && &buf[4..8] == b"ftyp") || buf.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]) {
+        return "video";
     }
     let texty = ct.starts_with("text/")
         || ["json", "xml", "javascript", "yaml", "x-www-form-urlencoded", "graphql", "csv", "x-ndjson"].iter().any(|k| ct.contains(k));
@@ -1496,7 +1502,7 @@ async fn execute_request(
     let t = Instant::now();
     let kind = classify_body(&content_type, &buf);
     let file_name = suggest_file_name(&resp_headers, &url_path, kind, &content_type);
-    let (body, body_b64) = if matches!(kind, "pdf" | "image" | "binary") {
+    let (body, body_b64) = if matches!(kind, "pdf" | "image" | "audio" | "video" | "binary") {
         use base64::{engine::general_purpose::STANDARD as B64, Engine};
         (String::new(), Some(B64.encode(&buf)))
     } else {
@@ -1794,6 +1800,10 @@ mod security_tests {
         assert_eq!(classify_body("", b"\x89PNG\r\n\x1a\n...."), "image");
         assert_eq!(classify_body("image/svg+xml", b"<svg/>"), "image");
         assert_eq!(classify_body("application/zip", b"PK\x03\x04\x00"), "binary");
+        assert_eq!(classify_body("audio/mpeg", b"\xff\xfb\x90"), "audio");
+        assert_eq!(classify_body("", b"OggS\x00\x02"), "audio");
+        assert_eq!(classify_body("video/mp4", b"\x00\x00\x00\x18ftypmp42"), "video");
+        assert_eq!(classify_body("application/octet-stream", b"\x00\x00\x00\x18ftypisom"), "video");
         assert_eq!(classify_body("", b"hola"), "text");
         assert_eq!(classify_body("", b"<!DOCTYPE html><html>"), "html");
         assert_eq!(classify_body("application/octet-stream", &[0xff, 0xfe, 0x00]), "binary");

@@ -5,6 +5,7 @@ import { filterResponse } from "../lib/jsonPath";
 import StepList from "./StepList";
 import JsonView from "./JsonView";
 import PdfView from "./PdfView";
+import HexView from "./HexView";
 import { openUrl, saveResponseFile } from "../api";
 import type { ResponseData, StepState } from "../types";
 import type { ScriptResult } from "../lib/script";
@@ -37,13 +38,13 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const [saved, setSaved] = useState<string | null>(null);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const kind = response?.kind ?? "text";
-  const isFile = kind === "pdf" || kind === "image" || kind === "binary";
+  const isFile = kind === "pdf" || kind === "image" || kind === "audio" || kind === "video" || kind === "binary";
   // Vista previa de HTML e imágenes: se convierten en una URL temporal (se libera al cambiar de respuesta). El PDF lo dibuja PdfView.
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
     setSaved(null);
     setSaveErr(null);
-    if (!response || (kind !== "image" && kind !== "html") || (kind === "image" && !response.bodyB64)) {
+    if (!response || (kind !== "image" && kind !== "audio" && kind !== "video" && kind !== "html") || (kind !== "html" && !response.bodyB64)) {
       setBlobUrl(null);
       return;
     }
@@ -55,7 +56,7 @@ export default function ResponsePanel({ response, error, sending, steps, script,
         const bin = atob(response.bodyB64!);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        url = URL.createObjectURL(new Blob([bytes], { type: response.contentType || "image/png" }));
+        url = URL.createObjectURL(new Blob([bytes], { type: response.contentType || (kind === "image" ? "image/png" : kind === "audio" ? "audio/mpeg" : "video/mp4") }));
       }
     } catch {
       url = null;
@@ -299,11 +300,17 @@ export default function ResponsePanel({ response, error, sending, steps, script,
           <div className="flex h-full items-center justify-center overflow-auto bg-kelp/40 p-4">
             {blobUrl ? <img src={blobUrl} alt={response.fileName} className="max-h-full max-w-full object-contain" /> : <p className="text-sm text-slate">{t("No se pudo mostrar la imagen.")}</p>}
           </div>
-        ) : tab === "body" && kind === "binary" ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
-            <p className="text-sm text-mist">{t("Respuesta binaria")} · {response.contentType || "application/octet-stream"} · {(response.sizeBytes / 1024).toFixed(1)} KB</p>
-            <p className="text-xs text-slate">{t("No se puede mostrar como texto. Usa «Guardar archivo».")}</p>
+        ) : tab === "body" && kind === "audio" ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
+            {blobUrl ? <audio controls src={blobUrl} className="w-full max-w-xl" /> : null}
+            <p className="text-xs text-slate">{response.contentType} · {(response.sizeBytes / 1024).toFixed(1)} KB</p>
           </div>
+        ) : tab === "body" && kind === "video" ? (
+          <div className="flex h-full items-center justify-center bg-black/60 p-2">
+            {blobUrl ? <video controls src={blobUrl} className="max-h-full max-w-full" /> : null}
+          </div>
+        ) : tab === "body" && kind === "binary" ? (
+          response.bodyB64 ? <HexView b64={response.bodyB64} size={response.sizeBytes} type={response.contentType} /> : null
         ) : tab === "body" ? (
           <JsonView text={shown} json={applied ? applied.json : showPretty} onOpen={open} hideEmpty={!applied && showPretty && hideEmpty} />
         ) : tab === "tests" && script ? (
