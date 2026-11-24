@@ -345,14 +345,14 @@ jobs:
 
   # winget (Windows) y Homebrew (macOS): solo versiones estables, con la Release ya publicada.
   # Secretos opcionales (si faltan, el paso se omite):
-  #  · TAP_TOKEN: token con permiso de escritura en cesargarridor/homebrew-caesar → actualiza el cask.
+  #  · TAP_DEPLOY_KEY: clave SSH privada (deploy key con escritura en cesargarridor/homebrew-caesar) → actualiza el cask.
   #  · WINGET_TOKEN: PAT clásico con scope public_repo → abre el PR en microsoft/winget-pkgs (el paquete CesarGarrido.Caesar debe existir ya).
   packages:
     needs: [gate, publish]
     if: github.ref_type == 'tag' && needs.gate.outputs.go == 'true'
     runs-on: ubuntu-22.04
     env:
-      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+      TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -362,9 +362,13 @@ jobs:
       - name: Generar cask de Homebrew
         run: node scripts/package-managers.mjs "${{ github.ref_name }}" packaging/out
       - name: Actualizar tap de Homebrew
-        if: env.TAP_TOKEN != ''
+        if: env.TAP_DEPLOY_KEY != ''
         run: |
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${{ github.repository_owner }}/homebrew-caesar.git" tap
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$TAP_DEPLOY_KEY" > ~/.ssh/tap_key && chmod 600 ~/.ssh/tap_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes"
+          git clone "git@github.com:${{ github.repository_owner }}/homebrew-caesar.git" tap
           mkdir -p tap/Casks
           cp packaging/out/homebrew/Casks/caesar.rb tap/Casks/caesar.rb
           cd tap

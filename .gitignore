@@ -7,3 +7,4 @@ snap/deb/
 *.snap
 .DS_Store
 tsconfig.tsbuildinfo
+secretos.txt

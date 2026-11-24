@@ -50,6 +50,6 @@ El mensaje de `npm run release` / `node scripts/release.mjs` son las **notas**: 
 
 ## winget y Homebrew
 
-- **Homebrew**: `brew install --cask cesargarridor/caesar/caesar`. El cask vive en el tap `cesargarridor/homebrew-caesar` (`Casks/caesar.rb`) y lo actualiza el job `packages` de `release.yml` (secreto `TAP_TOKEN`).
+- **Homebrew**: `brew install --cask cesargarridor/caesar/caesar`. El cask vive en el tap `cesargarridor/homebrew-caesar` (`Casks/caesar.rb`) y lo actualiza el job `packages` de `release.yml` (secreto `TAP_DEPLOY_KEY`).
 - **winget**: `winget install CesarGarrido.Caesar`. La primera versión se envía a mano a `microsoft/winget-pkgs`; las siguientes las abre el job `packages` (secreto `WINGET_TOKEN`).
 - Para generar los manifiestos de cualquier versión ya publicada: `node scripts/package-managers.mjs X.Y.Z`.
