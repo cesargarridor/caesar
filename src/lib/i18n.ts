@@ -167,6 +167,8 @@ const D: Record<string, Row> = {
   "No se pudo mostrar la imagen.": ["The image couldn't be shown.", "Das Bild konnte nicht angezeigt werden.", "Impossible d’afficher l’image.", "Impossibile mostrare l’immagine."],
   "Respuesta binaria": ["Binary response", "Binäre Antwort", "Réponse binaire", "Risposta binaria"],
   "No se puede mostrar como texto. Usa «Guardar archivo».": ["It can't be shown as text. Use “Save file”.", "Es kann nicht als Text angezeigt werden. Nutze „Datei speichern“.", "Impossible de l’afficher en texte. Utilisez « Enregistrer le fichier ».", "Non può essere mostrato come testo. Usa «Salva file»."],
+  "Cargando PDF…": ["Loading PDF…", "PDF wird geladen…", "Chargement du PDF…", "Caricamento del PDF…"],
+  "Se muestran las primeras 300 páginas. Usa «Guardar archivo» para el resto.": ["Showing the first 300 pages. Use “Save file” for the rest.", "Die ersten 300 Seiten werden angezeigt. Nutze „Datei speichern“ für den Rest.", "Affichage des 300 premières pages. Utilisez « Enregistrer le fichier » pour le reste.", "Mostrate le prime 300 pagine. Usa «Salva file» per il resto."],
   "Collection Runner": ["Collection Runner", "Collection Runner", "Collection Runner", "Collection Runner"],
   "Collection Runner con CSV": ["Collection Runner with CSV", "Collection Runner mit CSV", "Collection Runner avec CSV", "Collection Runner con CSV"],
   "Collection Runner con CSV (requiere el plan Pro)": ["Collection Runner with CSV (requires the Pro plan)", "Collection Runner mit CSV (erfordert den Pro-Tarif)", "Collection Runner avec CSV (nécessite l’offre Pro)", "Collection Runner con CSV (richiede il piano Pro)"],

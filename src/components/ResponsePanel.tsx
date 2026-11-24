@@ -4,6 +4,7 @@ import { Check, Copy, Download, Filter, Maximize2, Minimize2, X } from "lucide-r
 import { filterResponse } from "../lib/jsonPath";
 import StepList from "./StepList";
 import JsonView from "./JsonView";
+import PdfView from "./PdfView";
 import { openUrl, saveResponseFile } from "../api";
 import type { ResponseData, StepState } from "../types";
 import type { ScriptResult } from "../lib/script";
@@ -37,22 +38,25 @@ export default function ResponsePanel({ response, error, sending, steps, script,
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const kind = response?.kind ?? "text";
   const isFile = kind === "pdf" || kind === "image" || kind === "binary";
-  // Vista previa de PDF e imágenes: los bytes se convierten en una URL temporal (se libera al cambiar de respuesta).
+  // Vista previa de HTML e imágenes: se convierten en una URL temporal (se libera al cambiar de respuesta). El PDF lo dibuja PdfView.
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
     setSaved(null);
     setSaveErr(null);
-    if (!response || !response.bodyB64 || (kind !== "pdf" && kind !== "image")) {
+    if (!response || (kind !== "image" && kind !== "html") || (kind === "image" && !response.bodyB64)) {
       setBlobUrl(null);
       return;
     }
     let url: string | null = null;
     try {
-      const bin = atob(response.bodyB64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const type = kind === "pdf" ? "application/pdf" : response.contentType || "image/png";
-      url = URL.createObjectURL(new Blob([bytes], { type }));
+      if (kind === "html") {
+        url = URL.createObjectURL(new Blob([response.body], { type: "text/html;charset=utf-8" }));
+      } else {
+        const bin = atob(response.bodyB64!);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        url = URL.createObjectURL(new Blob([bytes], { type: response.contentType || "image/png" }));
+      }
     } catch {
       url = null;
     }
@@ -288,15 +292,9 @@ export default function ResponsePanel({ response, error, sending, steps, script,
           </div>
         ) : tab === "body" && kind === "html" ? (
           // Sin scripts, sin formularios ni enlaces activos (sandbox vacío): solo se ve el documento.
-          <iframe title="html" sandbox="" srcDoc={response.body} className="h-full w-full bg-white" />
+          blobUrl ? <iframe title="html" sandbox="" src={blobUrl} className="h-full w-full bg-white" /> : null
         ) : tab === "body" && kind === "pdf" ? (
-          blobUrl ? (
-            <object data={blobUrl} type="application/pdf" className="h-full w-full">
-              <p className="p-4 text-sm text-slate">{t("Este sistema no puede mostrar PDF aquí. Usa «Guardar archivo» para abrirlo.")}</p>
-            </object>
-          ) : (
-            <p className="p-4 text-sm text-slate">{t("No se pudo mostrar el PDF. Usa «Guardar archivo».")}</p>
-          )
+          response.bodyB64 ? <PdfView b64={response.bodyB64} /> : null
         ) : tab === "body" && kind === "image" ? (
           <div className="flex h-full items-center justify-center overflow-auto bg-kelp/40 p-4">
             {blobUrl ? <img src={blobUrl} alt={response.fileName} className="max-h-full max-w-full object-contain" /> : <p className="text-sm text-slate">{t("No se pudo mostrar la imagen.")}</p>}
