@@ -1341,7 +1341,9 @@ async fn execute_request(
                 "2" => builder.http2_prior_knowledge(),
                 _ => builder,
             };
-            builder = builder.timeout(Duration::from_secs(timeout));
+            builder = builder
+                .timeout(Duration::from_secs(timeout))
+                .tcp_keepalive(Duration::from_secs(60));
             let c = builder
                 .redirect(policy)
                 .dns_resolver(std::sync::Arc::new(SafeResolver))
@@ -1425,7 +1427,10 @@ async fn execute_request(
         }
     }
 
-    let mut req = client.request(method, url).headers(headers);
+    let mut req = client
+        .request(method, url)
+        .timeout(Duration::from_secs(timeout))
+        .headers(headers);
     if let Some(b) = text_body {
         req = req.body(b);
     }
