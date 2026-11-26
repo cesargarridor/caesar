@@ -12,6 +12,8 @@ import { requestFromNode, buildExecuteArgs } from "./request.ts";
 import { makeShareLink, parseShareLink } from "./shareLink.ts";
 import { exportCollection } from "./collectionExport.ts";
 import { detectAndParse, exportHar, exportYaml } from "./interchange.ts";
+import { defaultSettings, emptyRequest, parseCurl } from "./curl.ts";
+import { TIMEOUT_DEFAULT, TIMEOUT_MAX, clampTimeoutSecs, formatTimeoutLabel } from "./prefs.ts";
 
 const tr = (r) => ({ kind: "NON_NULL", name: null, ofType: r });
 const list = (r) => ({ kind: "LIST", name: null, ofType: r });
@@ -315,4 +317,23 @@ test("checkJson detecta posición exacta (línea, columna y offset) sin falsear 
   assert.equal(err.col, 3);
   assert.ok(issueText(err).includes("línea 3, columna 3"));
   assert.ok(issueText(err).includes("falta una coma"));
+});
+
+test("timeout predeterminado de 1 hora (3600 s) y configuración máxima", () => {
+  assert.equal(TIMEOUT_DEFAULT, 3600);
+  assert.equal(TIMEOUT_MAX, 3600);
+  assert.equal(defaultSettings().timeoutSecs, 3600);
+  assert.equal(emptyRequest().settings.timeoutSecs, 3600);
+  assert.equal(parseCurl("curl https://api.ejemplo.com/items").settings.timeoutSecs, 3600);
+  assert.equal(parseCurl("curl -m 120 https://api.ejemplo.com/items").settings.timeoutSecs, 120);
+  assert.equal(parseCurl("curl --max-time 99999 https://api.ejemplo.com/items").settings.timeoutSecs, 3600);
+  assert.equal(clampTimeoutSecs(0), 3600);
+  assert.equal(clampTimeoutSecs(-5), 3600);
+  assert.equal(clampTimeoutSecs(7200), 3600);
+  assert.equal(clampTimeoutSecs(45), 45);
+  assert.equal(formatTimeoutLabel(3600), "1 h");
+  assert.equal(formatTimeoutLabel(300), "5 min");
+  assert.equal(formatTimeoutLabel(45), "45 s");
+  const args = buildExecuteArgs({ ...emptyRequest(), settings: { ...defaultSettings(), timeoutSecs: 0 } }, []);
+  assert.equal(args.settings.timeoutSecs, 3600);
 });

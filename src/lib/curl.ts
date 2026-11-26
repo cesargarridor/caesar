@@ -1,5 +1,6 @@
 import type { AuthData, BodyData, KV, RequestState } from "../types";
 import { parseQuery, splitUrl } from "./url.ts";
+import { clampTimeoutSecs, loadTimeoutSecs } from "./prefs.ts";
 
 export const emptyAuth = (): AuthData => ({
   type: "none",
@@ -14,7 +15,7 @@ export const emptyAuth = (): AuthData => ({
 
 export const emptyBody = (): BodyData => ({ mode: "none", raw: "", formdata: [], urlencoded: [] });
 
-export const defaultSettings = () => ({ followRedirects: true, timeoutSecs: 30, verifySsl: true, httpVersion: "auto" as "auto" | "1.1" | "2" });
+export const defaultSettings = () => ({ followRedirects: true, timeoutSecs: loadTimeoutSecs(), verifySsl: true, httpVersion: "auto" as "auto" | "1.1" | "2" });
 
 export const emptyRequest = (): RequestState => ({
   method: "GET",
@@ -157,7 +158,7 @@ export function parseCurl(input: string): RequestState {
   let insecure = false;
   let httpVersion: "auto" | "1.1" | "2" = "auto";
   let follow = true;
-  let timeout = 30;
+  let timeout = loadTimeoutSecs();
 
   for (let i = 1; i < tokens.length; i++) {
     let t = tokens[i];
@@ -240,7 +241,7 @@ export function parseCurl(input: string): RequestState {
       case "-m":
       case "--max-time": {
         const n = parseFloat(next());
-        if (!isNaN(n) && n > 0) timeout = Math.ceil(n);
+        if (!isNaN(n) && n > 0) timeout = clampTimeoutSecs(Math.ceil(n));
         break;
       }
       case "-I":

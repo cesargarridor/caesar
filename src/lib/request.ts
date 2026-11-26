@@ -1,6 +1,7 @@
 import type { AuthData, KV, RequestNode, RequestState, TreeNode } from "../types";
 import { buildUrl, encodeParam } from "./url.ts";
 import { defaultSettings, emptyAuth } from "./curl.ts";
+import { clampTimeoutSecs } from "./prefs.ts";
 import { gqlRaw } from "./graphql.ts";
 import { normWsConfig } from "./ws.ts";
 
@@ -51,7 +52,11 @@ export function buildExecuteArgs(req: RequestState, vars: KV[]) {
       formdata: subKv(req.body.formdata),
       urlencoded: subKv(req.body.urlencoded),
     },
-    settings: req.settings,
+    settings: {
+      ...defaultSettings(),
+      ...req.settings,
+      timeoutSecs: clampTimeoutSecs(req.settings?.timeoutSecs ?? defaultSettings().timeoutSecs),
+    },
   };
 }
 

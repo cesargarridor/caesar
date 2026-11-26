@@ -13,6 +13,7 @@ import { buildExecuteArgs, substitute } from "../lib/request";
 import { signRequest, SIGNED_TYPES } from "../lib/authSign";
 import { INTROSPECTION_QUERY, countTypes, parseAnySchema, parseIntrospection, userTypes, type GqlSchema } from "../lib/graphqlSchema";
 import { clearCachedSchema, loadCachedSchema, saveCachedSchema } from "../lib/graphqlCache";
+import { TIMEOUT_DEFAULT, TIMEOUT_MAX, TIMEOUT_MIN, TIMEOUT_PRESETS, clampTimeoutSecs, formatTimeoutLabel } from "../lib/prefs";
 import { t } from "../lib/i18n";
 
 interface Props {
@@ -270,16 +271,54 @@ export default function GraphqlPanel({
           <div ref={netRef} className="relative flex">
             <button
               onClick={() => setNetOpen((o) => !o)}
-              className={`${icon} ${!settings.verifySsl || !settings.followRedirects ? "!text-aqua" : ""}`}
-              title={t("Opciones de red")}
+              className={`${icon} ${!settings.verifySsl || !settings.followRedirects || settings.timeoutSecs !== TIMEOUT_DEFAULT ? "!text-aqua" : ""}`}
+              title={`${t("Opciones de red")} · Timeout ${formatTimeoutLabel(settings.timeoutSecs)}`}
               aria-label={t("Opciones de red")}
               aria-expanded={netOpen}
             >
               <Settings2 size={14} />
             </button>
             {netOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-xl bg-kelp p-2 shadow-xl ring-1 ring-fg/10">
+              <div className="absolute right-0 top-full z-30 mt-2 w-80 rounded-xl bg-kelp p-2.5 shadow-xl ring-1 ring-fg/10">
                 <p className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate">{t("Opciones de red")}</p>
+                <div className="mb-1 rounded-lg px-2 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-mist">{t("Timeout máximo")}</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={TIMEOUT_MIN}
+                        max={TIMEOUT_MAX}
+                        aria-label={t("Timeout de la petición (segundos)")}
+                        value={settings.timeoutSecs}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            timeoutSecs: clampTimeoutSecs(Number(e.target.value) || TIMEOUT_MAX),
+                          })
+                        }
+                        className="w-20 rounded-lg bg-deep px-2 py-1 text-right text-xs text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+                      />
+                      <span className="text-xs text-slate">s ({formatTimeoutLabel(settings.timeoutSecs)})</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {TIMEOUT_PRESETS.map((p) => (
+                      <button
+                        key={p.secs}
+                        type="button"
+                        onClick={() => setSettings({ ...settings, timeoutSecs: p.secs })}
+                        className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                          settings.timeoutSecs === p.secs
+                            ? "bg-aqua/20 text-aqua ring-1 ring-aqua/60"
+                            : "bg-deep text-slate hover:text-mist ring-1 ring-fg/10"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <Toggle
                   on={!settings.verifySsl}
                   onChange={(v) => setSettings({ ...settings, verifySsl: !v })}
@@ -469,17 +508,36 @@ export default function GraphqlPanel({
 
           {sub === "settings" && (
             <div className="space-y-3 text-sm">
-              <label className="flex flex-wrap items-center gap-2">
-                {t("Timeout de la petición (segundos)")}
-                <input
-                  type="number"
-                  min={0}
-                  max={3600}
-                  className={box}
-                  value={settings.timeoutSecs}
-                  onChange={(e) => setSettings({ ...settings, timeoutSecs: Math.max(0, Number(e.target.value) || 0) })}
-                />
-              </label>
+              <div className="space-y-2">
+                <label className="flex flex-wrap items-center gap-2">
+                  {t("Timeout de la petición (segundos)")}
+                  <input
+                    type="number"
+                    min={TIMEOUT_MIN}
+                    max={TIMEOUT_MAX}
+                    className={box}
+                    value={settings.timeoutSecs}
+                    onChange={(e) => setSettings({ ...settings, timeoutSecs: clampTimeoutSecs(Number(e.target.value) || TIMEOUT_MAX) })}
+                  />
+                  <span className="text-xs text-slate">({formatTimeoutLabel(settings.timeoutSecs)})</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {TIMEOUT_PRESETS.map((p) => (
+                    <button
+                      key={p.secs}
+                      type="button"
+                      onClick={() => setSettings({ ...settings, timeoutSecs: p.secs })}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                        settings.timeoutSecs === p.secs
+                          ? "bg-aqua/20 text-aqua ring-1 ring-aqua/60"
+                          : "bg-deep text-slate hover:text-mist ring-1 ring-fg/10"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

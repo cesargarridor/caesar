@@ -75,7 +75,7 @@ import { activeAfterClose, dirtyIds, idsToClose, type CloseMode } from "./lib/ta
 import { useKeymapVersion } from "./lib/useKeymap";
 import { t, useLang } from "./lib/i18n";
 import {
-  applyFonts, loadAutoUpdate, loadAutosave, saveAutosave, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
+  applyFonts, clampTimeoutSecs, loadAutoUpdate, loadAutosave, loadTimeoutSecs, saveAutosave, saveTimeoutSecs, BASE_METHODS, loadExtraMethods, saveExtraMethods, loadFonts, loadHideEmpty, loadSidebarWidth, saveAutoUpdate, saveFonts, saveHideEmpty,
   saveSidebarWidth, type FontPrefs,
 } from "./lib/prefs";
 import SaveToDialog from "./components/SaveToDialog";
@@ -128,9 +128,36 @@ const NO_TAB: Tab = { id: "", req: emptyRequest(), path: null, name: "", dirty: 
 /** Tabs guardadas: se valida la forma por si el formato cambió. */
 function loadTabs(wsId: string): { tabs: Tab[]; activeId: string } {
   const saved = load<{ tabs?: Tab[]; activeId?: string }>(wsKey("tabs", wsId), {});
-  const tabs = (saved.tabs ?? []).filter(
-    (t) => t && typeof t.id === "string" && t.req && typeof t.req.method === "string" && Array.isArray(t.req.params),
-  );
+  const migKey = `caesar.timeout1h.${wsId}`;
+  let migrateOld30 = false;
+  try {
+    if (localStorage.getItem(migKey) !== "1") {
+      migrateOld30 = true;
+      localStorage.setItem(migKey, "1");
+    }
+  } catch {
+    /* sin almacenamiento */
+  }
+  const defTimeout = loadTimeoutSecs();
+  const tabs = (saved.tabs ?? [])
+    .filter((t) => t && typeof t.id === "string" && t.req && typeof t.req.method === "string" && Array.isArray(t.req.params))
+    .map((t) => {
+      const cur = t.req.settings?.timeoutSecs;
+      const timeoutSecs =
+        migrateOld30 && (cur === 30 || cur === undefined) ? defTimeout : clampTimeoutSecs(cur ?? defTimeout);
+      return {
+        ...t,
+        req: {
+          ...t.req,
+          settings: {
+            followRedirects: t.req.settings?.followRedirects ?? true,
+            verifySsl: t.req.settings?.verifySsl ?? true,
+            httpVersion: t.req.settings?.httpVersion ?? "auto",
+            timeoutSecs,
+          },
+        },
+      };
+    });
   // Lo guardado como [] se respeta (sin pestañas). Solo si no hay clave guardada (primer arranque) se abre una en blanco.
   if (tabs.length === 0) {
     if (Array.isArray(saved.tabs)) return { tabs: [], activeId: "" };
@@ -204,10 +231,24 @@ export default function App() {
   const [upd, setUpd] = useState<UpdateState>({ phase: "idle" });
   const [updPrompt, setUpdPrompt] = useState(false);
   const [autosave, setAutosave] = useState(loadAutosave);
+  const [timeoutSecs, setTimeoutSecs] = useState(loadTimeoutSecs);
   const [extraMethods, setExtraMethods] = useState(loadExtraMethods);
   useEffect(() => saveExtraMethods(extraMethods), [extraMethods]);
   useEffect(() => saveAutosave(autosave), [autosave]);
+  useEffect(() => saveTimeoutSecs(timeoutSecs), [timeoutSecs]);
   useEffect(() => saveAutoUpdate(autoUpdate), [autoUpdate]);
+
+  const handleGlobalTimeout = (secs: number) => {
+    const next = clampTimeoutSecs(secs);
+    setTimeoutSecs(next);
+    saveTimeoutSecs(next);
+    setTabs((ts) =>
+      ts.map((tb) => ({
+        ...tb,
+        req: { ...tb.req, settings: { ...tb.req.settings, timeoutSecs: next } },
+      })),
+    );
+  };
 
   const installNow = async (v: string) => {
     setUpd({ phase: "installing", version: v, downloaded: 0, total: null });
@@ -1618,6 +1659,8 @@ export default function App() {
             onHideEmpty={setHideEmpty}
             autosave={autosave}
             onAutosave={setAutosave}
+            timeoutSecs={timeoutSecs}
+            onTimeoutSecs={handleGlobalTimeout}
             extraMethods={extraMethods}
             onExtraMethods={setExtraMethods}
             initialSection={settingsSection}

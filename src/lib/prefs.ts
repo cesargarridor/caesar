@@ -126,6 +126,55 @@ export function saveExtraMethods(list: string[]) {
 
 const AUTOSAVE_KEY = "caesar.autosave";
 
+export const TIMEOUT_DEFAULT = 3600;
+export const TIMEOUT_MIN = 1;
+export const TIMEOUT_MAX = 3600;
+const TIMEOUT_KEY = "caesar.timeoutSecs";
+
+/** Normaliza un valor de timeout en segundos (0 o inválido -> 3600 s = 1 hora). */
+export function clampTimeoutSecs(secs: number): number {
+  if (!Number.isFinite(secs) || secs <= 0) return TIMEOUT_MAX;
+  return clamp(Math.round(secs), TIMEOUT_MIN, TIMEOUT_MAX);
+}
+
+/** Timeout máximo de las peticiones (segundos): 1 hora (3600 s) por defecto para poder depurar sin cortes. */
+export function loadTimeoutSecs(): number {
+  try {
+    const raw = localStorage.getItem(TIMEOUT_KEY);
+    if (raw === null) return TIMEOUT_DEFAULT;
+    const v = Number(raw);
+    if (Number.isFinite(v) && v >= 0) return clampTimeoutSecs(v);
+  } catch {
+    /* sin almacenamiento */
+  }
+  return TIMEOUT_DEFAULT;
+}
+
+export function saveTimeoutSecs(secs: number) {
+  try {
+    localStorage.setItem(TIMEOUT_KEY, String(clampTimeoutSecs(secs)));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
+/** Formatea segundos de timeout en etiqueta legible (p. ej. "30 s", "5 min", "1 h"). */
+export function formatTimeoutLabel(secs: number): string {
+  const s = clampTimeoutSecs(secs);
+  if (s % 3600 === 0) return `${s / 3600} h`;
+  if (s % 60 === 0) return `${s / 60} min`;
+  return `${s} s`;
+}
+
+export const TIMEOUT_PRESETS: { secs: number; label: string }[] = [
+  { secs: 30, label: "30 s" },
+  { secs: 60, label: "1 min" },
+  { secs: 300, label: "5 min" },
+  { secs: 900, label: "15 min" },
+  { secs: 1800, label: "30 min" },
+  { secs: 3600, label: "1 h" },
+];
+
 /** Autoguardado de las peticiones de una colección: desactivado por defecto. */
 export function loadAutosave(): boolean {
   try {

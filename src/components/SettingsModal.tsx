@@ -8,8 +8,10 @@ import ShortcutsEditor from "./ShortcutsEditor";
 import SyncSettings from "./SyncSettings";
 import SettingsPrivacy from "./SettingsPrivacy";
 import { LANGS, getLang, setLang, t, t as tr, useLang } from "../lib/i18n";
-import { BASE_METHODS, EXTRA_METHODS, setCatAnim, setNetAnim, useCatAnim, useNetAnim } from "../lib/prefs";
-import { FONT_DEFAULTS, FONT_FIELDS, type FontPrefs } from "../lib/prefs";
+import {
+  BASE_METHODS, EXTRA_METHODS, FONT_DEFAULTS, FONT_FIELDS, TIMEOUT_DEFAULT, TIMEOUT_MAX, TIMEOUT_MIN, TIMEOUT_PRESETS,
+  clampTimeoutSecs, formatTimeoutLabel, setCatAnim, setNetAnim, useCatAnim, useNetAnim, type FontPrefs,
+} from "../lib/prefs";
 import { FONT_OPTIONS, applyFontFamily, loadFontId, saveFontId } from "../lib/fonts";
 
 export interface UpdatesProps {
@@ -30,6 +32,8 @@ interface Props {
   onHideEmpty: (on: boolean) => void;
   autosave: boolean;
   onAutosave: (on: boolean) => void;
+  timeoutSecs: number;
+  onTimeoutSecs: (secs: number) => void;
   extraMethods: string[];
   onExtraMethods: (m: string[]) => void;
   initialSection?: "ui" | "edit" | "sync";
@@ -264,9 +268,66 @@ function MethodControls({ extra, onExtra }: { extra: string[]; onExtra: (m: stri
   );
 }
 
-function EditControls({ autosave, onAutosave, extraMethods, onExtraMethods }: { autosave: boolean; onAutosave: (on: boolean) => void; extraMethods: string[]; onExtraMethods: (m: string[]) => void }) {
+function EditControls({
+  autosave,
+  onAutosave,
+  timeoutSecs,
+  onTimeoutSecs,
+  extraMethods,
+  onExtraMethods,
+}: {
+  autosave: boolean;
+  onAutosave: (on: boolean) => void;
+  timeoutSecs: number;
+  onTimeoutSecs: (secs: number) => void;
+  extraMethods: string[];
+  onExtraMethods: (m: string[]) => void;
+}) {
   return (
     <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-1">
+      <section>
+        <h3 className="mb-1 text-lg text-mist">{t("Timeout máximo de petición")}</h3>
+        <p className="mb-3 text-xs text-slate">
+          {t("Tiempo máximo que Caesar mantiene abierta una petición esperando al servidor antes de cortar. Por defecto es 1 hora (3600 s) para poder depurar con breakpoints sin cortes. También puedes cambiarlo por petición desde el botón de Opciones de red junto a Enviar.")}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={TIMEOUT_MIN}
+              max={TIMEOUT_MAX}
+              value={timeoutSecs}
+              onChange={(e) => e.target.value !== "" && onTimeoutSecs(clampTimeoutSecs(Number(e.target.value)))}
+              className="w-24 rounded-lg bg-deep px-3 py-1.5 text-right text-sm text-mist outline-none ring-1 ring-fg/10 focus:ring-aqua"
+            />
+            <span className="text-xs text-slate">s ({formatTimeoutLabel(timeoutSecs)})</span>
+            <button
+              onClick={() => onTimeoutSecs(TIMEOUT_DEFAULT)}
+              disabled={timeoutSecs === TIMEOUT_DEFAULT}
+              className="rounded p-1 text-slate hover:text-mist disabled:opacity-30"
+              title={`${t("Restablecer")} (${TIMEOUT_DEFAULT} s / 1 h)`}
+            >
+              <RotateCcw size={14} />
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {TIMEOUT_PRESETS.map((p) => (
+              <button
+                key={p.secs}
+                type="button"
+                onClick={() => onTimeoutSecs(p.secs)}
+                className={`rounded-lg px-3 py-1 text-xs font-medium transition ${
+                  timeoutSecs === p.secs
+                    ? "bg-aqua/20 text-aqua ring-1 ring-aqua/60"
+                    : "bg-deep text-slate hover:text-mist ring-1 ring-fg/10"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
       <section>
         <h3 className="mb-1 text-lg text-mist">{t("Métodos HTTP")}</h3>
         <p className="mb-3 text-xs text-slate">{t("Elige qué métodos aparecen en el desplegable de la petición. También puedes abrir esta pantalla con «+ Más métodos…» al final de ese desplegable.")}</p>
@@ -384,7 +445,7 @@ function Block({ title, hint, children }: { title: string; hint: string; childre
   );
 }
 
-export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, extraMethods, onExtraMethods, initialSection, sharedCount, onBeforeSignOut, onSignedOut, updates, onClose }: Props) {
+export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEmpty, onHideEmpty, autosave, onAutosave, timeoutSecs, onTimeoutSecs, extraMethods, onExtraMethods, initialSection, sharedCount, onBeforeSignOut, onSignedOut, updates, onClose }: Props) {
   useLang();
   const { mode, setMode } = useTheme();
   const MODES: [ColorMode, string][] = [["light", "Claro"], ["dark", "Oscuro"], ["system", "Sistema"]];
@@ -480,7 +541,7 @@ export default function SettingsModal({ themeId, onTheme, fonts, onFonts, hideEm
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {section === "edit" ? (
-          <EditControls autosave={autosave} onAutosave={onAutosave} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
+          <EditControls autosave={autosave} onAutosave={onAutosave} timeoutSecs={timeoutSecs} onTimeoutSecs={onTimeoutSecs} extraMethods={extraMethods} onExtraMethods={onExtraMethods} />
         ) : section === "privacy" ? (<SettingsPrivacy version={updates.version} />) : section === "sync" ? (<SyncSettings sharedCount={sharedCount} onBeforeSignOut={onBeforeSignOut} onSignedOut={onSignedOut} />) : section === "cat" ? (
           <CatControls />
         ) : section === "lang" ? (
